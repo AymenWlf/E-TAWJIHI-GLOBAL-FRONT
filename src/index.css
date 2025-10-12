@@ -1,0 +1,741 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 🎓 CHARTE GRAPHIQUE E-TAWJIHI - ÉDUCATION & ORIENTATION */
+
+/* ========================================
+   🎨 PALETTE DE COULEURS ÉDUCATIVES - E-TAWJIHI GLOBAL
+======================================== */
+:root {
+  /* Couleurs principales - E-TAWJIHI Brand Colors */
+  --primary-blue: #1E40AF;        /* Bleu E-TAWJIHI - confiance, savoir */
+  --primary-blue-hover: #1E3A8A;  /* Bleu foncé pour hover */
+  --secondary-emerald: #047857;   /* Vert E-TAWJIHI - croissance, succès */
+  --secondary-emerald-hover: #065F46;
+  
+  /* Couleurs d'accent - Palette E-TAWJIHI */
+  --accent-cyan: #0E7490;         /* Cyan foncé - innovation, technologie */
+  --accent-teal: #0F766E;         /* Turquoise foncé - sérénité */
+  --accent-indigo: #3730A3;       /* Indigo foncé - excellence */
+  --accent-purple: #6B21A8;       /* Violet foncé - créativité */
+  
+  /* Couleurs neutres - Lisibilité et élégance */
+  --background: #FFFFFF;
+  --background-soft: #F8FAFC;     /* Gris très pâle - sections alternées */
+  --background-card: #FFFFFF;
+  --text-primary: #0F172A;        /* Gris anthracite - lisibilité maximale */
+  --text-secondary: #475569;      /* Gris moyen - textes secondaires */
+  --text-muted: #64748B;          /* Gris clair - annotations */
+  --border: #E2E8F0;              /* Bordures subtiles */
+  --border-light: #F1F5F9;       /* Bordures très claires */
+  
+  /* Couleurs de statut - Feedback utilisateur */
+  --success: #10B981;             /* Vert succès */
+  --warning: #F59E0B;             /* Jaune attention */
+  --error: #EF4444;               /* Rouge erreur */
+  --info: #3B82F6;                /* Bleu information */
+  
+  /* Couleurs solides - E-TAWJIHI Brand (sans dégradés) */
+  --solid-primary: #1E40AF;        /* Bleu E-TAWJIHI */
+  --solid-secondary: #047857;      /* Vert E-TAWJIHI */
+  --solid-accent: #0E7490;         /* Cyan E-TAWJIHI */
+  --solid-soft: #F8FAFC;           /* Gris très pâle */
+}
+
+/* ========================================
+   📚 TYPOGRAPHIE ÉDUCATIVE
+======================================== */
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    font-size: 16px;
+  }
+  
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    color: var(--text-primary);
+    background-color: var(--background);
+    line-height: 1.6;
+    letter-spacing: -0.01em;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+  }
+  
+  h1 { font-size: 3.5rem; }
+  h2 { font-size: 2.5rem; }
+  h3 { font-size: 2rem; }
+  h4 { font-size: 1.5rem; }
+  h5 { font-size: 1.25rem; }
+  h6 { font-size: 1.125rem; }
+  
+  p {
+    color: var(--text-secondary);
+    line-height: 1.7;
+  }
+  
+  .text-large {
+    font-size: 1.125rem;
+    line-height: 1.6;
+  }
+}
+
+/* ========================================
+   🎯 COMPOSANTS ÉDUCATIFS
+======================================== */
+@layer components {
+  /* Boutons éducatifs */
+  .btn-primary {
+    @apply bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold px-8 py-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 border-0;
+  }
+  
+  .btn-secondary {
+    @apply bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold px-8 py-4 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1;
+  }
+  
+  .btn-outline {
+    @apply border-2 border-[#2563EB] hover:bg-[#2563EB] text-[#2563EB] hover:text-white bg-white font-semibold px-8 py-4 rounded-xl transition-all duration-300;
+  }
+  
+  .btn-success {
+    @apply bg-[#059669] hover:bg-[#047857] text-white font-semibold px-6 py-3 rounded-lg transition-all duration-300;
+  }
+  
+  .btn-warning {
+    @apply bg-[#EA580C] hover:bg-[#DC2626] text-white font-semibold px-6 py-3 rounded-lg transition-all duration-300;
+  }
+  
+  /* Cards éducatives */
+  .card-education {
+    @apply bg-white border border-[#E2E8F0] rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 p-8 relative overflow-hidden;
+  }
+  
+  .card-education::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--solid-primary);
+  }
+  
+  .card-featured {
+    @apply bg-[#2563EB] text-white border-0 shadow-2xl;
+  }
+  
+  .card-school {
+    @apply bg-white border border-[#E2E8F0] rounded-xl shadow-sm hover:shadow-lg transition-all duration-300 p-6 h-full;
+  }
+  
+  .card-pricing {
+    @apply bg-white border-2 border-[#E2E8F0] hover:border-[#2563EB] rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 p-8 relative;
+  }
+  
+  .card-pricing.featured {
+    @apply border-[#2563EB] shadow-xl scale-105;
+  }
+  
+  /* Badges éducatifs */
+  .badge-primary {
+    @apply bg-[#2563EB] text-white px-4 py-2 rounded-full text-sm font-semibold;
+  }
+  
+  .badge-secondary {
+    @apply bg-[#7C3AED] text-white px-4 py-2 rounded-full text-sm font-semibold;
+  }
+  
+  .badge-success {
+    @apply bg-[#059669] text-white px-4 py-2 rounded-full text-sm font-semibold;
+  }
+  
+  .badge-warning {
+    @apply bg-[#EA580C] text-white px-4 py-2 rounded-full text-sm font-semibold;
+  }
+  
+  .badge-info {
+    @apply bg-[#3B82F6] text-white px-4 py-2 rounded-full text-sm font-semibold;
+  }
+  
+  .badge-outline {
+    @apply bg-white border-2 border-[#E2E8F0] text-[#475569] px-4 py-2 rounded-full text-sm font-semibold;
+  }
+  
+  .badge-sponsored {
+    @apply bg-[#EA580C] text-white px-3 py-1 rounded-full text-xs font-bold;
+  }
+  
+  /* Types d'établissements */
+  .badge-public {
+    @apply bg-[#059669] text-white px-3 py-1 rounded-full text-sm font-medium;
+  }
+  
+  .badge-private {
+    @apply bg-[#2563EB] text-white px-3 py-1 rounded-full text-sm font-medium;
+  }
+  
+  .badge-semi-public {
+    @apply bg-[#7C3AED] text-white px-3 py-1 rounded-full text-sm font-medium;
+  }
+  
+  .badge-military {
+    @apply bg-[#475569] text-white px-3 py-1 rounded-full text-sm font-medium;
+  }
+  
+  /* Sections */
+  .section-white {
+    @apply bg-white;
+  }
+  
+  .section-soft {
+    @apply bg-[#F8FAFC];
+  }
+  
+  .section-soft-solid {
+    background: var(--solid-soft);
+  }
+  
+  /* Navigation éducative */
+  .nav-link {
+    @apply text-[#475569] hover:text-[#2563EB] font-medium transition-colors duration-200 px-4 py-2 rounded-lg hover:bg-[#F8FAFC];
+  }
+  
+  .nav-link-active {
+    @apply text-[#2563EB] font-semibold bg-[#F8FAFC];
+  }
+  
+  /* Formulaires éducatifs */
+  .form-input {
+    @apply border-2 border-[#E2E8F0] focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/20 rounded-xl px-4 py-3 text-[#0F172A] placeholder-[#64748B] transition-all duration-200 bg-white;
+  }
+  
+  .form-select {
+    @apply border-2 border-[#E2E8F0] focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/20 rounded-xl px-4 py-3 text-[#0F172A] bg-white transition-all duration-200;
+  }
+  
+  .form-textarea {
+    @apply border-2 border-[#E2E8F0] focus:border-[#2563EB] focus:ring-4 focus:ring-[#2563EB]/20 rounded-xl px-4 py-3 text-[#0F172A] placeholder-[#64748B] transition-all duration-200 bg-white resize-none;
+  }
+  
+  /* Alertes éducatives */
+  .alert-success {
+    @apply bg-[#059669]/10 border-l-4 border-[#059669] text-[#047857] p-4 rounded-r-lg;
+  }
+  
+  .alert-warning {
+    @apply bg-[#EA580C]/10 border-l-4 border-[#EA580C] text-[#DC2626] p-4 rounded-r-lg;
+  }
+  
+  .alert-info {
+    @apply bg-[#3B82F6]/10 border-l-4 border-[#3B82F6] text-[#1D4ED8] p-4 rounded-r-lg;
+  }
+  
+  .alert-error {
+    @apply bg-[#EF4444]/10 border-l-4 border-[#EF4444] text-[#DC2626] p-4 rounded-r-lg;
+  }
+}
+
+/* ========================================
+   ✨ UTILITAIRES ÉDUCATIFS
+======================================== */
+@layer utilities {
+  /* Animations éducatives */
+  .animate-fade-in {
+    animation: fadeIn 0.8s ease-out;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.8s ease-out;
+  }
+  
+  .animate-bounce-gentle {
+    animation: bounceGentle 2s infinite;
+  }
+  
+  .animate-pulse-gentle {
+    animation: pulseGentle 3s infinite;
+  }
+  
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  /* Effets de survol éducatifs */
+  .hover-lift {
+    @apply transition-transform duration-300 hover:-translate-y-2;
+  }
+  
+  .hover-scale {
+    @apply transition-transform duration-300 hover:scale-105;
+  }
+  
+  .hover-glow {
+    @apply transition-all duration-300;
+  }
+  
+  .hover-glow:hover {
+    box-shadow: 0 0 30px rgba(37, 99, 235, 0.3);
+  }
+  
+  /* Couleurs solides */
+  .text-primary-solid {
+    color: var(--solid-primary);
+  }
+  
+  .text-secondary-solid {
+    color: var(--solid-secondary);
+  }
+  
+  .text-accent-solid {
+    color: var(--solid-accent);
+  }
+  
+  .bg-primary-solid {
+    background-color: var(--solid-primary);
+  }
+  
+  .bg-secondary-solid {
+    background-color: var(--solid-secondary);
+  }
+  
+  .bg-accent-solid {
+    background-color: var(--solid-accent);
+  }
+  
+  /* Ombres éducatives */
+  .shadow-education {
+    box-shadow: 0 4px 25px rgba(37, 99, 235, 0.15);
+  }
+  
+  .shadow-education-lg {
+    box-shadow: 0 8px 40px rgba(37, 99, 235, 0.2);
+  }
+  
+  .shadow-success {
+    box-shadow: 0 4px 25px rgba(5, 150, 105, 0.15);
+  }
+  
+  .shadow-warm {
+    box-shadow: 0 4px 25px rgba(234, 88, 12, 0.15);
+  }
+  
+  /* Bordures éducatives */
+  .border-education {
+    border-color: var(--border);
+  }
+  
+  .border-primary {
+    border-color: var(--primary-blue);
+  }
+  
+  .border-success {
+    border-color: var(--success);
+  }
+  
+  /* Textes éducatifs */
+  .text-primary-education {
+    color: var(--primary-blue);
+  }
+  
+  .text-secondary-education {
+    color: var(--secondary-purple);
+  }
+  
+  .text-success-education {
+    color: var(--success);
+  }
+  
+  .text-warning-education {
+    color: var(--warning);
+  }
+  
+  .text-muted-education {
+    color: var(--text-muted);
+  }
+  
+  /* Backgrounds éducatifs */
+  .bg-primary-education {
+    background-color: var(--primary-blue);
+  }
+  
+  .bg-secondary-education {
+    background-color: var(--secondary-purple);
+  }
+  
+  .bg-soft-education {
+    background-color: var(--background-soft);
+  }
+  
+  /* Line clamps */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .line-clamp-4 {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* ========================================
+   🎬 ANIMATIONS ÉDUCATIVES
+======================================== */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounceGentle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes pulseGentle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+/* Animations spécifiques E-TAWJIHI Global */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes spin-reverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(37, 99, 235, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(5, 150, 105, 0.5);
+  }
+}
+
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 20s linear infinite;
+}
+
+.animate-spin-reverse {
+  animation: spin-reverse 15s linear infinite;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+.animate-gradient-shift {
+  background-size: 200% 200%;
+  animation: gradient-shift 4s ease infinite;
+}
+
+/* ========================================
+   🎯 ÉTATS INTERACTIFS
+======================================== */
+/* Focus states pour l'accessibilité */
+button:focus,
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 3px solid var(--primary-blue);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+/* Selection personnalisée */
+::selection {
+  background: var(--primary-blue);
+  color: white;
+}
+
+/* Scrollbar éducative */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background-soft);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary-blue);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-blue-hover);
+}
+
+/* ========================================
+   📱 RESPONSIVE ÉDUCATIF
+======================================== */
+@media (max-width: 768px) {
+  :root {
+    font-size: 14px;
+  }
+  
+  h1 { font-size: 2.5rem; }
+  h2 { font-size: 2rem; }
+  h3 { font-size: 1.75rem; }
+  
+  .btn-primary,
+  .btn-secondary,
+  .btn-outline {
+    @apply px-6 py-3 text-sm;
+  }
+  
+  .card-education,
+  .card-pricing {
+    @apply p-6;
+  }
+  
+  .py-20 {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+  
+  .px-6 {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  h1 { font-size: 2rem; }
+  h2 { font-size: 1.75rem; }
+  
+  .card-education,
+  .card-pricing {
+    @apply p-4;
+  }
+}
+
+/* ========================================
+   🖨️ PRINT STYLES
+======================================== */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  * {
+    color: black !important;
+    background: white !important;
+  }
+}
+
+/* ========================================
+   🌙 DARK MODE SUPPORT (Optionnel)
+======================================== */
+@media (prefers-color-scheme: dark) {
+  .dark-mode {
+    --background: #0F172A;
+    --background-soft: #1E293B;
+    --text-primary: #F8FAFC;
+    --text-secondary: #CBD5E1;
+    --border: #334155;
+  }
+}
+
+/* ========================================
+   🎨 ÉLÉMENTS DÉCORATIFS ÉDUCATIFS
+======================================== */
+.decoration-dots {
+  background-image: radial-gradient(circle, var(--primary-blue) 1px, transparent 1px);
+  background-size: 20px 20px;
+  opacity: 0.1;
+}
+
+.decoration-grid {
+  background-image: 
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 50px 50px;
+  opacity: 0.05;
+}
+
+/* Éléments flottants éducatifs */
+.floating-element {
+  position: absolute;
+  pointer-events: none;
+  opacity: 0.1;
+}
+
+.floating-book {
+  animation: float 8s ease-in-out infinite;
+}
+
+.floating-graduation {
+  animation: float 6s ease-in-out infinite reverse;
+}
+
+/* ========================================
+   🏆 COMPOSANTS SPÉCIALISÉS ÉDUCATION
+======================================== */
+/* Timeline éducative */
+.timeline-item {
+  @apply relative pl-8 pb-8;
+}
+
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 3px;
+  height: 100%;
+  background: var(--solid-primary);
+  border-radius: 2px;
+}
+
+.timeline-item::after {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 8px;
+  width: 15px;
+  height: 15px;
+  background: var(--primary-blue);
+  border-radius: 50%;
+  border: 3px solid white;
+  box-shadow: 0 0 0 3px var(--primary-blue);
+}
+
+/* Stats éducatives */
+.stat-card {
+  @apply text-center p-6 rounded-xl bg-white border border-[#E2E8F0] hover:shadow-lg transition-all duration-300;
+}
+
+.stat-number {
+  @apply text-4xl font-bold mb-2;
+  color: var(--solid-primary);
+}
+
+.stat-label {
+  @apply text-[#475569] font-medium;
+}
+
+/* Testimonial éducatif */
+.testimonial-card {
+  @apply bg-white p-8 rounded-2xl shadow-lg relative;
+}
+
+.testimonial-card::before {
+  content: '"';
+  position: absolute;
+  top: -10px;
+  left: 20px;
+  font-size: 4rem;
+  color: var(--primary-blue);
+  font-family: serif;
+  opacity: 0.3;
+}
+
+/* Progress bar éducative */
+.progress-education {
+  @apply w-full bg-[#E2E8F0] rounded-full h-3 overflow-hidden;
+}
+
+.progress-fill-education {
+  @apply h-full rounded-full transition-all duration-500;
+  background: var(--solid-primary);
+}
+
+/* Accordion éducatif */
+.accordion-education {
+  @apply border border-[#E2E8F0] rounded-xl overflow-hidden;
+}
+
+.accordion-header-education {
+  @apply bg-[#F8FAFC] hover:bg-[#E2E8F0] transition-colors duration-200 p-4 cursor-pointer font-semibold text-[#0F172A];
+}
+
+.accordion-content-education {
+  @apply bg-white p-4 border-t border-[#E2E8F0] text-[#475569];
+}
+
+/* Tooltip éducatif */
+.tooltip-education {
+  @apply absolute z-50 px-3 py-2 text-sm text-white bg-[#0F172A] rounded-lg shadow-lg pointer-events-none;
+}
+
+.tooltip-education::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #0F172A transparent transparent transparent;
+}
