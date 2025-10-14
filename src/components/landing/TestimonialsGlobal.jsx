@@ -45,7 +45,7 @@ const TestimonialsGlobal = ({ language }) => {
           image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face"
         },
         {
-          text: "AIDVISOR helped me discover programs I never knew existed. The personalized recommendations were exactly what I needed for my career goals.",
+          text: "E-DVISOR helped me discover programs I never knew existed. The personalized recommendations were exactly what I needed for my career goals.",
           author: "Ahmed Benali",
           role: "Engineering Student",
           university: "Technical University of Munich, Germany",
@@ -112,7 +112,7 @@ const TestimonialsGlobal = ({ language }) => {
           image: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&h=100&fit=crop&crop=face"
         },
         {
-          text: "AIDVISOR m'a aidé à découvrir des programmes dont je ne connaissais pas l'existence. Les recommandations personnalisées étaient exactement ce dont j'avais besoin pour mes objectifs de carrière.",
+          text: "E-DVISOR m'a aidé à découvrir des programmes dont je ne connaissais pas l'existence. Les recommandations personnalisées étaient exactement ce dont j'avais besoin pour mes objectifs de carrière.",
           author: "Ahmed Benali",
           role: "Étudiant en Ingénierie",
           university: "Université Technique de Munich, Allemagne",

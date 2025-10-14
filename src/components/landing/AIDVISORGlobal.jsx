@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Bot, Target, Settings, MessageCircle, Sparkles, ArrowRight, CheckCircle, Star, Zap, Brain, Globe, Users } from 'lucide-react';
 
-const AIDVISORGlobal = ({ language }) => {
+const EDVISORGlobal = ({ language }) => {
   const [activeFeature, setActiveFeature] = useState(0);
   const [isTyping, setIsTyping] = useState(false);
   const [currentMessage, setCurrentMessage] = useState('');
 
   const content = {
     en: {
-      title: "Meet AIDVISOR — your personal study assistant.",
+      title: "Meet E-DVISOR — your personal study assistant.",
       subtitle: "Our AI helps you filter thousands of programs worldwide and recommends the ones that truly match your goals, profile, and budget.",
-      cta: "Try AIDVISOR Now",
+      cta: "Try E-DVISOR Now",
       features: [
         {
           icon: Target,
@@ -29,16 +29,16 @@ const AIDVISORGlobal = ({ language }) => {
         }
       ],
       demoMessages: [
-        "Hi! I'm AIDVISOR, your personal study assistant. How can I help you today?",
+        "Hi! I'm E-DVISOR, your personal study assistant. How can I help you today?",
         "Based on your interests in Computer Science, here are 3 top programs in Canada 🇨🇦",
         "I found 12 programs that match your budget and academic profile. Would you like to see them?",
         "Great choice! The University of Toronto has an excellent CS program. Let me help you with the application process."
       ]
     },
     fr: {
-      title: "Rencontrez AIDVISOR — votre assistant d'études personnel.",
+      title: "Rencontrez E-DVISOR — votre assistant d'études personnel.",
       subtitle: "Notre IA vous aide à filtrer des milliers de programmes dans le monde et recommande ceux qui correspondent vraiment à vos objectifs, profil et budget.",
-      cta: "Essayer AIDVISOR Maintenant",
+      cta: "Essayer E-DVISOR Maintenant",
       features: [
         {
           icon: Target,
@@ -57,7 +57,7 @@ const AIDVISORGlobal = ({ language }) => {
         }
       ],
       demoMessages: [
-        "Salut ! Je suis AIDVISOR, votre assistant d'études personnel. Comment puis-je vous aider aujourd'hui ?",
+        "Salut ! Je suis E-DVISOR, votre assistant d'études personnel. Comment puis-je vous aider aujourd'hui ?",
         "Basé sur vos intérêts en Informatique, voici 3 programmes de premier plan au Canada 🇨🇦",
         "J'ai trouvé 12 programmes qui correspondent à votre budget et profil académique. Voulez-vous les voir ?",
         "Excellent choix ! L'Université de Toronto a un excellent programme d'informatique. Laissez-moi vous aider avec le processus de candidature."
@@ -170,7 +170,7 @@ const AIDVISORGlobal = ({ language }) => {
             </div>
           </div>
 
-          {/* Right Side - AIDVISOR Demo */}
+          {/* Right Side - E-DVISOR Demo */}
           <div className="relative mt-8 lg:mt-0">
             {/* Chat Interface */}
             <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
@@ -181,7 +181,7 @@ const AIDVISORGlobal = ({ language }) => {
                     <Bot className="w-6 h-6 sm:w-7 sm:h-7" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-base sm:text-lg text-white">AIDVISOR</h3>
+                    <h3 className="font-semibold text-base sm:text-lg text-white">E-DVISOR</h3>
                     <p className="text-blue-100 text-xs sm:text-sm">AI Study Assistant</p>
                   </div>
                   <div className="ml-auto flex items-center space-x-2">
@@ -205,12 +205,12 @@ const AIDVISORGlobal = ({ language }) => {
                   </div>
                 </div>
 
-                {/* AIDVISOR Response */}
+                {/* E-DVISOR Response */}
                 <div className="flex justify-start mb-4">
                   <div className="bg-white border border-gray-200 px-3 sm:px-4 py-2 sm:py-3 rounded-2xl rounded-bl-md max-w-xs shadow-sm">
                     <div className="flex items-center space-x-2 mb-2">
                       <Bot className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600" />
-                      <span className="text-xs font-medium text-gray-500">AIDVISOR</span>
+                      <span className="text-xs font-medium text-gray-500">E-DVISOR</span>
                     </div>
                     <p className="text-xs sm:text-sm text-gray-800">
                       {currentMessage}
@@ -261,7 +261,7 @@ const AIDVISORGlobal = ({ language }) => {
                   <div className="flex-1 bg-gray-100 rounded-full px-4 py-2">
                     <input
                       type="text"
-                      placeholder={language === 'en' ? "Ask AIDVISOR anything..." : "Demandez n'importe quoi à AIDVISOR..."}
+                      placeholder={language === 'en' ? "Ask E-DVISOR anything..." : "Demandez n'importe quoi à E-DVISOR..."}
                       className="w-full bg-transparent text-sm focus:outline-none"
                     />
                   </div>
@@ -338,4 +338,4 @@ const AIDVISORGlobal = ({ language }) => {
   );
 };
 
-export default AIDVISORGlobal;
+export default EDVISORGlobal;

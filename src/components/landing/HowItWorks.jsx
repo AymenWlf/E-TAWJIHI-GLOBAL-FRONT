@@ -11,7 +11,7 @@ const HowItWorks = ({ language }) => {
         {
           icon: Compass,
           title: "Get Oriented",
-          description: "Take the test & meet AIDVISOR.",
+          description: "Take the test & meet E-DVISOR.",
           details: "Complete our comprehensive assessment and get personalized recommendations from our AI assistant.",
           color: "from-blue-500 to-blue-600",
           bgColor: "bg-blue-50",
@@ -62,7 +62,7 @@ const HowItWorks = ({ language }) => {
         {
           icon: Compass,
           title: "S'orienter",
-          description: "Passez le test et rencontrez AIDVISOR.",
+          description: "Passez le test et rencontrez E-DVISOR.",
           details: "Complétez notre évaluation complète et obtenez des recommandations personnalisées de notre assistant IA.",
           color: "from-blue-500 to-blue-600",
           bgColor: "bg-blue-50",

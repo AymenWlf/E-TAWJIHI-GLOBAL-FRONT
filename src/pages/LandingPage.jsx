@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Hero from '../components/landing/Hero';
 import About from '../components/landing/About';
-import AIDVISOR from '../components/landing/AIDVISOR';
+import EDVISOR from '../components/landing/AIDVISOR';
 import Search from '../components/landing/Search';
 import Services from '../components/landing/Services';
 import Agents from '../components/landing/Agents';
@@ -53,7 +53,7 @@ const LandingPage = () => {
       >
         <Hero language={language} />
         <About language={language} />
-        <AIDVISOR language={language} />
+        <EDVISOR language={language} />
         <Search language={language} />
         <Services language={language} />
         <Agents language={language} />

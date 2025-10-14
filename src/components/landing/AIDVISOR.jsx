@@ -2,17 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, MessageCircle, Sparkles, ArrowRight, CheckCircle, Star } from 'lucide-react';
 
-const AIDVISOR = ({ language }) => {
+const EDVISOR = ({ language }) => {
   const [currentMessage, setCurrentMessage] = useState(0);
   const [isTyping, setIsTyping] = useState(false);
 
   const content = {
     en: {
-      title: "Meet AIDVISOR — your personal education AI",
-      description: "AIDVISOR analyzes your academic background, interests, and goals to recommend programs, countries, and institutions that fit your ambitions.",
-      cta: "Try AIDVISOR now",
+      title: "Meet E-DVISOR — your personal education AI",
+      description: "E-DVISOR analyzes your academic background, interests, and goals to recommend programs, countries, and institutions that fit your ambitions.",
+      cta: "Try E-DVISOR now",
       demo: {
-        title: "See AIDVISOR in action",
+        title: "See E-DVISOR in action",
         messages: [
           {
             type: "user",
@@ -44,11 +44,11 @@ const AIDVISOR = ({ language }) => {
       ]
     },
     fr: {
-      title: "Rencontrez AIDVISOR — votre IA éducative personnelle",
-      description: "AIDVISOR analyse votre parcours académique, vos intérêts et vos objectifs pour recommander des programmes, pays et institutions qui correspondent à vos ambitions.",
-      cta: "Essayez AIDVISOR maintenant",
+      title: "Rencontrez E-DVISOR — votre IA éducative personnelle",
+      description: "E-DVISOR analyse votre parcours académique, vos intérêts et vos objectifs pour recommander des programmes, pays et institutions qui correspondent à vos ambitions.",
+      cta: "Essayez E-DVISOR maintenant",
       demo: {
-        title: "Voir AIDVISOR en action",
+        title: "Voir E-DVISOR en action",
         messages: [
           {
             type: "user",
@@ -134,7 +134,7 @@ const AIDVISOR = ({ language }) => {
                 <Bot className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-white font-semibold">AIDVISOR</h3>
+                <h3 className="text-white font-semibold">E-DVISOR</h3>
                 <p className="text-gray-400 text-sm">Online now</p>
               </div>
             </div>
@@ -239,4 +239,4 @@ const AIDVISOR = ({ language }) => {
   );
 };
 
-export default AIDVISOR;
+export default EDVISOR;

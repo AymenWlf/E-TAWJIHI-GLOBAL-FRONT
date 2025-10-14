@@ -6,14 +6,14 @@ const Hero = ({ language }) => {
   const content = {
     en: {
       headline: "Find your path. Anywhere in the world.",
-      subtext: "E-TAWJIHI helps students discover, apply, and succeed in top institutions worldwide — guided by AIDVISOR, our intelligent study advisor.",
+      subtext: "E-TAWJIHI helps students discover, apply, and succeed in top institutions worldwide — guided by E-DVISOR, our intelligent study advisor.",
       cta1: "🎓 Start your journey",
       cta2: "🏫 Reference your institution",
       tagline: "Your Global Education Gateway"
     },
     fr: {
       headline: "Trouvez votre voie. Partout dans le monde.",
-      subtext: "E-TAWJIHI aide les étudiants à découvrir, postuler et réussir dans les meilleures institutions mondiales — guidés par AIDVISOR, notre conseiller d'études intelligent.",
+      subtext: "E-TAWJIHI aide les étudiants à découvrir, postuler et réussir dans les meilleures institutions mondiales — guidés par E-DVISOR, notre conseiller d'études intelligent.",
       cta1: "🎓 Commencez votre parcours",
       cta2: "🏫 Référencez votre institution",
       tagline: "Votre Portail Éducatif Mondial"

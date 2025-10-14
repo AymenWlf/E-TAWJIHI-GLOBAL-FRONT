@@ -19,7 +19,7 @@ const FooterGlobal = ({ language }) => {
       services: {
         title: "Services",
         links: [
-          { name: "AIDVISOR", href: "#aidvisor" },
+          { name: "E-DVISOR", href: "#aidvisor" },
           { name: "Search Programs", href: "#search" },
           { name: "Visa Assistance", href: "#services" },
           { name: "Student Housing", href: "#services" },
@@ -60,7 +60,7 @@ const FooterGlobal = ({ language }) => {
       services: {
         title: "Services",
         links: [
-          { name: "AIDVISOR", href: "#aidvisor" },
+          { name: "E-DVISOR", href: "#aidvisor" },
           { name: "Rechercher Programmes", href: "#search" },
           { name: "Assistance Visa", href: "#services" },
           { name: "Logement Étudiant", href: "#services" },

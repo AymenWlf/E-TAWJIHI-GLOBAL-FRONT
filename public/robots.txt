@@ -1,0 +1,24 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://e-tawjihi-global.com/sitemap.xml
+
+# Disallow admin and private areas
+Disallow: /admin/
+Disallow: /api/
+Disallow: /private/
+Disallow: /_next/
+Disallow: /static/
+
+# Allow important pages
+Allow: /
+Allow: /services
+Allow: /establishments
+Allow: /institution-registration
+Allow: /agent-registration
+Allow: /ambassador-registration
+Allow: /sponsor-registration
+
+# Crawl delay
+Crawl-delay: 1

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  
+  <!-- Homepage -->
+  <url>
+    <loc>https://e-tawjihi-global.com/</loc>
+    <lastmod>2024-01-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://e-tawjihi-global.com/" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://e-tawjihi-global.com/fr/" />
+  </url>
+  
+  <!-- Services Page -->
+  <url>
+    <loc>https://e-tawjihi-global.com/services</loc>
+    <lastmod>2024-01-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://e-tawjihi-global.com/services" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://e-tawjihi-global.com/fr/services" />
+  </url>
+  
+  <!-- Establishments Page -->
+  <url>
+    <loc>https://e-tawjihi-global.com/establishments</loc>
+    <lastmod>2024-01-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://e-tawjihi-global.com/establishments" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://e-tawjihi-global.com/fr/establishments" />
+  </url>
+  
+  <!-- Institution Registration -->
+  <url>
+    <loc>https://e-tawjihi-global.com/institution-registration</loc>
+    <lastmod>2024-01-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://e-tawjihi-global.com/institution-registration" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://e-tawjihi-global.com/fr/institution-registration" />
+  </url>
+  
+  <!-- Education Agent Registration -->
+  <url>
+    <loc>https://e-tawjihi-global.com/agent-registration</loc>
+    <lastmod>2024-01-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://e-tawjihi-global.com/agent-registration" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://e-tawjihi-global.com/fr/agent-registration" />
+  </url>
+  
+  <!-- Student Ambassador Registration -->
+  <url>
+    <loc>https://e-tawjihi-global.com/ambassador-registration</loc>
+    <lastmod>2024-01-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://e-tawjihi-global.com/ambassador-registration" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://e-tawjihi-global.com/fr/ambassador-registration" />
+  </url>
+  
+  <!-- Scholarship Sponsor Registration -->
+  <url>
+    <loc>https://e-tawjihi-global.com/sponsor-registration</loc>
+    <lastmod>2024-01-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://e-tawjihi-global.com/sponsor-registration" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://e-tawjihi-global.com/fr/sponsor-registration" />
+  </url>
+  
+  <!-- Login Page -->
+  <url>
+    <loc>https://e-tawjihi-global.com/login</loc>
+    <lastmod>2024-01-15</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.5</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://e-tawjihi-global.com/login" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://e-tawjihi-global.com/fr/login" />
+  </url>
+  
+  <!-- Dashboard (Protected) -->
+  <url>
+    <loc>https://e-tawjihi-global.com/dashboard</loc>
+    <lastmod>2024-01-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://e-tawjihi-global.com/dashboard" />
+    <xhtml:link rel="alternate" hreflang="fr" href="https://e-tawjihi-global.com/fr/dashboard" />
+  </url>
+  
+</urlset>

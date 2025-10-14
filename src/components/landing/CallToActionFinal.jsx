@@ -1,12 +1,14 @@
 import React from 'react';
-import { Search, Sparkles, ArrowRight, Globe, Users, Award, Star } from 'lucide-react';
+import { Search, Sparkles, ArrowRight, Globe, Users, Award, Star, Building2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const CallToActionFinal = ({ language }) => {
   const content = {
     en: {
       title: "Ready to start your global education journey?",
       cta: "Search Study Programs",
-      ctaSecondary: "Start with AIDVISOR",
+      ctaSecondary: "Start with E-DVISOR",
+      ctaInstitution: "Browse Universities",
       subtitle: "Join thousands of students already building their future with E-TAWJIHI Global.",
       features: [
         {
@@ -17,7 +19,7 @@ const CallToActionFinal = ({ language }) => {
         {
           icon: Sparkles,
           title: "Get AI Guidance",
-          description: "Personalized recommendations from AIDVISOR"
+          description: "Personalized recommendations from E-DVISOR"
         },
         {
           icon: Globe,
@@ -35,7 +37,8 @@ const CallToActionFinal = ({ language }) => {
     fr: {
       title: "Prêt à commencer votre parcours d'éducation mondiale ?",
       cta: "Rechercher des Programmes",
-      ctaSecondary: "Commencer avec AIDVISOR",
+      ctaSecondary: "Commencer avec E-DVISOR",
+      ctaInstitution: "Parcourir les Universités",
       subtitle: "Rejoignez des milliers d'étudiants qui construisent déjà leur avenir avec E-TAWJIHI Global.",
       features: [
         {
@@ -46,7 +49,7 @@ const CallToActionFinal = ({ language }) => {
         {
           icon: Sparkles,
           title: "Obtenez des Conseils IA",
-          description: "Recommandations personnalisées d'AIDVISOR"
+          description: "Recommandations personnalisées d'E-DVISOR"
         },
         {
           icon: Globe,
@@ -72,7 +75,7 @@ const CallToActionFinal = ({ language }) => {
     }
   };
 
-  const scrollToAIDVISOR = () => {
+  const scrollToEDVISOR = () => {
     const element = document.getElementById('aidvisor');
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
@@ -117,13 +120,22 @@ const CallToActionFinal = ({ language }) => {
             </button>
             
             <button
-              onClick={scrollToAIDVISOR}
+              onClick={scrollToEDVISOR}
               className="group flex items-center space-x-3 px-8 py-4 border-2 border-white text-white rounded-2xl hover:bg-white hover:text-blue-600 transition-all duration-200"
             >
               <Sparkles className="w-6 h-6" />
               <span className="font-semibold text-lg">{t.ctaSecondary}</span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
+            
+            <Link
+              to="/establishments"
+              className="group flex items-center space-x-3 px-8 py-4 bg-emerald-600 text-white rounded-2xl hover:bg-emerald-700 transition-all duration-200 shadow-xl hover:shadow-2xl transform hover:-translate-y-1"
+            >
+              <Building2 className="w-6 h-6" />
+              <span className="font-semibold text-lg">{t.ctaInstitution}</span>
+              <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Link>
           </div>
         </div>
 
