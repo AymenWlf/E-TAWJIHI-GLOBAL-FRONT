@@ -1,916 +1,1093 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
-  ArrowLeft, MapPin, Calendar, Clock, DollarSign, Users, Star, 
-  BookOpen, Globe, Award, CheckCircle, ExternalLink, Heart, 
-  Share2, Download, MessageCircle, Phone, Mail, Building2,
-  GraduationCap, FileText, Zap, TrendingUp, Target, Eye,
-  Play, Image as ImageIcon, Map, X
+  ArrowLeft, MapPin, Star, Users, BookOpen, Globe, Calendar, 
+  Award, Building2, CheckCircle, ExternalLink, Phone, Mail, 
+  DollarSign, Home, Trophy, GraduationCap, Clock, Languages,
+  Shield, Heart, Share2, Download, Eye, MessageCircle, Target,
+  Zap, Image, Play, Map, FileText, Mic, PenTool, TrendingUp,
+  FileCheck, TestTube, File
 } from 'lucide-react';
 import SEO from '../components/SEO';
 import HeaderAuth from '../components/HeaderAuth';
+import { useCurrency } from '../contexts/CurrencyContext';
+import parameterService from '../services/parameterService';
+import { useAllParameters } from '../hooks/useAllParameters';
+import { getLabel } from '../utils/parameterDisplay';
+import HeartButton from '../components/HeartButton';
+import { useShortlist } from '../hooks/useShortlist';
+import { useAuth } from '../contexts/AuthContext';
+import EstablishmentMedia from '../components/EstablishmentMedia';
+import ApplicationConfirmationModal from '../components/ApplicationConfirmationModal';
 
-const ProgramDetail = () => {
-  const { programId } = useParams();
-  const [language, setLanguage] = useState('en');
-  const [program, setProgram] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [isFavorite, setIsFavorite] = useState(false);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(null);
-  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+// Utility functions for application periods
+const getNextApplicationPeriod = (multiIntakes) => {
+  if (!multiIntakes || multiIntakes.length === 0) return null;
+  const now = new Date();
+  const nextIntake = multiIntakes.find(intake => {
+    if (!intake.applicationCloses) return false;
+    const closesDate = new Date(intake.applicationCloses);
+    return now <= closesDate;
+  });
+  return nextIntake || null;
+};
 
-  // University type utility functions
-  const getUniversityTypeInfo = (program) => {
-    const { universityType, countrySpecific, commissionRate, freeApplications, visaSupport } = program;
-    
-    if (universityType === "A") {
+const getApplicationPeriodStatus = (intake, language = 'en') => {
+  if (!intake.applicationOpens || !intake.applicationCloses) {
       return {
-        type: "Type A",
-        color: "green",
-        icon: "💰",
-        description: `3 free applications available`,
-        freeApps: freeApplications,
-        visaSupport: visaSupport === "free" ? "Free visa support" : "Paid visa support",
-        serviceFees: "Free for first 3 applications"
-      };
-    } else if (universityType === "B") {
+      status: 'no-dates', 
+      color: 'gray', 
+      text: language === 'fr' ? 'Aucune date disponible' : 'No dates available',
+      bgColor: 'bg-gray-100',
+      textColor: 'text-gray-600'
+    };
+  }
+  
+  const now = new Date();
+  const opensDate = new Date(intake.applicationOpens);
+  const closesDate = new Date(intake.applicationCloses);
+  
+  // Check if application is open
+  if (now >= opensDate && now <= closesDate) {
+    const daysUntilClose = Math.ceil((closesDate - now) / (1000 * 60 * 60 * 24));
+    if (daysUntilClose <= 30) {
       return {
-        type: "Type B",
-        color: "blue",
-        icon: "🏛️",
-        description: "Service fee required for application",
-        freeApps: 0,
-        visaSupport: "Paid service",
-        serviceFees: "Service fee per application"
+        status: 'closing-soon', 
+        color: 'red', 
+        text: language === 'fr' ? `Se ferme dans ${daysUntilClose} jours` : `Closes in ${daysUntilClose} days`,
+        bgColor: 'bg-red-100',
+        textColor: 'text-red-600'
       };
-    } else if (universityType === "C") {
-      const countryType = countrySpecific?.type;
-      if (countryType === "france") {
-        return {
-          type: "Type C",
-          color: "purple",
-          icon: "🇫🇷",
-          description: "Campus France & Parcoursup procedure management",
-          freeApps: 0,
-          visaSupport: "Paid service",
-          serviceFees: "Service fee for procedure management"
-        };
-      } else if (countryType === "china") {
-        return {
-          type: "Type C",
-          color: "red",
-          icon: "🇨🇳",
-          description: "Chinese admission procedure management",
-          freeApps: 0,
-          visaSupport: "Free if accepted",
-          serviceFees: "Service fee for procedure management"
-        };
-      } else {
-        return {
-          type: "Type C",
-          color: "orange",
-          icon: "📋",
-          description: "Special admission procedure management",
-          freeApps: 0,
-          visaSupport: "Paid service",
-          serviceFees: "Service fee for procedure management"
-        };
-      }
     }
-    
-    // Default fallback
-    return {
-      type: "Unknown",
-      color: "gray",
-      icon: "❓",
-      description: "Unknown university type",
-      freeApps: 0,
-      visaSupport: "Unknown",
-      serviceFees: "Unknown"
+        return {
+      status: 'open', 
+      color: 'green', 
+      text: language === 'fr' ? 'Ouvert' : 'Open',
+      bgColor: 'bg-green-100',
+      textColor: 'text-green-600'
     };
-  };
-
-  const getServiceFee = (program) => {
-    const { universityType, countrySpecific } = program;
-    
-    if (universityType === "A") {
-      return { 
-        amount: "Free", 
-        originalAmount: "$50",
-        description: "First 3 applications free",
-        showStrikethrough: true
-      };
-    } else if (universityType === "B") {
-      return { 
-        amount: "$100", 
-        description: "Service fee per application",
-        showStrikethrough: false
-      };
-    } else if (universityType === "C") {
-      const countryType = countrySpecific?.type;
-      if (countryType === "france") {
-        return { 
-          amount: "€150", 
-          description: "Campus France procedure management",
-          showStrikethrough: false
-        };
-      } else if (countryType === "china") {
-        return { 
-          amount: "¥800", 
-          description: "Chinese procedure management",
-          showStrikethrough: false
-        };
-      } else {
-        return { 
-          amount: "$150", 
-          description: "Special procedure management",
-          showStrikethrough: false
-        };
-      }
-    }
-    
-    // Default fallback
-    return {
-      amount: "Unknown",
-      description: "Unknown service fee",
-      showStrikethrough: false
+  }
+  
+  // Check if application hasn't opened yet
+  if (now < opensDate) {
+    const daysUntilOpen = Math.ceil((opensDate - now) / (1000 * 60 * 60 * 24));
+        return {
+      status: 'not-open', 
+      color: 'blue', 
+      text: language === 'fr' ? `S'ouvre dans ${daysUntilOpen} jours` : `Opens in ${daysUntilOpen} days`,
+      bgColor: 'bg-blue-100',
+      textColor: 'text-blue-600'
     };
+  }
+  
+  // Application is closed
+        return {
+    status: 'closed', 
+    color: 'gray', 
+    text: language === 'fr' ? 'Fermé' : 'Closed',
+    bgColor: 'bg-gray-100',
+    textColor: 'text-gray-600'
   };
+};
 
-  // Sample detailed program data
-  const programsData = {
-    1: {
-      id: 1,
-      name: "Master of Computer Science",
-      university: "University of Toronto",
-      country: "Canada",
-      city: "Toronto",
-      degree: "Master's",
-      duration: "2 years",
-      language: "English",
-      tuition: "$58,160",
-      startDate: "September 2025",
-      applicationDeadline: "January 15, 2025",
-      description: "Advanced program in computer science with focus on AI and machine learning.",
-      studyType: "on-campus",
-      logo: "https://upload.wikimedia.org/wikipedia/en/thumb/0/04/Utoronto_coa.svg/1200px-Utoronto_coa.svg.png",
-      featured: true,
-      aidvisorRecommended: true,
-      easyApply: true,
-      ranking: 18,
-      // University type information
-      universityType: "A", // "A", "B", or "C"
-      commissionRate: "5-15%",
-      freeApplications: 3, // Number of free applications for Type A schools
-      visaSupport: "free", // "free" or "paid"
-      countrySpecific: {
-        type: "standard", // "standard", "france", "china", "parcoursup"
-        requirements: []
-      },
-      // Detailed information
-      overview: {
-        description: "The Master of Computer Science program at the University of Toronto is designed to provide students with advanced knowledge and skills in computer science, with particular emphasis on artificial intelligence, machine learning, and software engineering. This program combines rigorous theoretical foundations with practical applications, preparing graduates for leadership roles in the technology industry.",
-        highlights: [
-          "World-class faculty with industry experience",
-          "Cutting-edge research opportunities",
-          "Strong industry connections and partnerships",
-          "Flexible curriculum with specialization tracks",
-          "Access to state-of-the-art facilities and labs"
-        ],
-        careerOutcomes: [
-          "Software Engineer",
-          "Data Scientist",
-          "AI/ML Engineer",
-          "Research Scientist",
-          "Technical Lead",
-          "Product Manager"
-        ]
-      },
-      curriculum: {
-        coreCourses: [
-          "Advanced Algorithms and Data Structures",
-          "Machine Learning Fundamentals",
-          "Software Engineering Principles",
-          "Database Systems",
-          "Computer Networks",
-          "Operating Systems"
-        ],
-        electives: [
-          "Deep Learning and Neural Networks",
-          "Computer Vision",
-          "Natural Language Processing",
-          "Distributed Systems",
-          "Cybersecurity",
-          "Human-Computer Interaction"
-        ],
-        thesis: "Students must complete a research thesis or capstone project in their chosen specialization area."
-      },
-      admission: {
-        academicCertificates: [
-          "Bachelor's degree in Computer Science or related field",
-          "Minimum GPA of 3.0/4.0 (B average)",
-          "Official transcripts from all post-secondary institutions"
-        ],
-        englishLanguageTests: [
-          "IELTS 7.0 (with no band below 6.5)",
-          "TOEFL 100+",
-          "English proficiency test scores"
-        ],
-        requiredDocuments: [
-          "Statement of Purpose (500-1000 words)",
-          "Two letters of recommendation",
-          "Resume/CV",
-          "Portfolio (for certain specializations)"
-        ],
-        visa: [
-          "Valid passport",
-          "Study permit application",
-          "Financial proof of funds",
-          "Letter of acceptance"
-        ],
-        medical: [
-          "Medical examination certificate",
-          "Immunization records",
-          "Health insurance coverage"
-        ],
-        identity: [
-          "Passport copy",
-          "Birth certificate",
-          "National ID card"
-        ],
-        process: [
-          "Submit online application",
-          "Pay application fee ($125 CAD)",
-          "Upload required documents",
-          "Interview (if selected)",
-          "Receive admission decision",
-          "Accept offer and pay deposit"
-        ]
-      },
-      costs: {
-        tuition: {
-          domestic: "$6,100 CAD per year",
-          international: "$58,160 CAD per year"
-        },
-        fees: [
-          "Student Services Fee: $1,200 CAD/year",
-          "Health Insurance: $600 CAD/year",
-          "Technology Fee: $300 CAD/year",
-          "Recreation Fee: $200 CAD/year"
-        ],
-        living: {
-          accommodation: "$12,000 - $18,000 CAD/year",
-          food: "$4,000 - $6,000 CAD/year",
-          transportation: "$1,200 CAD/year",
-          books: "$1,500 CAD/year",
-          personal: "$3,000 CAD/year"
-        },
-        total: "$80,000 - $90,000 CAD/year (international students)"
-      },
-      scholarships: [
-        {
-          name: "International Student Excellence Award",
-          amount: "$10,000 CAD",
-          description: "Merit-based scholarship for outstanding international students",
-          requirements: ["Minimum GPA 3.7", "Strong research potential", "Leadership experience"]
-        },
-        {
-          name: "Computer Science Graduate Fellowship",
-          amount: "$15,000 CAD",
-          description: "Research-based fellowship for students pursuing AI/ML research",
-          requirements: ["Research proposal", "Faculty recommendation", "Academic excellence"]
-        }
-      ],
-      campus: {
-        location: "Downtown Toronto, Ontario, Canada",
-        facilities: [
-          "Bahen Centre for Information Technology",
-          "Advanced Computing Research Lab",
-          "AI Research Institute",
-          "Student Commons and Study Spaces",
-          "24/7 Computer Labs",
-          "Collaboration Spaces"
-        ],
-        housing: [
-          "Graduate House (on-campus)",
-          "Chestnut Residence",
-          "Off-campus housing assistance",
-          "Homestay programs"
-        ]
-      },
-      faculty: [
-        {
-          name: "Dr. Geoffrey Hinton",
-          title: "Professor Emeritus",
-          expertise: "Machine Learning, Neural Networks",
-          bio: "Pioneer in deep learning and AI research"
-        },
-        {
-          name: "Dr. Raquel Urtasun",
-          title: "Professor",
-          expertise: "Computer Vision, Autonomous Vehicles",
-          bio: "Leading researcher in computer vision and robotics"
-        }
-      ],
-      rankings: {
-        qs: 18,
-        times: 22,
-        arwu: 25,
-        usNews: 20
-      },
-      statistics: {
-        acceptanceRate: "43%",
-        averageGPA: "3.6",
-        averageGRE: "325",
-        classSize: "120 students",
-        internationalStudents: "65%"
-      },
-      
-      // Photos section
-      photos: [
-        "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=800&h=600&fit=crop",
-        "https://images.unsplash.com/photo-1562774053-701939374585?w=800&h=600&fit=crop",
-        "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=600&fit=crop",
-        "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&h=600&fit=crop",
-        "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&h=600&fit=crop",
-        "https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=800&h=600&fit=crop"
-      ],
-      
-      // Videos section
-      videos: [
-        {
-          title: "University of Toronto Campus Tour",
-          description: "Take a virtual tour of our beautiful campus and facilities",
-          thumbnail: "https://img.youtube.com/vi/9bZkp7q19f0/maxresdefault.jpg",
-          duration: "3:45",
-          url: "https://www.youtube.com/embed/9bZkp7q19f0"
-        },
-        {
-          title: "Computer Science Program Overview",
-          description: "Learn more about our Computer Science program and curriculum",
-          thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
-          duration: "5:20",
-          url: "https://www.youtube.com/embed/dQw4w9WgXcQ"
-        },
-        {
-          title: "Student Life at UofT",
-          description: "Discover what it's like to be a student at our university",
-          thumbnail: "https://img.youtube.com/vi/jNQXAC9IVRw/maxresdefault.jpg",
-          duration: "4:15",
-          url: "https://www.youtube.com/embed/jNQXAC9IVRw"
-        }
-      ],
-      
-      // Locations with Google Maps
-      locations: [
-        {
-          name: "St. George Campus",
-          address: "27 King's College Cir, Toronto, ON M5S 1A1, Canada",
-          type: "Main Campus",
-          description: "The main campus located in downtown Toronto with historic buildings and modern facilities",
-          coordinates: {
-            lat: 43.6532,
-            lng: -79.3832
-          }
-        },
-        {
-          name: "Mississauga Campus",
-          address: "3359 Mississauga Rd, Mississauga, ON L5L 1C6, Canada",
-          type: "Satellite Campus",
-          description: "Modern campus with state-of-the-art facilities and research centers",
-          coordinates: {
-            lat: 43.5448,
-            lng: -79.6659
-          }
-        }
-      ]
+// Utility functions for parameter-based localization
+const getParameterLabel = (parameters, category, code, language = 'en') => {
+  const params = parameters[category] || [];
+  const param = params.find(p => p.code === code);
+  if (!param) return code;
+  return language === 'fr' ? param.labelFr : param.labelEn;
+};
+
+const getDegreeLabel = (parameters, degreeCode, language = 'en') => {
+  return getParameterLabel(parameters, 'degrees', degreeCode, language);
+};
+
+const getLanguageLabel = (parameters, languageCode, language = 'en') => {
+  return getParameterLabel(parameters, 'languages', languageCode, language);
+};
+
+const getSchoolTypeLabel = (parameters, typeCode, language = 'en') => {
+  return getParameterLabel(parameters, 'schoolTypes', typeCode, language);
+};
+
+const getDurationUnitLabel = (durationUnit, language = 'en') => {
+  const units = {
+    'year': {
+      en: 'year',
+      fr: 'an'
     },
-    // Add more programs as needed
-    2: {
-      id: 2,
-      name: "Bachelor of Medicine",
-      university: "Sorbonne University",
-      country: "France",
-      city: "Paris",
-      degree: "Bachelor's",
-      duration: "6 years",
-      language: "French",
-      tuition: "€3,770",
-      startDate: "September 2025",
-      applicationDeadline: "March 1, 2025",
-      description: "Comprehensive medical program with clinical rotations and research opportunities.",
-      studyType: "on-campus",
-      logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Sorbonne_University_logo.svg/1200px-Sorbonne_University_logo.svg.png",
-      featured: false,
-      aidvisorRecommended: false,
-      easyApply: true,
-      ranking: 83,
-      overview: {
-        description: "The Bachelor of Medicine program at Sorbonne University provides comprehensive medical education with a strong foundation in basic sciences, clinical skills, and patient care. The program follows the European medical education standards and prepares students for medical practice in France and internationally.",
-        highlights: [
-          "Historic institution with centuries of medical excellence",
-          "Clinical rotations in top Parisian hospitals",
-          "Research opportunities in cutting-edge medical fields",
-          "International exchange programs",
-          "Strong alumni network in global healthcare"
-        ],
-        careerOutcomes: [
-          "General Practitioner",
-          "Specialist Physician",
-          "Medical Researcher",
-          "Public Health Officer",
-          "Medical Administrator",
-          "Healthcare Consultant"
-        ]
-      },
-      curriculum: {
-        coreCourses: [
-          "Anatomy and Physiology",
-          "Biochemistry and Molecular Biology",
-          "Pathology and Pathophysiology",
-          "Pharmacology and Therapeutics",
-          "Clinical Medicine",
-          "Medical Ethics and Law"
-        ],
-        electives: [
-          "Cardiology",
-          "Neurology",
-          "Pediatrics",
-          "Surgery",
-          "Psychiatry",
-          "Emergency Medicine"
-        ],
-        thesis: "Students complete clinical rotations and a research project in their final year."
-      },
-      admission: {
-        requirements: [
-          "High School Diploma with excellent grades",
-          "DELF B2 French proficiency",
-          "Medical entrance examination (PACES)",
-          "Personal statement",
-          "Interview",
-          "Medical fitness certificate"
-        ],
-        documents: [
-          "High school transcripts",
-          "French proficiency certificate",
-          "Medical entrance exam results",
-          "Personal statement",
-          "Medical fitness certificate",
-          "Passport copy"
-        ],
-        process: [
-          "Register for PACES exam",
-          "Take entrance examination",
-          "Submit application with documents",
-          "Attend interview",
-          "Receive admission decision",
-          "Complete medical registration"
-        ]
-      },
-      costs: {
-        tuition: {
-          domestic: "€170 per year",
-          international: "€3,770 per year"
-        },
-        fees: [
-          "Student Services Fee: €200/year",
-          "Health Insurance: €200/year",
-          "Library Fee: €50/year"
-        ],
-        living: {
-          accommodation: "€8,000 - €12,000/year",
-          food: "€3,000 - €4,500/year",
-          transportation: "€400/year",
-          books: "€800/year",
-          personal: "€2,000/year"
-        },
-        total: "€15,000 - €20,000/year (international students)"
-      },
-      scholarships: [
-        {
-          name: "Eiffel Excellence Scholarship",
-          amount: "€1,181/month",
-          description: "French government scholarship for international students",
-          requirements: ["Academic excellence", "French proficiency", "Age under 30"]
-        }
-      ],
-      campus: {
-        location: "Latin Quarter, Paris, France",
-        facilities: [
-          "Historic medical library",
-          "Anatomy laboratories",
-          "Clinical simulation center",
-          "Research laboratories",
-          "Student medical center"
-        ],
-        housing: [
-          "CROUS student housing",
-          "Private student residences",
-          "Shared apartments",
-          "Homestay programs"
-        ]
-      },
-      faculty: [
-        {
-          name: "Prof. Jean-Claude Ameisen",
-          title: "Professor of Immunology",
-          expertise: "Immunology, Cell Biology",
-          bio: "Leading researcher in immunology and cell death mechanisms"
-        }
-      ],
-      rankings: {
-        qs: 83,
-        times: 95,
-        arwu: 78,
-        usNews: 89
-      },
-      statistics: {
-        acceptanceRate: "12%",
-        averageGrade: "16/20",
-        classSize: "300 students",
-        internationalStudents: "25%"
-      }
+    'month': {
+      en: 'month',
+      fr: 'mois'
     },
-    2: {
-      id: 2,
-      name: "Master in Medicine",
-      university: "Sorbonne University",
-      country: "France",
-      city: "Paris",
-      degree: "Master's",
-      duration: "6 years",
-      language: "French",
-      tuition: "€243/year",
-      startDate: "September 2025",
-      applicationDeadline: "March 15, 2025",
-      description: "Comprehensive medical program with clinical rotations in Paris hospitals.",
-      studyType: "on-campus",
-      logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8e/Logo_Sorbonne_Universit%C3%A9.svg/1200px-Logo_Sorbonne_Universit%C3%A9.svg.png",
-      featured: false,
-      aidvisorRecommended: false,
-      easyApply: true,
-      ranking: 83,
-      // University type information
-      universityType: "C", // "A", "B", or "C"
-      commissionRate: "0%",
-      freeApplications: 0, // Number of free applications for Type A schools
-      visaSupport: "paid", // "free" or "paid"
-      countrySpecific: {
-        type: "france", // "standard", "france", "china", "parcoursup"
-        requirements: ["Campus France", "Parcoursup"]
-      },
-      // Detailed information
-      overview: {
-        description: "The Master in Medicine program at Sorbonne University is a comprehensive 6-year program that combines theoretical knowledge with extensive clinical practice. Students gain hands-on experience in Paris's leading hospitals and medical centers.",
-        highlights: [
-          "Clinical rotations in Paris hospitals",
-          "World-renowned faculty",
-          "Research opportunities",
-          "International exchange programs"
-        ]
-      },
-      curriculum: {
-        year1: ["Basic Sciences", "Anatomy", "Physiology", "Biochemistry"],
-        year2: ["Pathology", "Pharmacology", "Microbiology", "Clinical Skills"],
-        year3: ["Internal Medicine", "Surgery", "Pediatrics", "Obstetrics"],
-        year4: ["Specialized Rotations", "Research Project", "Electives"],
-        year5: ["Advanced Clinical Practice", "Thesis Preparation"],
-        year6: ["Final Clinical Rotations", "Thesis Defense", "Licensing Exam"]
-      },
-      admission: {
-        academicCertificates: [
-          "Baccalauréat with high grades (15/20 minimum)",
-          "Official transcripts",
-          "Pre-medical courses completion"
-        ],
-        englishLanguageTests: [
-          "DELF B2 or higher",
-          "TCF 400+ points",
-          "French language proficiency required"
-        ],
-        requiredDocuments: [
-          "Personal statement in French",
-          "Letters of recommendation",
-          "Campus France application",
-          "Parcoursup application",
-          "Medical entrance exam results"
-        ],
-        visa: [
-          "Valid passport",
-          "Campus France certificate",
-          "Financial proof (€615/month)",
-          "Health insurance"
-        ],
-        medical: [
-          "Medical examination",
-          "Vaccination records",
-          "Health insurance (Sécurité Sociale)"
-        ],
-        identity: [
-          "Passport copy",
-          "Birth certificate",
-          "Photo ID"
-        ]
-      },
-      costs: {
-        tuition: "€243/year",
-        applicationFee: "€150",
-        serviceFee: "€150",
-        livingCosts: "€800-1200/month",
-        healthInsurance: "€215/year",
-        books: "€500/year",
-        totalFirstYear: "€10,000-15,000"
-      },
-      campus: {
-        name: "Sorbonne University Medical Campus",
-        location: "Paris, France",
-        facilities: [
-          "Modern anatomy laboratories",
-          "Clinical simulation center",
-          "Medical library",
-          "Student health center"
-        ],
-        housing: [
-          "CROUS student housing",
-          "Private student residences",
-          "Shared apartments"
-        ]
-      },
-      faculty: [
-        {
-          name: "Prof. Marie Dubois",
-          title: "Professor of Internal Medicine",
-          expertise: "Cardiology, Internal Medicine",
-          bio: "Leading cardiologist with 20+ years of experience"
-        }
-      ],
-      rankings: {
-        qs: 83,
-        times: 95,
-        arwu: 78,
-        usNews: 89
-      },
-      statistics: {
-        acceptanceRate: "8%",
-        averageGrade: "16/20",
-        classSize: "200 students",
-        internationalStudents: "15%"
-      },
-      photos: [
-        "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=800&h=600&fit=crop",
-        "https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=800&h=600&fit=crop"
-      ],
-      videos: [
-        {
-          title: "Medical Campus Tour",
-          url: "https://www.youtube.com/embed/dQw4w9WgXcQ",
-          thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg"
-        }
-      ],
-      locations: [
-        {
-          name: "Medical Campus - Latin Quarter",
-          address: "21 Rue de l'École de Médecine, 75006 Paris, France",
-          type: "Main Campus",
-          facilities: ["Anatomy labs", "Clinical simulation", "Medical library"],
-          mapUrl: "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2624.991440608142!2d2.3442143156744144!3d48.85061017928746!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47e671d877937b0f%3A0x4b0e5b5b5b5b5b5b!2sSorbonne%20University!5e0!3m2!1sen!2sfr!4v1234567890123!5m2!1sen!2sfr"
-        }
-      ]
+    'semester': {
+      en: 'semester',
+      fr: 'semestre'
+    },
+    'trimester': {
+      en: 'trimester',
+      fr: 'trimestre'
     }
   };
+  
+  return units[durationUnit]?.[language] || durationUnit;
+};
 
-  useEffect(() => {
-    // Simulate loading
-    const timer = setTimeout(() => {
-      setProgram(programsData[programId]);
-      setLoading(false);
-    }, 1000);
+// Function to format intake name with translated months
+const formatIntakeName = (intakeName, language = 'en') => {
+  if (!intakeName) return intakeName;
+  
+  const monthTranslations = {
+    'january': { en: 'January', fr: 'Janvier' },
+    'february': { en: 'February', fr: 'Février' },
+    'march': { en: 'March', fr: 'Mars' },
+    'april': { en: 'April', fr: 'Avril' },
+    'may': { en: 'May', fr: 'Mai' },
+    'june': { en: 'June', fr: 'Juin' },
+    'july': { en: 'July', fr: 'Juillet' },
+    'august': { en: 'August', fr: 'Août' },
+    'september': { en: 'September', fr: 'Septembre' },
+    'october': { en: 'October', fr: 'Octobre' },
+    'november': { en: 'November', fr: 'Novembre' },
+    'december': { en: 'December', fr: 'Décembre' }
+  };
+  
+  // Handle formats like "september-2025", "february-2026"
+  const parts = intakeName.split('-');
+  if (parts.length === 2) {
+    const [month, year] = parts;
+    const translatedMonth = monthTranslations[month.toLowerCase()]?.[language] || month;
+    return `${translatedMonth} ${year}`;
+  }
+  
+  // Handle other formats or return as is
+  return intakeName;
+};
 
-    return () => clearTimeout(timer);
-  }, [programId]);
+// Function to get translated country name
+const getCountryLabel = (parameters, countryCode, language = 'en') => {
+  return getParameterLabel(parameters, 'countries', countryCode, language);
+};
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <h2 className="text-2xl font-bold text-gray-900">Loading Program Details...</h2>
-        </div>
-      </div>
-    );
+// Function to get translated school type (private/public)
+const getTranslatedSchoolType = (typeCode, parameters, language) => {
+  const typeParam = parameters.schoolTypes?.find(type => type.code === typeCode);
+  if (typeParam) {
+    return language === 'fr' ? typeParam.labelFr : typeParam.labelEn;
+  }
+  return typeCode; // Fallback to code if not found
+};
+
+// Function to render requirements section
+const renderRequirements = (structuredRequirements, language = 'en') => {
+  if (!structuredRequirements || Object.keys(structuredRequirements).length === 0) {
+    return null;
   }
 
-  if (!program) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Program Not Found</h2>
-          <Link to="/establishments" className="text-blue-600 hover:text-blue-800">
-            ← Back to Programs
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  const seoData = {
-    title: `${program.name} - ${program.university} | E-TAWJIHI Global`,
-    description: `Discover ${program.name} at ${program.university}. ${program.description} Apply now for ${program.startDate} intake.`,
-    keywords: `${program.name}, ${program.university}, ${program.degree}, study abroad, international education, ${program.country}`,
-    canonical: `https://e-tawjihi.ma/programs/${program.id}`,
-    ogImage: program.logo
-  };
-
-  const getStudyTypeLabel = (type) => {
+  const getRequirementIcon = (type) => {
     switch (type) {
-      case 'on-campus': return language === 'en' ? 'On-Campus' : 'Présentiel';
-      case 'hybrid': return language === 'en' ? 'Hybrid' : 'Hybride';
-      case 'online': return language === 'en' ? 'Online' : 'En ligne';
-      default: return type;
+      case 'academic':
+        return <GraduationCap className="w-5 h-5 text-blue-600" />;
+      case 'english':
+        return <Languages className="w-5 h-5 text-green-600" />;
+      case 'standardizedTests':
+        return <TestTube className="w-5 h-5 text-purple-600" />;
+      case 'documents':
+        return <File className="w-5 h-5 text-orange-600" />;
+      default:
+        return <FileCheck className="w-5 h-5 text-gray-600" />;
+    }
+  };
+
+  const getRequirementTitle = (type, language) => {
+    const titles = {
+      academic: {
+        en: 'Academic Requirements',
+        fr: 'Exigences académiques'
+      },
+      english: {
+        en: 'English Language Requirements',
+        fr: 'Exigences en langue anglaise'
+      },
+      standardizedTests: {
+        en: 'Standardized Tests',
+        fr: 'Tests standardisés'
+      },
+      documents: {
+        en: 'Required Documents',
+        fr: 'Documents requis'
+      }
+    };
+    return titles[type]?.[language] || type;
+  };
+
+  const getRequirementColor = (type) => {
+    switch (type) {
+      case 'academic':
+        return 'from-blue-50 to-blue-100 border-blue-200';
+      case 'english':
+        return 'from-green-50 to-green-100 border-green-200';
+      case 'standardizedTests':
+        return 'from-purple-50 to-purple-100 border-purple-200';
+      case 'documents':
+        return 'from-orange-50 to-orange-100 border-orange-200';
+      default:
+        return 'from-gray-50 to-gray-100 border-gray-200';
     }
   };
 
   return (
+    <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
+      <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+        <Target className="w-6 h-6 text-indigo-600" />
+        {language === 'fr' ? 'Exigences d\'admission' : 'Admission Requirements'}
+      </h3>
+      
+      <div className="space-y-6">
+        {Object.entries(structuredRequirements).map(([category, data]) => (
+          <div key={category} className="bg-gradient-to-br rounded-xl border p-6">
+            <div className={`bg-gradient-to-br ${getRequirementColor(category)} rounded-xl border p-6`}>
+              <div className="flex items-center gap-3 mb-4">
+                {getRequirementIcon(category)}
+                <h4 className="text-lg font-semibold text-gray-900">
+                  {getRequirementTitle(category, language)}
+                </h4>
+              </div>
+              
+              <div className="space-y-4">
+                {data.items?.map((item, index) => (
+                  <div key={index} className="bg-white rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h5 className="font-semibold text-gray-900">
+                            {language === 'fr' ? item.name?.fr || item.name?.en : item.name?.en || item.name?.fr}
+                          </h5>
+                          {item.required && (
+                            <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 rounded-full">
+                              {language === 'fr' ? 'Obligatoire' : 'Required'}
+                            </span>
+                          )}
+                          {!item.required && (
+                            <span className="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
+                              {language === 'fr' ? 'Optionnel' : 'Optional'}
+                            </span>
+                          )}
+                        </div>
+                        
+                        {item.description && (
+                          <p className="text-sm text-gray-600 mb-2">
+                            {language === 'fr' ? item.description?.fr || item.description?.en : item.description?.en || item.description?.fr}
+                          </p>
+                        )}
+                        
+                        {/* Test-specific information */}
+                        {item.type === 'test' && (
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {item.testValue && (
+                              <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+                                {language === 'fr' ? 'Score requis' : 'Required Score'}: {item.testValue}
+                              </span>
+                            )}
+                            {item.testScore && (
+                              <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
+                                {language === 'fr' ? 'Échelle' : 'Scale'}: {item.testScore}
+                              </span>
+                            )}
+                            {item.englishTestType && (
+                              <span className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded">
+                                {item.englishTestType.toUpperCase()}
+                              </span>
+                            )}
+                            {item.standardizedTestType && (
+                              <span className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded">
+                                {item.standardizedTestType.toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="ml-4">
+                        {item.required ? (
+                          <CheckCircle className="w-5 h-5 text-green-600" />
+                        ) : (
+                          <div className="w-5 h-5 border-2 border-gray-300 rounded-full" />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// Function to get university type info
+const getUniversityTypeInfo = (program, language) => {
+  const { programType, servicePricing } = program;
+  
+  if (programType === "A") {
+        return { 
+      type: "Type A",
+      description: language === 'fr' ? '3 candidatures gratuites' : '3 free applications',
+      color: 'green',
+      freeApps: language === 'fr' ? '3 candidatures gratuites' : '3 free applications',
+      visaSupport: language === 'fr' ? 'Oui' : 'Yes',
+      serviceFees: language === 'fr' ? 'Gratuit' : 'Free',
+      originalPrice: servicePricing?.normalPrice,
+      promotionPrice: servicePricing?.promotionPrice,
+      promotionDeadline: servicePricing?.promotionDeadline,
+      currency: servicePricing?.currency || 'EUR'
+    };
+  } else if (programType === "B") {
+        return { 
+      type: "Type B",
+      description: language === 'fr' ? 'Service payant' : 'Paid service',
+      color: 'blue',
+      serviceFees: language === 'fr' ? 'Frais de service requis' : 'Service fees required',
+      originalPrice: servicePricing?.normalPrice,
+      promotionPrice: servicePricing?.promotionPrice,
+      promotionDeadline: servicePricing?.promotionDeadline,
+      currency: servicePricing?.currency || 'EUR'
+    };
+  } else if (programType === "C") {
+        return { 
+      type: "Type C",
+      description: language === 'fr' ? 'Configuration spéciale' : 'Special configuration',
+      color: 'purple',
+      serviceFees: language === 'fr' ? 'Configuration spéciale' : 'Special configuration',
+      originalPrice: servicePricing?.normalPrice,
+      promotionPrice: servicePricing?.promotionPrice,
+      promotionDeadline: servicePricing?.promotionDeadline,
+      currency: servicePricing?.currency || 'EUR'
+    };
+  }
+  
+  return null;
+};
+
+// Function to get ranking information
+const getRankingInfo = (rankingType, rankingValue, language) => {
+  const rankingData = {
+    qs: {
+      fr: {
+        name: 'QS World University Rankings',
+        description: 'Classement mondial des universités par QS',
+        url: `https://www.topuniversities.com/university-rankings/world-university-rankings/${new Date().getFullYear()}`,
+        color: 'blue'
+      },
+      en: {
+        name: 'QS World University Rankings',
+        description: 'World university rankings by QS',
+        url: `https://www.topuniversities.com/university-rankings/world-university-rankings/${new Date().getFullYear()}`,
+        color: 'blue'
+      }
+    },
+    times: {
+      fr: {
+        name: 'Times Higher Education',
+        description: 'Classement mondial des universités par THE',
+        url: `https://www.timeshighereducation.com/world-university-rankings/${new Date().getFullYear()}/world-ranking`,
+        color: 'red'
+      },
+      en: {
+        name: 'Times Higher Education',
+        description: 'World university rankings by THE',
+        url: `https://www.timeshighereducation.com/world-university-rankings/${new Date().getFullYear()}/world-ranking`,
+        color: 'red'
+      }
+    },
+    arwu: {
+      fr: {
+        name: 'ARWU (Shanghai)',
+        description: 'Classement académique des universités mondiales',
+        url: 'https://www.shanghairanking.com/rankings/arwu/2023',
+        color: 'green'
+      },
+      en: {
+        name: 'ARWU (Shanghai)',
+        description: 'Academic Ranking of World Universities',
+        url: 'https://www.shanghairanking.com/rankings/arwu/2023',
+        color: 'green'
+      }
+    },
+    usNews: {
+      fr: {
+        name: 'U.S. News Global',
+        description: 'Classement mondial des universités par U.S. News',
+        url: 'https://www.usnews.com/education/best-global-universities/rankings',
+        color: 'purple'
+      },
+      en: {
+        name: 'U.S. News Global',
+        description: 'Global university rankings by U.S. News',
+        url: 'https://www.usnews.com/education/best-global-universities/rankings',
+        color: 'purple'
+      }
+    }
+  };
+
+  return rankingData[rankingType]?.[language] || rankingData[rankingType]?.en || {
+    name: rankingType.toUpperCase(),
+    description: 'University ranking',
+    url: '#',
+    color: 'gray'
+  };
+};
+
+const ProgramDetail = () => {
+  const { establishmentSlug, programSlug } = useParams();
+  const navigate = useNavigate();
+  const [language, setLanguage] = useState('en');
+  const [program, setProgram] = useState(null);
+  const [establishment, setEstablishment] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [formattedPrices, setFormattedPrices] = useState({});
+  const { formatPrice, convertPrice, userCurrency } = useCurrency();
+  const { currentUser } = useAuth();
+  const [paramOptions, setParamOptions] = useState({ studyLevels: [], studyTypes: [], languages: [], degrees: [] });
+  const [showApplicationModal, setShowApplicationModal] = useState(false);
+  
+  // Parameters for localization
+  const [parameters, setParameters] = useState({
+    countries: [],
+    cities: [],
+    languages: [],
+    schoolTypes: [],
+    degrees: []
+  });
+
+  // Component to display service price with conversion
+  const ServicePriceDisplay = ({ price, currency, isPromotion = false, className = "" }) => {
+    const [displayPrice, setDisplayPrice] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+      const loadPrice = async () => {
+        if (!price) {
+          setDisplayPrice(null);
+          setIsLoading(false);
+          return;
+        }
+
+        try {
+          setIsLoading(true);
+          
+          // Check if convertPrice is a function
+          if (typeof convertPrice !== 'function') {
+            console.error('convertPrice is not a function:', convertPrice);
+            setDisplayPrice(`${currency} ${price}`);
+            return;
+          }
+          
+          // Format price with currency and conversion logic
+          if (currency === userCurrency) {
+            const formatted = await formatPrice(price, currency, false);
+            setDisplayPrice(formatted);
+          } else {
+            // Convert to user currency
+            const converted = await convertPrice(price, currency, false);
+            if (converted && converted.convertedAmount) {
+              const formatted = await formatPrice(converted.convertedAmount, userCurrency, false);
+              setDisplayPrice(formatted);
+            } else {
+              const formatted = await formatPrice(price, currency, false);
+              setDisplayPrice(formatted);
+            }
+          }
+        } catch (error) {
+          console.error('Error loading service price:', error);
+          setDisplayPrice(`${currency} ${price}`);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      loadPrice();
+    }, [price, currency, isPromotion, userCurrency, formatPrice, convertPrice]);
+
+    if (isLoading) {
+      return <span className={`${className} animate-pulse`}>...</span>;
+    }
+
+    if (!displayPrice) {
+      return null;
+    }
+
+    return <span className={className}>{displayPrice}</span>;
+  };
+
+  // Scholarship info function (same as EstablishmentDetail)
+  const getScholarshipInfo = (scholarshipType, language) => {
+    const scholarshipData = {
+      government: {
+        fr: {
+          title: 'Bourse Gouvernementale',
+          description: 'Bourse financée par le gouvernement du pays d\'accueil, couvrant généralement les frais de scolarité et parfois les frais de subsistance.',
+          type: 'Gouvernementale'
+        },
+        en: {
+          title: 'Government Scholarship',
+          description: 'Scholarship funded by the host country government, typically covering tuition fees and sometimes living expenses.',
+          type: 'Government'
+        }
+      },
+      university_full: {
+        fr: {
+          title: 'Bourse Universitaire Complète',
+          description: 'Bourse complète offerte par l\'université, couvrant 100% des frais de scolarité et souvent les frais de subsistance.',
+          type: 'Université - Complète'
+        },
+        en: {
+          title: 'University Full Scholarship',
+          description: 'Full scholarship offered by the university, covering 100% of tuition fees and often living expenses.',
+          type: 'University - Full'
+        }
+      },
+      university_partial: {
+        fr: {
+          title: 'Bourse Universitaire Partielle',
+          description: 'Bourse partielle offerte par l\'université, couvrant une partie des frais de scolarité.',
+          type: 'Université - Partielle'
+        },
+        en: {
+          title: 'University Partial Scholarship',
+          description: 'Partial scholarship offered by the university, covering a portion of tuition fees.',
+          type: 'University - Partial'
+        }
+      },
+      merit: {
+        fr: {
+          title: 'Bourse au Mérite',
+          description: 'Bourse basée sur l\'excellence académique et les performances exceptionnelles de l\'étudiant.',
+          type: 'Mérite'
+        },
+        en: {
+          title: 'Merit Scholarship',
+          description: 'Scholarship based on academic excellence and exceptional student performance.',
+          type: 'Merit'
+        }
+      },
+      international: {
+        fr: {
+          title: 'Bourse Internationale',
+          description: 'Bourse spécialement conçue pour les étudiants internationaux, favorisant la diversité culturelle.',
+          type: 'Internationale'
+        },
+        en: {
+          title: 'International Scholarship',
+          description: 'Scholarship specifically designed for international students, promoting cultural diversity.',
+          type: 'International'
+        }
+      },
+      research: {
+        fr: {
+          title: 'Bourse de Recherche',
+          description: 'Bourse pour les étudiants engagés dans des projets de recherche avancés.',
+          type: 'Recherche'
+        },
+        en: {
+          title: 'Research Scholarship',
+          description: 'Scholarship for students engaged in advanced research projects.',
+          type: 'Research'
+        }
+      }
+    };
+
+    return scholarshipData[scholarshipType]?.[language] || scholarshipData[scholarshipType]?.en || {
+      title: scholarshipType,
+      description: '',
+      type: scholarshipType
+    };
+  };
+
+  // Use only the program slug for the API call
+  const fullSlug = programSlug;
+
+  // Load program details
+  useEffect(() => {
+    const loadProgramDetail = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch(`http://localhost:8000/api/programs/slug/${fullSlug}?lang=${language}`);
+        
+        if (!response.ok) {
+          throw new Error('Program not found');
+        }
+        
+        const data = await response.json();
+        if (data.success) {
+          // Test data - add languages for testing
+          const programData = {
+            ...data.data,
+            languages: data.data.languages || ['en', 'fr'], // Test languages
+            language: data.data.language || 'en' // Fallback to single language
+          };
+          console.log('Program data loaded:', { duration: programData.duration, durationUnit: programData.durationUnit });
+          setProgram(programData);
+          setEstablishment(data.data.establishment);
+          
+      } else {
+          throw new Error(data.message || 'Failed to load program');
+        }
+      } catch (err) {
+        setError(err.message);
+      } finally {
+      setLoading(false);
+      }
+    };
+
+    if (fullSlug) {
+      loadProgramDetail();
+    }
+  }, [fullSlug, language]);
+
+  // Load all parameters using centralized service
+  const { parameters: allParams, loading: paramsLoading } = useAllParameters();
+
+  useEffect(() => {
+    if (allParams) {
+      setParamOptions({
+        studyLevels: allParams.studyLevels,
+        studyTypes: allParams.studyTypes,
+        languages: allParams.languages,
+        degrees: allParams.degrees
+      });
+      setParameters({
+        countries: allParams.countries,
+        cities: allParams.cities,
+        languages: allParams.languages,
+        schoolTypes: allParams.schoolTypes,
+        degrees: allParams.degrees,
+        studyLevels: allParams.studyLevels
+      });
+    }
+  }, [allParams, language]);
+
+  // Format prices asynchronously
+  useEffect(() => {
+    const formatPrices = async () => {
+      if (!program) return;
+      
+      const prices = {};
+      
+      // Format tuition amount
+      if (program.tuitionAmount && program.tuitionCurrency) {
+        try {
+          const formatted = await formatPrice(program.tuitionAmount, program.tuitionCurrency, false);
+          prices.tuition = formatted;
+        } catch (error) {
+          console.error('Error formatting tuition price:', error);
+        }
+      }
+      
+      setFormattedPrices(prices);
+    };
+
+    formatPrices();
+  }, [program, formatPrice]);
+
+  // Generate dynamic SEO data
+  const generateDynamicTitle = () => {
+    if (!program) return language === 'fr' ? 'Programme' : 'Program';
+    
+    const programName = language === 'fr' ? program.nameFr || program.name : program.name;
+    const establishmentName = establishment?.name || '';
+    const degree = getDegreeLabel(parameters, program.degree, language) || program.degree || '';
+    
+    return `${programName} - ${degree} | ${establishmentName}`;
+  };
+
+  const generateDynamicDescription = () => {
+    if (!program) return language === 'fr' ? 'Découvrez ce programme' : 'Discover this program';
+    
+    const programName = language === 'fr' ? program.nameFr || program.name : program.name;
+    const establishmentName = establishment?.name || '';
+    const degree = getDegreeLabel(parameters, program.degree, language) || program.degree || '';
+    const duration = program.duration || '';
+    const country = getCountryLabel(parameters, establishment?.country, language) || establishment?.country || '';
+    
+    return language === 'fr' 
+      ? `Étudiez ${programName} (${degree}) à ${establishmentName} en ${country}. Durée: ${duration}. Découvrez les conditions d'admission, les frais de scolarité et postulez maintenant.`
+      : `Study ${programName} (${degree}) at ${establishmentName} in ${country}. Duration: ${duration}. Discover admission requirements, tuition fees and apply now.`;
+  };
+
+  const generateKeywords = () => {
+    if (!program) return language === 'fr' ? 'programme, université' : 'program, university';
+    
+    const keywords = [];
+    
+    // Program name
+    keywords.push(program.name);
+    if (program.nameFr) keywords.push(program.nameFr);
+    
+    // Establishment
+    if (establishment?.name) keywords.push(establishment.name);
+    
+    // Degree and field
+    if (program.degree) keywords.push(getDegreeLabel(parameters, program.degree, language));
+    if (program.subject) keywords.push(program.subject);
+    if (program.field && Array.isArray(program.field)) {
+      program.field.forEach(field => {
+        if (typeof field === 'object' && field.labelEn) {
+          keywords.push(language === 'fr' ? field.labelFr : field.labelEn);
+        } else if (typeof field === 'string') {
+          keywords.push(field);
+        }
+      });
+    }
+    
+    // Location
+    if (establishment?.country) keywords.push(getCountryLabel(parameters, establishment.country, language) || establishment.country);
+    if (establishment?.city) keywords.push(establishment.city);
+    
+    // Study level
+    if (program.studyLevel) keywords.push(program.studyLevel);
+    
+    return keywords.join(', ');
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !program) {
+    return (
+      <div className="min-h-screen bg-gray-50 pt-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="text-center">
+            <h1 className="text-2xl font-bold text-gray-900 mb-4">
+              {language === 'fr' ? 'Programme non trouvé' : 'Program Not Found'}
+            </h1>
+            <p className="text-gray-600 mb-8">
+              {language === 'fr' 
+                ? 'Le programme que vous recherchez n\'existe pas ou a été supprimé.' 
+                : 'The program you are looking for does not exist or has been removed.'
+              }
+            </p>
+            <Link 
+              to="/establishments" 
+              className="inline-flex items-center gap-2 bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-arrow-left w-4 h-4">
+                <path d="m12 19-7-7 7-7"></path>
+                <path d="M19 12H5"></path>
+              </svg>
+              {language === 'fr' ? 'Retour aux établissements' : 'Back to Establishments'}
+          </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
     <>
-      <SEO {...seoData} />
+      <SEO
+        title={generateDynamicTitle()}
+        description={generateDynamicDescription()}
+        keywords={generateKeywords()}
+        canonical={`/programs/${fullSlug}`}
+        additionalMeta={[
+          { name: 'og:type', content: 'article' },
+          { name: 'og:title', content: generateDynamicTitle() },
+          { name: 'og:description', content: generateDynamicDescription() },
+          { name: 'og:image', content: establishment?.logo || '' },
+          { name: 'twitter:card', content: 'summary_large_image' },
+          { name: 'twitter:title', content: generateDynamicTitle() },
+          { name: 'twitter:description', content: generateDynamicDescription() },
+          { name: 'twitter:image', content: establishment?.logo || '' }
+        ]}
+      />
+      
       <HeaderAuth language={language} setLanguage={setLanguage} />
       
-      <div className="pt-24 bg-gray-50 min-h-screen">
+      <div className="pt-12 bg-gray-50 min-h-screen">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-sm text-gray-600 mb-6">
+          {/* Breadcrumb and Heart */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
             <Link to="/establishments" className="hover:text-blue-600 flex items-center gap-1">
-              <ArrowLeft className="w-4 h-4" />
-              {language === 'en' ? 'Back to Programs' : 'Retour aux Programmes'}
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-arrow-left w-4 h-4">
+                  <path d="m12 19-7-7 7-7"></path>
+                  <path d="M19 12H5"></path>
+                </svg>
+                {language === 'fr' ? 'Retour aux programmes' : 'Back to Programs'}
             </Link>
             <span>/</span>
-            <span className="text-gray-900 font-medium">{program.name}</span>
+              <span className="text-gray-900 font-medium">
+                {language === 'fr' ? program.nameFr || program.name : program.name}
+              </span>
+            </div>
           </div>
 
-          {/* Header Section */}
+          {/* Program Header */}
           <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
             <div className="flex flex-col lg:flex-row gap-8">
-              {/* University Info */}
               <div className="flex-1">
                 <div className="flex items-start gap-4 mb-6">
                   <img 
-                    src={program.logo} 
-                    alt={`${program.university} logo`}
+                    src={establishment?.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(establishment?.name || 'University')}&size=200&background=3B82F6&color=fff`} 
+                    alt={`${establishment?.name || 'University'} logo`} 
                     className="w-20 h-20 object-contain rounded-lg border border-gray-200"
                   />
                   <div>
-                    <h1 className="text-3xl font-bold text-gray-900 mb-2">{program.name}</h1>
-                    <h2 className="text-xl text-gray-700 mb-2">{program.university}</h2>
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                      {language === 'fr' ? program.nameFr || program.name : program.name}
+                    </h1>
+                    <h2 className="text-xl text-gray-700 mb-2">{establishment?.name}</h2>
                     <div className="flex items-center gap-2 text-gray-600">
-                      <MapPin className="w-4 h-4" />
-                      <span>{program.city}, {program.country}</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-map-pin w-4 h-4">
+                        <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path>
+                        <circle cx="12" cy="10" r="3"></circle>
+                      </svg>
+                      <span>{establishment?.city}, {getCountryLabel(parameters, establishment?.country, language) || establishment?.country}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Quick Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  {program.degree && (
                   <div className="bg-blue-50 rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold text-blue-600">{program.degree}</div>
-                    <div className="text-sm text-gray-600">{language === 'en' ? 'Degree' : 'Diplôme'}</div>
+                    <div className="text-2xl font-bold text-blue-600">{getDegreeLabel(parameters, program.degree, language)}</div>
+                      <div className="text-sm text-gray-600">{language === 'fr' ? 'Diplôme' : 'Degree'}</div>
                   </div>
+                  )}
+                  {program.duration && (
                   <div className="bg-green-50 rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold text-green-600">{program.duration}</div>
-                    <div className="text-sm text-gray-600">{language === 'en' ? 'Duration' : 'Durée'}</div>
+                    <div className="text-2xl font-bold text-green-600">
+                      {program.duration} {getDurationUnitLabel(program.durationUnit || 'year', language)}
                   </div>
+                      <div className="text-sm text-gray-600">{language === 'fr' ? 'Durée' : 'Duration'}</div>
+                  </div>
+                  )}
+                  {program.studyType && (
                   <div className="bg-purple-50 rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold text-purple-600">{getStudyTypeLabel(program.studyType)}</div>
-                    <div className="text-sm text-gray-600">{language === 'en' ? 'Study Type' : 'Type d\'Étude'}</div>
+                      <div className="text-2xl font-bold text-purple-600">
+                        {program.studyType === 'on-campus' ? (language === 'fr' ? 'Présentiel' : 'On-Campus') :
+                         program.studyType === 'hybrid' ? (language === 'fr' ? 'Hybride' : 'Hybrid') :
+                         program.studyType === 'online' ? (language === 'fr' ? 'En ligne' : 'Online') : 
+                         program.studyType}
                   </div>
-                  <div className="bg-orange-50 rounded-lg p-4 text-center">
-                    <div className="text-2xl font-bold text-orange-600">#{program.ranking}</div>
-                    <div className="text-sm text-gray-600">{language === 'en' ? 'QS Ranking' : 'Classement QS'}</div>
+                      <div className="text-sm text-gray-600">{language === 'fr' ? 'Type d\'études' : 'Study Type'}</div>
                   </div>
+                  )}
                 </div>
 
-                {/* Badges */}
                 <div className="flex flex-wrap gap-2 mb-6">
                   {program.aidvisorRecommended && (
                     <div className="bg-gradient-to-r from-blue-600 to-emerald-600 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
-                      <CheckCircle className="w-3 h-3" />
-                      {language === 'en' ? 'E-DVISOR Recommended' : 'Recommandé par E-DVISOR'}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-check-circle w-3 h-3">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <path d="m9 11 3 3L22 4"></path>
+                      </svg>
+                      {language === 'fr' ? 'Recommandé par E-DVISOR' : 'E-DVISOR Recommended'}
                     </div>
                   )}
                   {program.featured && (
                     <div className="bg-blue-800 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
-                      <Award className="w-3 h-3" />
-                      {language === 'en' ? 'Featured' : 'En vedette'}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-award w-3 h-3">
+                        <circle cx="12" cy="8" r="6"></circle>
+                        <path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"></path>
+                      </svg>
+                      {language === 'fr' ? 'En vedette' : 'Featured'}
                     </div>
                   )}
-                  {/* University Type Badge */}
-                  {(() => {
-                    const typeInfo = getUniversityTypeInfo(program);
-                    return (
-                      <div className={`px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${
-                        typeInfo.color === 'green' ? 'bg-green-100 text-green-800' :
-                        typeInfo.color === 'blue' ? 'bg-blue-100 text-blue-800' :
-                        typeInfo.color === 'purple' ? 'bg-purple-100 text-purple-800' :
-                        typeInfo.color === 'red' ? 'bg-red-100 text-red-800' :
-                        typeInfo.color === 'orange' ? 'bg-orange-100 text-orange-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        <span className="text-sm">{typeInfo.icon}</span>
-                        {typeInfo.type}
+                  {program?.programType && (
+                    <div className="px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 bg-purple-100 text-purple-800">
+                      <span className="text-sm">📋</span>
+                      {program.programType === 'A' ? 'Type A' : 
+                       program.programType === 'B' ? 'Type B' : 
+                       program.programType === 'C' ? 'Type C' : 
+                       program.programType === null ? (language === 'fr' ? 'Aucun type' : 'No type') : program.programType}
                       </div>
-                    );
-                  })()}
+                  )}
+                  {program?.scholarships && (
+                    <div className="px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 bg-green-100 text-green-800">
+                      <span className="text-sm">🎓</span>
+                      {language === 'fr' ? 'Bourses disponibles' : 'Scholarships Available'}
+                    </div>
+                  )}
+                  {program?.housing && (
+                    <div className="px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 bg-blue-100 text-blue-800">
+                      <span className="text-sm">🏠</span>
+                      {language === 'fr' ? 'Logement disponible' : 'Housing Available'}
+                    </div>
+                  )}
+                  {program?.easyApply && (
+                    <div className="px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1 bg-orange-100 text-orange-800">
+                      <span className="text-sm">⚡</span>
+                      {language === 'fr' ? 'Candidature facile' : 'Easy Apply'}
+                    </div>
+                  )}
                 </div>
 
-                {/* Key Info */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <DollarSign className="w-5 h-5 text-green-600" />
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-dollar-sign w-5 h-5 text-green-600">
+                      <line x1="12" x2="12" y1="2" y2="22"></line>
+                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
                     <div>
-                      <div className="font-semibold text-gray-900">{program.tuition}</div>
-                      <div className="text-sm text-gray-600">{language === 'en' ? 'Tuition Fee' : 'Frais de Scolarité'}</div>
+                      <div className="font-semibold text-gray-900">
+                        {formattedPrices.tuition || `${program.tuitionAmount} ${program.tuitionCurrency}`}
                     </div>
+                      <div className="text-sm text-gray-600">{language === 'fr' ? 'Frais de scolarité' : 'Tuition Fee'}</div>
                   </div>
+                  </div>
+                  
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <Calendar className="w-5 h-5 text-blue-600" />
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-globe w-5 h-5 text-indigo-600">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+                      <path d="M2 12h20"></path>
+                    </svg>
                     <div>
-                      <div className="font-semibold text-gray-900">{program.startDate}</div>
-                      <div className="text-sm text-gray-600">{language === 'en' ? 'Start Date' : 'Date de Début'}</div>
+                      <div className="font-semibold text-gray-900">
+                        {program.languages && Array.isArray(program.languages) && program.languages.length > 0 
+                          ? program.languages.map((lang, index) => (
+                              <span key={index}>
+                                {getLanguageLabel(parameters, lang, language)}
+                                {index < program.languages.length - 1 && ', '}
+                              </span>
+                            ))
+                          : program.language 
+                            ? getLanguageLabel(parameters, program.language, language)
+                            : (language === 'fr' ? 'Non spécifié' : 'Not specified')
+                        }
                     </div>
+                      <div className="text-sm text-gray-600">{language === 'fr' ? 'Langues' : 'Languages'}</div>
                   </div>
+                  </div>
+
+
+                  {program?.field && Array.isArray(program.field) && program.field.length > 0 && (
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <Clock className="w-5 h-5 text-red-600" />
+                      <GraduationCap className="w-5 h-5 text-purple-600" />
                     <div>
-                      <div className="font-semibold text-gray-900">{program.applicationDeadline}</div>
-                      <div className="text-sm text-gray-600">{language === 'en' ? 'Application Deadline' : 'Date Limite'}</div>
+                        <div className="font-semibold text-gray-900">
+                          {program.field.map((field, index) => (
+                            <span key={index}>
+                              {typeof field === 'object' && field.labelEn 
+                                ? (language === 'fr' ? field.labelFr : field.labelEn)
+                                : field
+                              }
+                              {index < program.field.length - 1 && ', '}
+                            </span>
+                          ))}
                     </div>
+                        <div className="text-sm text-gray-600">{language === 'fr' ? 'Domaine' : 'Field'}</div>
                   </div>
+                </div>
+                  )}
+
+                  {program?.studyLevel && (
                   <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <Globe className="w-5 h-5 text-indigo-600" />
+                      <TrendingUp className="w-5 h-5 text-orange-600" />
                     <div>
-                      <div className="font-semibold text-gray-900">{program.language}</div>
-                      <div className="text-sm text-gray-600">{language === 'en' ? 'Language' : 'Langue'}</div>
+                        <div className="font-semibold text-gray-900">
+                          {getParameterLabel(parameters, 'studyLevels', program.studyLevel, language) || program.studyLevel}
                     </div>
+                        <div className="text-sm text-gray-600">{language === 'fr' ? 'Niveau d\'études' : 'Study Level'}</div>
                   </div>
+                    </div>
+                  )}
+
                 </div>
               </div>
 
-              {/* Action Buttons */}
+
               <div className="lg:w-80">
                 <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">
-                    {language === 'en' ? 'Ready to Apply?' : 'Prêt à Postuler ?'}
-                  </h3>
-                  
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">{language === 'fr' ? 'Prêt à postuler ?' : 'Ready to Apply?'}</h3>
                   <div className="space-y-3 mb-6">
-                    <button className={`w-full text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${
-                      program.universityType === 'A' 
-                        ? 'bg-gradient-to-r from-green-600 to-emerald-600' 
-                        : 'bg-gradient-to-r from-blue-600 to-indigo-600'
-                    }`}>
-                      <FileText className="w-4 h-4" />
-                      {program.universityType === 'A' 
-                        ? (language === 'en' ? 'FREE APPLY' : 'CANDIDATURE GRATUITE')
-                        : (language === 'en' ? 'APPLY NOW' : 'POSTULER MAINTENANT')
-                      }
-                    </button>
-                    
-                    <button className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2">
-                      <MessageCircle className="w-4 h-4" />
-                      {language === 'en' ? 'Contact Advisor' : 'Contacter un Conseiller'}
-                    </button>
-                    
+                    {program?.universityType === 'A' ? (
                     <button 
-                      onClick={() => setIsFavorite(!isFavorite)}
-                      className={`w-full py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
-                        isFavorite 
-                          ? 'bg-red-100 text-red-600 border border-red-200' 
-                          : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                      }`}
-                    >
-                      <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
-                      {isFavorite ? (language === 'en' ? 'Saved' : 'Sauvegardé') : (language === 'en' ? 'Save Program' : 'Sauvegarder')}
+                        onClick={() => setShowApplicationModal(true)}
+                        className="w-full text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-file-text w-4 h-4">
+                          <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path>
+                          <path d="M14 2v4a2 2 0 0 0 2 2h4"></path>
+                          <path d="M10 9H8"></path>
+                          <path d="M16 13H8"></path>
+                          <path d="M16 17H8"></path>
+                        </svg>
+                        {language === 'fr' ? 'CANDIDATER MAINTENANT' : 'APPLY NOW'}
                     </button>
-                    
+                    ) : (
+                      <button className="w-full text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-emerald-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-file-text w-4 h-4">
+                          <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path>
+                          <path d="M14 2v4a2 2 0 0 0 2 2h4"></path>
+                          <path d="M10 9H8"></path>
+                          <path d="M16 13H8"></path>
+                          <path d="M16 17H8"></path>
+                        </svg>
+                        {language === 'fr' ? 'CANDIDATURE GRATUITE' : 'FREE APPLY'}
+                      </button>
+                    )}
+                    <button className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-circle w-4 h-4">
+                        <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>
+                      </svg>
+                      {language === 'fr' ? 'Contacter un conseiller' : 'Contact Advisor'}
+                    </button>
+                    {currentUser && (
+                      <HeartButton 
+                        type="program"
+                        id={program.id}
+                        isShortlisted={program.isShortlisted}
+                        className="w-full py-3 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50"
+                        showText={true}
+                        language={language}
+                      />
+                    )}
                     <button className="w-full bg-white text-gray-700 border border-gray-200 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-all duration-200 flex items-center justify-center gap-2">
-                      <Share2 className="w-4 h-4" />
-                      {language === 'en' ? 'Share' : 'Partager'}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-share2 w-4 h-4">
+                        <circle cx="18" cy="5" r="3"></circle>
+                        <circle cx="6" cy="12" r="3"></circle>
+                        <circle cx="18" cy="19" r="3"></circle>
+                        <line x1="8.59" x2="15.42" y1="13.51" y2="17.49"></line>
+                        <line x1="15.41" x2="8.59" y1="6.51" y2="10.49"></line>
+                      </svg>
+                      {language === 'fr' ? 'Partager' : 'Share'}
                     </button>
                   </div>
-
                   <div className="border-t border-gray-200 pt-4">
                     <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
-                      <MessageCircle className="w-4 h-4" />
-                      <span>{language === 'en' ? 'Need Help?' : 'Besoin d\'Aide ?'}</span>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-message-circle w-4 h-4">
+                        <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>
+                      </svg>
+                      <span>{language === 'fr' ? 'Besoin d\'aide ?' : 'Need Help?'}</span>
                     </div>
                     <div className="space-y-2">
                       <button className="w-full text-left text-sm text-blue-600 hover:text-blue-800 flex items-center gap-2">
-                        <Phone className="w-3 h-3" />
-                        {language === 'en' ? 'Call Advisor' : 'Appeler Conseiller'}
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-phone w-3 h-3">
+                          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                        </svg>
+                        {language === 'fr' ? 'Appeler un conseiller' : 'Call Advisor'}
                       </button>
                       <button className="w-full text-left text-sm text-blue-600 hover:text-blue-800 flex items-center gap-2">
-                        <Mail className="w-3 h-3" />
-                        {language === 'en' ? 'Email Support' : 'Support Email'}
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-mail w-3 h-3">
+                          <rect width="20" height="16" x="2" y="4" rx="2"></rect>
+                          <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+                        </svg>
+                        {language === 'fr' ? 'Support par email' : 'Email Support'}
                       </button>
                     </div>
                   </div>
@@ -919,668 +1096,646 @@ const ProgramDetail = () => {
             </div>
           </div>
 
-          {/* E-DVISOR and Visa Calculator Sections */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-            {/* E-DVISOR Section */}
-            <div className="bg-gradient-to-br from-blue-50 to-emerald-50 rounded-2xl shadow-lg p-8 border border-blue-200">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-emerald-600 rounded-full flex items-center justify-center">
-                  <CheckCircle className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900">E-DVISOR Check</h3>
-                  <p className="text-sm text-gray-600">AI-Powered Admission Assessment</p>
-                </div>
-              </div>
-              <p className="text-gray-700 mb-6">
-                {language === 'en' 
-                  ? 'Get instant feedback on your admission chances for this program using our advanced AI system. Receive personalized recommendations and insights.'
-                  : 'Obtenez un retour instantané sur vos chances d\'admission pour ce programme en utilisant notre système IA avancé. Recevez des recommandations et des conseils personnalisés.'
-                }
-              </p>
-              <button className="w-full bg-gradient-to-r from-blue-600 to-emerald-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-emerald-700 transition-all duration-200 flex items-center justify-center gap-2">
-                <CheckCircle className="w-5 h-5" />
-                {language === 'en' ? 'Check My Chances' : 'Vérifier Mes Chances'}
-              </button>
+
+          {/* Application Periods Section */}
+          {program.multiIntakes && program.multiIntakes.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
+              <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <Calendar className="w-6 h-6 text-blue-600" />
+                {language === 'fr' ? 'Périodes de candidature' : 'Application Periods'}
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {program.multiIntakes.map((intake, index) => {
+                  const status = getApplicationPeriodStatus(intake);
+                  const isOpen = status.status === 'open';
+                  const isClosingSoon = status.status === 'closing-soon';
+                  
+                  return (
+                    <div key={index} className="bg-gray-50 rounded-xl p-6 border border-gray-200 hover:shadow-md transition-shadow">
+                      {/* Intake Name */}
+                      <div className="flex items-center justify-between mb-4">
+                         <h4 className="text-lg font-semibold text-gray-900">
+                           {formatIntakeName(intake.name, language) || `${language === 'fr' ? 'Période' : 'Period'} ${index + 1}`}
+                         </h4>
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${status.bgColor} ${status.textColor}`}>
+                          {status.text}
+                        </span>
             </div>
 
-            {/* Visa Calculator Section */}
-            <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl shadow-lg p-8 border border-emerald-200">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-12 h-12 bg-gradient-to-r from-emerald-600 to-green-600 rounded-full flex items-center justify-center">
-                  <Target className="w-6 h-6 text-white" />
+                      {/* Dates */}
+                      <div className="space-y-3 mb-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <Calendar className="w-4 h-4 text-blue-600" />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-gray-900">Visa Calculator</h3>
-                  <p className="text-sm text-gray-600">Smart Visa Requirements & Costs</p>
+                            <div className="text-sm text-gray-600">
+                              {language === 'fr' ? 'Ouverture' : 'Opens'}
                 </div>
-              </div>
-              <p className="text-gray-700 mb-6">
-                {language === 'en' 
-                  ? `Calculate your visa requirements, processing times, and estimated costs for studying in ${program.country}. Get personalized guidance and document checklists.`
-                  : `Calculez vos exigences de visa, délais de traitement et coûts estimés pour étudier au ${program.country}. Obtenez des conseils personnalisés et des listes de documents.`
-                }
-              </p>
-              <button className="w-full bg-gradient-to-r from-emerald-600 to-green-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-emerald-700 hover:to-green-700 transition-all duration-200 flex items-center justify-center gap-2">
-                <Target className="w-5 h-5" />
-                {language === 'en' ? 'Calculate Visa' : 'Calculer le Visa'}
-              </button>
+                            <div className="font-medium text-gray-900">
+                              {intake.applicationOpens 
+                                ? new Date(intake.applicationOpens).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                  })
+                                : (language === 'fr' ? 'Non spécifié' : 'Not specified')
+                              }
+                            </div>
             </div>
           </div>
 
-          {/* University Type and Application Information */}
-          <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">
-              {language === 'en' ? 'Application Information' : 'Informations de Candidature'}
-            </h3>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
+                            <Clock className="w-4 h-4 text-red-600" />
+                      </div>
+                      <div>
+                            <div className="text-sm text-gray-600">
+                              {language === 'fr' ? 'Fermeture' : 'Closes'}
+                      </div>
+                            <div className="font-medium text-gray-900">
+                              {intake.applicationCloses 
+                                ? new Date(intake.applicationCloses).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                  })
+                                : (language === 'fr' ? 'Non spécifié' : 'Not specified')
+                              }
+                      </div>
+                      </div>
+                    </div>
+                  </div>
+
+                      {/* Apply Button */}
+                      <button 
+                        className={`w-full py-3 px-4 rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2 ${
+                          isOpen 
+                            ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl' 
+                            : isClosingSoon
+                            ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-lg hover:shadow-xl'
+                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        }`}
+                        disabled={!isOpen && !isClosingSoon}
+                        onClick={() => {
+                          if (isOpen || isClosingSoon) {
+                            setShowApplicationModal(true);
+                          }
+                        }}
+                      >
+                        {isOpen ? (
+                          <>
+                            <ExternalLink className="w-4 h-4" />
+                            {language === 'fr' ? 'Postuler maintenant' : 'Apply Now'}
+                          </>
+                        ) : isClosingSoon ? (
+                          <>
+                            <Clock className="w-4 h-4" />
+                            {language === 'fr' ? 'Postuler rapidement' : 'Apply Quickly'}
+                          </>
+                        ) : (
+                          <>
+                            <Calendar className="w-4 h-4" />
+                            {language === 'fr' ? 'Non disponible' : 'Not Available'}
+                          </>
+                        )}
+                      </button>
+                </div>
+              );
+                })}
+          </div>
+
+              {/* Additional Info */}
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-start gap-3">
+                  <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <MessageCircle className="w-3 h-3 text-blue-600" />
+            </div>
+                  <div className="text-sm text-blue-800">
+                    <p className="font-medium mb-1">
+                      {language === 'fr' ? 'Besoin d\'aide ?' : 'Need help?'}
+                    </p>
+                    <p>
+                      {language === 'fr' 
+                        ? 'Contactez nos conseillers pour obtenir de l\'aide avec votre candidature et pour toute question sur les périodes d\'admission.'
+                        : 'Contact our advisors for help with your application and any questions about admission periods.'
+                      }
+                    </p>
+              </div>
+                    </div>
+                </div>
+              </div>
+          )}
+
+
+          {/* University Type and Service Pricing */}
             {(() => {
-              const typeInfo = getUniversityTypeInfo(program);
-              const serviceFee = getServiceFee(program);
-              
-              if (!typeInfo || !serviceFee) {
-                return null;
-              }
+            const typeInfo = getUniversityTypeInfo(program, language);
+            if (!typeInfo) return null;
               
               return (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* University Type */}
+              <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                  <Building2 className="w-6 h-6 text-blue-600" />
+                  {language === 'fr' ? 'Type d\'université et frais de service' : 'University Type and Service Fees'}
+            </h3>
+                
                   <div className="bg-gray-50 rounded-xl p-6">
-                    <div className="flex items-center gap-3 mb-4">
+                  {/* Header avec type et école */}
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
                       <div className={`p-3 rounded-lg ${
                         typeInfo.color === 'green' ? 'bg-green-100' :
                         typeInfo.color === 'blue' ? 'bg-blue-100' :
                         typeInfo.color === 'purple' ? 'bg-purple-100' :
-                        typeInfo.color === 'red' ? 'bg-red-100' :
-                        typeInfo.color === 'orange' ? 'bg-orange-100' :
                         'bg-gray-100'
                       }`}>
-                        <span className="text-2xl">{typeInfo.icon}</span>
-                      </div>
-                      <div>
-                        <h4 className="text-lg font-bold text-gray-900">{typeInfo.type}</h4>
-                        <p className="text-sm text-gray-600">{typeInfo.description}</p>
-                      </div>
-                    </div>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Applications:</span>
-                        <span className="font-semibold">
-                          {typeInfo.freeApps > 0 
-                            ? `${typeInfo.freeApps} free applications`
-                            : 'Paid service'
-                          }
+                        <span className="text-2xl">
+                          {typeInfo.color === 'green' ? '💰' :
+                           typeInfo.color === 'blue' ? '🏛️' :
+                           typeInfo.color === 'purple' ? '📋' : '❓'}
                         </span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Visa Support:</span>
-                        <span className="font-semibold">{typeInfo.visaSupport}</span>
+              <div>
+                        <h4 className="text-lg font-bold text-gray-900">
+                          {typeInfo.type}
+                </h4>
+                        <p className="text-sm text-gray-600">
+                          {typeInfo.description}
+                        </p>
                       </div>
-                    </div>
-                  </div>
+              </div>
 
-                  {/* Service Fees */}
-                  <div className="bg-gray-50 rounded-xl p-6">
-                    <h4 className="text-lg font-bold text-gray-900 mb-4">
-                      {language === 'en' ? 'Service Fees' : 'Frais de Service'}
-                    </h4>
-                    <div className="flex items-center gap-3 mb-4">
-                      {serviceFee.showStrikethrough && serviceFee.originalAmount && (
-                        <span className="text-2xl text-gray-400 line-through">
-                          {serviceFee.originalAmount}
+                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                      program.type === 'Public' 
+                        ? 'bg-blue-100 text-blue-800' 
+                        : 'bg-purple-100 text-purple-800'
+                    }`}>
+                       {getTranslatedSchoolType(program.type, parameters, language)}
                         </span>
-                      )}
-                      <span className={`text-3xl font-bold ${
-                        serviceFee.amount === 'Free' ? 'text-green-600' : 'text-blue-600'
-                      }`}>
-                        {serviceFee.amount}
+              </div>
+
+                  {/* Informations de base */}
+                  <div className="space-y-3 mb-6">
+                    {typeInfo.type === "Type A" && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">{language === 'fr' ? 'Candidatures gratuites:' : 'Free applications:'}</span>
+                        <span className="font-semibold text-gray-900">{typeInfo.freeApps}</span>
+              </div>
+                    )}
+                    
+                    {typeInfo.type !== "Type B" && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">{language === 'fr' ? 'Support visa:' : 'Visa support:'}</span>
+                        <span className="font-semibold text-gray-900">{typeInfo.visaSupport}</span>
+              </div>
+                    )}
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">{language === 'fr' ? 'Frais de service:' : 'Service fees:'}</span>
+                      <span className="font-semibold text-gray-900">{typeInfo.serviceFees}</span>
+                    </div>
+              </div>
+
+                  {/* Section spécifique par type */}
+                  {typeInfo.originalPrice && (
+                    <div className="border-t pt-4">
+                      {typeInfo.type === "Type A" && (
+                        <div className="bg-white rounded-lg p-4 border border-gray-200">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm font-medium text-gray-700">
+                              {language === 'fr' ? 'Frais de service' : 'Service fees'}
+                        </span>
+                            <span className="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-700">
+                              {typeInfo.type}
                       </span>
+              </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <ServicePriceDisplay 
+                                price={typeInfo.originalPrice}
+                                currency={typeInfo.currency}
+                                className="text-gray-400 line-through text-sm"
+                                userCurrency={userCurrency}
+                                formatPrice={formatPrice}
+                                convertPrice={convertPrice}
+                              />
+                              <span className="font-semibold text-green-600 text-lg">
+                                {language === 'fr' ? 'Gratuit' : 'Free'}
+                              </span>
+            </div>
+                            <span className="text-xs text-gray-500">
+                              {language === 'fr' ? '3 candidatures gratuites' : '3 free applications'}
+                            </span>
+          </div>
+          </div>
+                      )}
+
+                      {typeInfo.type === "Type B" && (
+                        <div className="space-y-4">
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div className="flex items-start gap-3">
+                              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                <span className="text-blue-600 text-lg">🏛️</span>
+            </div>
+                              <div className="flex-1">
+                                <h4 className="font-semibold text-blue-900 mb-2">
+                                  {language === 'fr' ? 'Service d\'accompagnement complet' : 'Complete Support Service'}
+                                </h4>
+                                <p className="text-sm text-blue-800 leading-relaxed">
+                                  {language === 'fr' 
+                                    ? 'Pour les établissements de type B, notre équipe s\'occupe de vous inscrire et de suivre votre admission de près jusqu\'à l\'admission finale. Aucune admission n\'est garantie, nous vous aidons dans la préparation de dossier et la validation de vos informations, mais c\'est l\'université qui décidera de votre acceptation !'
+                                    : 'For Type B programs, our team handles your registration and follows your admission closely until final admission. No admission is guaranteed, we help you with document preparation and information validation, but it\'s the university that will decide on your acceptance!'
+                }
+              </p>
                     </div>
-                    <p className="text-sm text-gray-600">{serviceFee.description}</p>
+            </div>
+          </div>
+
+                          <div className="bg-white border border-gray-200 rounded-lg p-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <span className="text-sm font-medium text-gray-700">
+                                {language === 'fr' ? 'Frais de service' : 'Service fees'}
+                              </span>
+                              <span className="px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-700">
+                            {typeInfo.type}
+                              </span>
+              </div>
+
+                            {typeInfo.promotionPrice && typeInfo.originalPrice ? (
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <ServicePriceDisplay 
+                                      price={typeInfo.originalPrice}
+                                      currency={typeInfo.currency}
+                                      className="text-gray-400 line-through text-sm"
+                                      userCurrency={userCurrency}
+                                      formatPrice={formatPrice}
+                                      convertPrice={convertPrice}
+                                    />
+                                    <ServicePriceDisplay 
+                                      price={typeInfo.promotionPrice}
+                                      currency={typeInfo.currency}
+                                      isPromotion={true}
+                                      className="font-semibold text-red-600 text-lg"
+                                      userCurrency={userCurrency}
+                                      formatPrice={formatPrice}
+                                      convertPrice={convertPrice}
+                                    />
+              </div>
+                                  <span className="text-xs text-red-600 font-medium">
+                                    {language === 'fr' ? 'Promotion' : 'Promotion'}
+                                  </span>
+            </div>
+                                {typeInfo.promotionDeadline && typeInfo.promotionDeadline.trim() !== '' && (
+                                  <div className="bg-red-50 border border-red-200 rounded-lg p-2">
+                                    <div className="flex items-center gap-2">
+                                      <Clock className="w-4 h-4 text-red-600" />
+                                      <span className="text-xs text-red-700 font-medium">
+                                        {language === 'fr' ? 'Promotion valable jusqu\'au' : 'Promotion valid until'} {new Date(typeInfo.promotionDeadline).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US')}
+                                      </span>
+            </div>
+          </div>
+                                )}
+                    </div>
+                            ) : typeInfo.originalPrice ? (
+                              <div className="flex items-center justify-between">
+                                <ServicePriceDisplay 
+                                  price={typeInfo.originalPrice}
+                                  currency={typeInfo.currency}
+                                  className="font-semibold text-blue-600 text-lg"
+                                  userCurrency={userCurrency}
+                                  formatPrice={formatPrice}
+                                  convertPrice={convertPrice}
+                                />
+                                <span className="text-xs text-gray-500">
+                                  {language === 'fr' ? 'Prix normal' : 'Normal price'}
+                                </span>
                   </div>
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* Quick Navigation Links */}
-          <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">
-              {language === 'en' ? 'Quick Navigation' : 'Navigation Rapide'}
-            </h3>
-            <div className="flex flex-wrap gap-3">
-              {[
-                { id: 'overview', label: language === 'en' ? 'Overview' : 'Aperçu' },
-                { id: 'admission', label: language === 'en' ? 'Admission' : 'Admission' },
-                { id: 'costs', label: language === 'en' ? 'Costs' : 'Coûts' },
-                { id: 'photos', label: language === 'en' ? 'Photos' : 'Photos' },
-                { id: 'videos', label: language === 'en' ? 'Videos' : 'Vidéos' },
-                { id: 'locations', label: language === 'en' ? 'Locations' : 'Localisations' }
-              ].map((section) => (
-                <a
-                  key={section.id}
-                  href={`#${section.id}`}
-                  className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
-                >
-                  {section.label}
-                </a>
-              ))}
-            </div>
-          </div>
-
-          {/* Course Overview Section */}
-          <div id="overview" className="bg-white rounded-2xl shadow-lg p-8 mb-8">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">
-              {language === 'en' ? 'Course Overview' : 'Aperçu du Cours'}
-            </h3>
-            <p className="text-gray-600 leading-relaxed mb-8">
-              {program.overview.description}
-            </p>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div>
-                <h4 className="text-xl font-bold text-gray-900 mb-4">
-                  {language === 'en' ? 'Key Program Highlights' : 'Points Forts du Programme'}
-                </h4>
-                <ul className="space-y-3">
-                  {program.overview.highlights.map((highlight, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-gray-600">{highlight}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="text-xl font-bold text-gray-900 mb-4">
-                  {language === 'en' ? 'Career Outcomes' : 'Débouchés Professionnels'}
-                </h4>
-                <div className="grid grid-cols-2 gap-2">
-                  {program.overview.careerOutcomes.map((career, index) => (
-                    <div key={index} className="bg-blue-50 rounded-lg p-3 text-center">
-                      <span className="text-sm font-medium text-blue-800">{career}</span>
+                            ) : (
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-blue-600 text-lg">
+                                    {language === 'fr' ? 'Prix sur demande' : 'Price on request'}
+                                  </span>
+                                  {typeInfo.currency && (
+                                    <span className="text-sm text-gray-500">
+                                      ({typeInfo.currency})
+                                    </span>
+                                  )}
                     </div>
-                  ))}
+                                <span className="text-xs text-gray-500">
+                                  {language === 'fr' ? 'Contactez-nous' : 'Contact us'}
+                                </span>
+                  </div>
+                            )}
                 </div>
               </div>
+                      )}
+
+                      {typeInfo.type === "Type C" && (
+                        <div className="bg-white rounded-lg p-4 border border-gray-200">
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm font-medium text-gray-700">
+                              {language === 'fr' ? 'Frais de service' : 'Service fees'}
+                      </span>
+                            <span className="px-2 py-1 rounded text-xs font-medium bg-purple-100 text-purple-700">
+                              {typeInfo.type}
+                            </span>
+                </div>
+
+                          {typeInfo.promotionPrice && typeInfo.originalPrice ? (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <ServicePriceDisplay 
+                                    price={typeInfo.originalPrice}
+                                    currency={typeInfo.currency}
+                                    className="text-gray-400 line-through text-sm"
+                                    userCurrency={userCurrency}
+                                    formatPrice={formatPrice}
+                                    convertPrice={convertPrice}
+                                  />
+                                  <ServicePriceDisplay 
+                                    price={typeInfo.promotionPrice}
+                                    currency={typeInfo.currency}
+                                    isPromotion={true}
+                                    className="font-semibold text-red-600 text-lg"
+                                    userCurrency={userCurrency}
+                                    formatPrice={formatPrice}
+                                    convertPrice={convertPrice}
+                                  />
+                </div>
+                                <span className="text-xs text-red-600 font-medium">
+                                  {language === 'fr' ? 'Promotion' : 'Promotion'}
+                          </span>
+              </div>
+                              {typeInfo.promotionDeadline && typeInfo.promotionDeadline.trim() !== '' && (
+                                <div className="bg-red-50 border border-red-200 rounded-lg p-2">
+                                  <div className="flex items-center gap-2">
+                                    <Clock className="w-4 h-4 text-red-600" />
+                                    <span className="text-xs text-red-700 font-medium">
+                                      {language === 'fr' ? 'Promotion valable jusqu\'au' : 'Promotion valid until'} {new Date(typeInfo.promotionDeadline).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US')}
+                          </span>
+            </div>
+                      </div>
+                              )}
+                    </div>
+                          ) : typeInfo.originalPrice ? (
+                            <div className="flex items-center justify-between">
+                              <ServicePriceDisplay 
+                                price={typeInfo.originalPrice}
+                                currency={typeInfo.currency}
+                                className="font-semibold text-purple-600 text-lg"
+                                userCurrency={userCurrency}
+                                formatPrice={formatPrice}
+                                convertPrice={convertPrice}
+                              />
+                              <span className="text-xs text-gray-500">
+                                {language === 'fr' ? 'Configuration spéciale' : 'Special configuration'}
+                              </span>
+                </div>
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-purple-600 text-lg">
+                                  {language === 'fr' ? 'Prix sur demande' : 'Price on request'}
+                                </span>
+                                {typeInfo.currency && (
+                                  <span className="text-sm text-gray-500">
+                                    ({typeInfo.currency})
+                                  </span>
+                                )}
+                      </div>
+                              <span className="text-xs text-gray-500">
+                                {language === 'fr' ? 'Contactez-nous' : 'Contact us'}
+                              </span>
+              </div>
+            )}
+          </div>
+                      )}
+                  </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
+
+          {/* E-DVISOR Check and Visa Calculator */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div className="bg-gradient-to-br from-blue-50 to-emerald-50 rounded-2xl shadow-lg p-8 border border-blue-200">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-emerald-600 rounded-full flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-check-circle w-6 h-6 text-white">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <path d="m9 11 3 3L22 4"></path>
+                  </svg>
+                </div>
+              <div>
+                  <h3 className="text-xl font-bold text-gray-900">{language === 'fr' ? 'Vérification E-DVISOR' : 'E-DVISOR Check'}</h3>
+                  <p className="text-sm text-gray-600">{language === 'fr' ? 'Évaluation d\'admission alimentée par l\'IA' : 'AI-Powered Admission Assessment'}</p>
+                      </div>
+              </div>
+              <p className="text-gray-700 mb-6">
+                {language === 'fr' 
+                  ? 'Obtenez un retour instantané sur vos chances d\'admission pour ce programme en utilisant notre système d\'IA avancé. Recevez des recommandations personnalisées et des conseils.'
+                  : 'Get instant feedback on your admission chances for this program using our advanced AI system. Receive personalized recommendations and insights.'
+                }
+              </p>
+              <button className="w-full bg-gradient-to-r from-blue-600 to-emerald-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-blue-700 hover:to-emerald-700 transition-all duration-200 flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-check-circle w-5 h-5">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                  <path d="m9 11 3 3L22 4"></path>
+                </svg>
+                {language === 'fr' ? 'Vérifier mes chances' : 'Check My Chances'}
+              </button>
+            </div>
+            <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl shadow-lg p-8 border border-emerald-200">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-12 h-12 bg-gradient-to-r from-emerald-600 to-green-600 rounded-full flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-target w-6 h-6 text-white">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <circle cx="12" cy="12" r="6"></circle>
+                    <circle cx="12" cy="12" r="2"></circle>
+                  </svg>
+                      </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">{language === 'fr' ? 'Calculateur de Visa' : 'Visa Calculator'}</h3>
+                  <p className="text-sm text-gray-600">{language === 'fr' ? 'Exigences et coûts de visa intelligents' : 'Smart Visa Requirements &amp; Costs'}</p>
+                    </div>
+                </div>
+              <p className="text-gray-700 mb-6">
+                {language === 'fr' 
+                  ? 'Calculez vos exigences de visa, temps de traitement et coûts estimés pour étudier au Canada. Obtenez des conseils personnalisés et des listes de documents.'
+                  : 'Calculate your visa requirements, processing times, and estimated costs for studying in Canada. Get personalized guidance and document checklists.'
+                }
+              </p>
+              <button className="w-full bg-gradient-to-r from-emerald-600 to-green-600 text-white py-3 px-6 rounded-lg font-semibold hover:from-emerald-700 hover:to-green-700 transition-all duration-200 flex items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-target w-5 h-5">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <circle cx="12" cy="12" r="6"></circle>
+                  <circle cx="12" cy="12" r="2"></circle>
+                </svg>
+                {language === 'fr' ? 'Calculer le visa' : 'Calculate Visa'}
+              </button>
+              </div>
+          </div>
+
+
+          {/* Quick Navigation */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">{language === 'fr' ? 'Navigation rapide' : 'Quick Navigation'}</h3>
+            <div className="flex flex-wrap gap-3">
+              <a href="#overview" className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium">{language === 'fr' ? 'Aperçu' : 'Overview'}</a>
+              <a href="#admission" className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium">{language === 'fr' ? 'Admission' : 'Admission'}</a>
+              <a href="#costs" className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium">{language === 'fr' ? 'Coûts' : 'Costs'}</a>
+              <a href="#photos" className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium">{language === 'fr' ? 'Photos' : 'Photos'}</a>
+              <a href="#videos" className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium">{language === 'fr' ? 'Vidéos' : 'Videos'}</a>
+              <a href="#locations" className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium">{language === 'fr' ? 'Emplacements' : 'Locations'}</a>
             </div>
           </div>
 
-          {/* Requirements Section */}
-          <div id="admission" className="bg-white rounded-2xl shadow-lg p-8 mb-8">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">
-              {language === 'en' ? 'Requirements' : 'Exigences'}
-            </h3>
-            <p className="text-gray-600 mb-6">
-              {language === 'en' 
-                ? 'The requirements may vary based on your selected study options.'
-                : 'Les exigences peuvent varier selon vos options d\'études sélectionnées.'
+          {/* Overview Section */}
+          <div id="overview" className="bg-white rounded-2xl shadow-lg p-8 mb-8">
+            <h3 className="text-2xl font-bold text-gray-900 mb-6">{language === 'fr' ? 'Aperçu du programme' : 'Course Overview'}</h3>
+            <div className="prose prose-lg max-w-none">
+              {program?.description ? (
+                <div 
+                  dangerouslySetInnerHTML={{ 
+                    __html: language === 'fr' ? (program.descriptionFr || program.description) : program.description 
+                  }} 
+                />
+              ) : (
+                <p className="text-gray-600 leading-relaxed">
+                  {language === 'fr' 
+                    ? 'Ce programme est conçu pour fournir aux étudiants des connaissances et compétences avancées dans leur domaine d\'étude, avec un accent particulier sur l\'excellence académique et l\'application pratique.'
+                    : 'This program is designed to provide students with advanced knowledge and skills in their field of study, with particular emphasis on academic excellence and practical application.'
               }
             </p>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-              <div>
-                <h4 className="text-lg font-bold text-gray-900 mb-4">
-                  {language === 'en' ? 'Academic Certificates' : 'Certificats Académiques'}
-                </h4>
-                <ul className="space-y-2">
-                  {program.admission.academicCertificates.map((req, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <CheckCircle className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-gray-600 text-sm">{req}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="text-lg font-bold text-gray-900 mb-4">
-                  {language === 'en' ? 'English Language Tests' : 'Tests de Langue Anglaise'}
-                </h4>
-                <ul className="space-y-2">
-                  {program.admission.englishLanguageTests.map((req, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <CheckCircle className="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-gray-600 text-sm">{req}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="text-lg font-bold text-gray-900 mb-4">
-                  {language === 'en' ? 'Required Documents' : 'Documents Requis'}
-                </h4>
-                <ul className="space-y-2">
-                  {program.admission.requiredDocuments.map((doc, index) => (
-                    <li key={index} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
-                      <FileText className="w-4 h-4 text-purple-600" />
-                      <span className="text-gray-700 text-sm">{doc}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="text-lg font-bold text-gray-900 mb-4">
-                  {language === 'en' ? 'Visa' : 'Visa'}
-                </h4>
-                <ul className="space-y-2">
-                  {program.admission.visa.map((req, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <CheckCircle className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-gray-600 text-sm">{req}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="text-lg font-bold text-gray-900 mb-4">
-                  {language === 'en' ? 'Medical' : 'Médical'}
-                </h4>
-                <ul className="space-y-2">
-                  {program.admission.medical.map((req, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <CheckCircle className="w-4 h-4 text-red-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-gray-600 text-sm">{req}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="text-lg font-bold text-gray-900 mb-4">
-                  {language === 'en' ? 'Identity' : 'Identité'}
-                </h4>
-                <ul className="space-y-2">
-                  {program.admission.identity.map((req, index) => (
-                    <li key={index} className="flex items-start gap-3">
-                      <CheckCircle className="w-4 h-4 text-indigo-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-gray-600 text-sm">{req}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              )}
             </div>
           </div>
+
+
+          {/* Rankings Section */}
+          {program.establishmentRankings && Object.keys(program.establishmentRankings).length > 0 && (
+            <div id="rankings" className="bg-white rounded-2xl shadow-lg p-8 mb-8">
+            <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <Award className="w-6 h-6 text-yellow-600" />
+                {language === 'fr' ? 'Classements internationaux' : 'International Rankings'}
+            </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {Object.entries(program.establishmentRankings).map(([rankingType, rankingValue]) => {
+                  const rankingInfo = getRankingInfo(rankingType, rankingValue, language);
+                  const colorClasses = {
+                    blue: 'from-blue-50 to-blue-100 border-blue-200 text-blue-800',
+                    red: 'from-red-50 to-red-100 border-red-200 text-red-800',
+                    green: 'from-green-50 to-green-100 border-green-200 text-green-800',
+                    purple: 'from-purple-50 to-purple-100 border-purple-200 text-purple-800',
+                    gray: 'from-gray-50 to-gray-100 border-gray-200 text-gray-800'
+                  };
+              
+              return (
+                    <div 
+                      key={rankingType} 
+                      className={`bg-gradient-to-br ${colorClasses[rankingInfo.color]} rounded-lg p-4 border hover:shadow-md transition-shadow cursor-pointer`}
+                      onClick={() => window.open(rankingInfo.url, '_blank')}
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                            rankingInfo.color === 'blue' ? 'bg-blue-100' :
+                            rankingInfo.color === 'red' ? 'bg-red-100' :
+                            rankingInfo.color === 'green' ? 'bg-green-100' :
+                            rankingInfo.color === 'purple' ? 'bg-purple-100' :
+                        'bg-gray-100'
+                      }`}>
+                            <Award className={`w-4 h-4 ${
+                              rankingInfo.color === 'blue' ? 'text-blue-600' :
+                              rankingInfo.color === 'red' ? 'text-red-600' :
+                              rankingInfo.color === 'green' ? 'text-green-600' :
+                              rankingInfo.color === 'purple' ? 'text-purple-600' :
+                              'text-gray-600'
+                            }`} />
+                  </div>
+                      <div>
+                            <h4 className="font-semibold text-sm">
+                              {rankingInfo.name}
+                </h4>
+                  </div>
+                </div>
+                        <ExternalLink className="w-4 h-4 opacity-60" />
+          </div>
+
+                      <div className="text-center mb-3">
+                        <div className="text-2xl font-bold">
+                          {rankingValue && rankingValue !== null ? 
+                            `#${typeof rankingValue === 'object' ? JSON.stringify(rankingValue) : rankingValue}` : 
+                            (language === 'fr' ? 'Non disponible' : 'Not available')
+                          }
+                      </div>
+                        <div className="text-xs opacity-75">
+                          {language === 'fr' ? 'Mondial' : 'Global'}
+                    </div>
+                  </div>
+                  
+                      <p className="text-xs opacity-80 leading-relaxed">
+                        {rankingInfo.description}
+                      </p>
+                      
+                      <div className="mt-3 text-xs opacity-60 text-center">
+                        {language === 'fr' ? 'Cliquer pour voir le classement' : 'Click to view ranking'}
+                  </div>
+                </div>
+                  );
+                })}
+            </div>
+          </div>
+          )}
+
+          {/* Requirements Section */}
+          {renderRequirements(program.structuredRequirements, language)}
+
+          {/* Media & Campus Section */}
+          <EstablishmentMedia program={program} language={language} />
+
+
 
 
           {/* Need Help Section */}
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-8 mb-8 border border-blue-100">
             <div className="text-center">
               <h3 className="text-2xl font-bold text-gray-900 mb-4">
-                {language === 'en' ? 'Need help?' : 'Besoin d\'aide ?'}
+                {language === 'fr' ? 'Besoin d\'aide ?' : 'Need help?'}
               </h3>
               <p className="text-gray-600 mb-6">
-                {language === 'en' 
-                  ? 'Hop onto a video counselling session with your dedicated counsellor to get all your queries answered.'
-                  : 'Rejoignez une session de conseil vidéo avec votre conseiller dédié pour obtenir des réponses à toutes vos questions.'
+                {language === 'fr' 
+                  ? 'Réservez une session de conseil vidéo avec votre conseiller dédié pour obtenir des réponses à toutes vos questions.'
+                  : 'Hop onto a video counselling session with your dedicated counsellor to get all your queries answered.'
                 }
               </p>
               <button className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
-                {language === 'en' ? 'Book a session' : 'Réserver une session'}
+                {language === 'fr' ? 'Réserver une session' : 'Book a session'}
               </button>
-            </div>
-          </div>
-
-          {/* Curriculum Section */}
-          <div id="curriculum" className="bg-white rounded-2xl shadow-lg p-8 mb-8">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">
-              {language === 'en' ? 'Curriculum Structure' : 'Structure du Programme'}
-            </h3>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div>
-                <h4 className="text-xl font-bold text-gray-900 mb-4">
-                  {language === 'en' ? 'Core Courses' : 'Cours Principaux'}
-                </h4>
-                <ul className="space-y-2">
-                  {program.curriculum.coreCourses.map((course, index) => (
-                    <li key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <BookOpen className="w-4 h-4 text-blue-600" />
-                      <span className="text-gray-700">{course}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="text-xl font-bold text-gray-900 mb-4">
-                  {language === 'en' ? 'Elective Courses' : 'Cours Optionnels'}
-                </h4>
-                <ul className="space-y-2">
-                  {program.curriculum.electives.map((course, index) => (
-                    <li key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                      <BookOpen className="w-4 h-4 text-green-600" />
-                      <span className="text-gray-700">{course}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
-            <div className="mt-8 bg-blue-50 rounded-xl p-6">
-              <h4 className="text-lg font-bold text-gray-900 mb-3">
-                {language === 'en' ? 'Thesis/Capstone Project' : 'Thèse/Projet de Fin d\'Études'}
-              </h4>
-              <p className="text-gray-600">{program.curriculum.thesis}</p>
-            </div>
-          </div>
-
-          {/* Costs Section */}
-          <div id="costs" className="bg-white rounded-2xl shadow-lg p-8 mb-8">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">
-              {language === 'en' ? 'Program Costs' : 'Coûts du Programme'}
-            </h3>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div>
-                <h4 className="text-xl font-bold text-gray-900 mb-4">
-                  {language === 'en' ? 'Tuition Fees' : 'Frais de Scolarité'}
-                </h4>
-                <div className="space-y-3">
-                  <div className="bg-green-50 rounded-lg p-4">
-                    <div className="font-semibold text-green-800">
-                      {language === 'en' ? 'Domestic Students' : 'Étudiants Nationaux'}
-                    </div>
-                    <div className="text-2xl font-bold text-green-600">{program.costs.tuition.domestic}</div>
-                  </div>
-                  <div className="bg-blue-50 rounded-lg p-4">
-                    <div className="font-semibold text-blue-800">
-                      {language === 'en' ? 'International Students' : 'Étudiants Internationaux'}
-                    </div>
-                    <div className="text-2xl font-bold text-blue-600">{program.costs.tuition.international}</div>
-                  </div>
-                </div>
-
-                <h5 className="text-lg font-bold text-gray-900 mt-6 mb-3">
-                  {language === 'en' ? 'Additional Fees' : 'Frais Supplémentaires'}
-                </h5>
-                <ul className="space-y-2">
-                  {program.costs.fees.map((fee, index) => (
-                    <li key={index} className="flex justify-between items-center p-2 bg-gray-50 rounded-lg">
-                      <span className="text-gray-700">{fee}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="text-xl font-bold text-gray-900 mb-4">
-                  {language === 'en' ? 'Living Expenses' : 'Frais de Vie'}
-                </h4>
-                <div className="space-y-3">
-                  {Object.entries(program.costs.living).map(([category, amount]) => (
-                    <div key={category} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                      <span className="font-medium text-gray-700 capitalize">
-                        {category === 'accommodation' ? (language === 'en' ? 'Accommodation' : 'Hébergement') :
-                         category === 'food' ? (language === 'en' ? 'Food' : 'Nourriture') :
-                         category === 'transportation' ? (language === 'en' ? 'Transportation' : 'Transport') :
-                         category === 'books' ? (language === 'en' ? 'Books & Supplies' : 'Livres & Fournitures') :
-                         category === 'personal' ? (language === 'en' ? 'Personal Expenses' : 'Dépenses Personnelles') :
-                         category}
-                      </span>
-                      <span className="font-semibold text-gray-900">{amount}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
-                  <h5 className="text-lg font-bold text-gray-900 mb-2">
-                    {language === 'en' ? 'Total Estimated Cost' : 'Coût Total Estimé'}
-                  </h5>
-                  <div className="text-3xl font-bold text-blue-600">{program.costs.total}</div>
-                  <p className="text-sm text-gray-600 mt-2">
-                    {language === 'en' ? 'Per year for international students' : 'Par an pour les étudiants internationaux'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {program.scholarships && program.scholarships.length > 0 && (
-              <div className="mt-8">
-                <h4 className="text-xl font-bold text-gray-900 mb-4">
-                  {language === 'en' ? 'Available Scholarships' : 'Bourses Disponibles'}
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {program.scholarships.map((scholarship, index) => (
-                    <div key={index} className="bg-yellow-50 rounded-xl p-6 border border-yellow-200">
-                      <h5 className="text-lg font-bold text-yellow-800 mb-2">{scholarship.name}</h5>
-                      <div className="text-2xl font-bold text-yellow-600 mb-2">{scholarship.amount}</div>
-                      <p className="text-gray-600 mb-3">{scholarship.description}</p>
-                      <div>
-                        <h6 className="font-semibold text-gray-900 mb-2">
-                          {language === 'en' ? 'Requirements:' : 'Exigences :'}
-                        </h6>
-                        <ul className="space-y-1">
-                          {scholarship.requirements.map((req, reqIndex) => (
-                            <li key={reqIndex} className="text-sm text-gray-600 flex items-start gap-2">
-                              <span className="text-yellow-600">•</span>
-                              {req}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Campus Section */}
-          <div id="campus" className="bg-white rounded-2xl shadow-lg p-8 mb-8">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6">
-              {language === 'en' ? 'Campus & Facilities' : 'Campus & Installations'}
-            </h3>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              <div>
-                <h4 className="text-xl font-bold text-gray-900 mb-4">
-                  {language === 'en' ? 'Campus Location' : 'Localisation du Campus'}
-                </h4>
-                <div className="bg-blue-50 rounded-lg p-4 mb-6">
-                  <div className="flex items-center gap-3">
-                    <MapPin className="w-5 h-5 text-blue-600" />
-                    <span className="font-semibold text-gray-900">{program.campus.location}</span>
-                  </div>
-                </div>
-
-                <h5 className="text-lg font-bold text-gray-900 mb-3">
-                  {language === 'en' ? 'Campus Facilities' : 'Installations du Campus'}
-                </h5>
-                <ul className="space-y-2">
-                  {program.campus.facilities.map((facility, index) => (
-                    <li key={index} className="flex items-center gap-3 p-2 bg-gray-50 rounded-lg">
-                      <Building2 className="w-4 h-4 text-blue-600" />
-                      <span className="text-gray-700">{facility}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="text-xl font-bold text-gray-900 mb-4">
-                  {language === 'en' ? 'Student Housing' : 'Logement Étudiant'}
-                </h4>
-                <ul className="space-y-3">
-                  {program.campus.housing.map((option, index) => (
-                    <li key={index} className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
-                      <div className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
-                        {index + 1}
-                      </div>
-                      <span className="text-gray-700">{option}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
-            {program.faculty && program.faculty.length > 0 && (
-              <div className="mt-8">
-                <h4 className="text-xl font-bold text-gray-900 mb-4">
-                  {language === 'en' ? 'Key Faculty Members' : 'Membres Clés du Corps Enseignant'}
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {program.faculty.map((member, index) => (
-                    <div key={index} className="bg-white border border-gray-200 rounded-xl p-6">
-                      <h5 className="text-lg font-bold text-gray-900 mb-1">{member.name}</h5>
-                      <div className="text-blue-600 font-semibold mb-2">{member.title}</div>
-                      <div className="text-sm text-gray-600 mb-2">
-                        <span className="font-medium">{language === 'en' ? 'Expertise:' : 'Expertise :'}</span> {member.expertise}
-                      </div>
-                      <p className="text-sm text-gray-500">{member.bio}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Photos Section */}
-          <div id="photos" className="bg-white rounded-2xl shadow-lg p-8 mb-8">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <ImageIcon className="w-6 h-6 text-blue-600" />
-              {language === 'en' ? 'Campus Photos' : 'Photos du Campus'}
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {program.photos.map((photo, index) => (
-                <div 
-                  key={index} 
-                  className="relative group cursor-pointer"
-                  onClick={() => {
-                    setSelectedImageIndex(index);
-                    setIsImageModalOpen(true);
-                  }}
-                >
-                  <img 
-                    src={photo} 
-                    alt={`Campus photo ${index + 1}`}
-                    className="w-full h-48 object-cover rounded-lg shadow-md group-hover:shadow-lg transition-shadow"
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded-lg flex items-center justify-center">
-                    <Eye className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Videos Section */}
-          <div id="videos" className="bg-white rounded-2xl shadow-lg p-8 mb-8">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <Play className="w-6 h-6 text-red-600" />
-              {language === 'en' ? 'Videos' : 'Vidéos'}
-            </h3>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {program.videos.map((video, index) => (
-                <div key={index} className="bg-gray-50 rounded-lg overflow-hidden">
-                  <div className="aspect-video bg-gray-200 rounded-t-lg overflow-hidden">
-                    <iframe
-                      src={video.url}
-                      title={video.title}
-                      className="w-full h-full"
-                      allowFullScreen
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    />
-                  </div>
-                  <div className="p-4">
-                    <h4 className="font-semibold text-gray-900 mb-2">{video.title}</h4>
-                    <p className="text-gray-600 text-sm">{video.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Locations Section */}
-          <div id="locations" className="bg-white rounded-2xl shadow-lg p-8 mb-8">
-            <h3 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-              <Map className="w-6 h-6 text-green-600" />
-              {language === 'en' ? 'Campus Locations' : 'Localisations du Campus'}
-            </h3>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {program.locations.map((location, index) => (
-                <div key={index} className="space-y-4">
-                  <div className="bg-gray-50 rounded-lg p-6">
-                    <div className="flex items-start gap-4 mb-4">
-                      <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                        <MapPin className="w-6 h-6 text-green-600" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="text-lg font-bold text-gray-900 mb-1">{location.name}</h4>
-                        <div className="text-sm text-green-600 font-medium mb-2">{location.type}</div>
-                        <p className="text-gray-600 text-sm mb-3">{location.address}</p>
-                        <p className="text-gray-700">{location.description}</p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Google Maps Embed */}
-                  <div className="bg-gray-100 rounded-lg overflow-hidden">
-                    <iframe
-                      src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dOWWgUfXrH3g&q=${encodeURIComponent(location.address)}&zoom=15`}
-                      width="100%"
-                      height="200"
-                      style={{ border: 0 }}
-                      allowFullScreen=""
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
-                      title={`Map of ${location.name}`}
-                    />
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </div>
-      </div>
+              </div>
 
-      {/* Image Modal */}
-      {isImageModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
-          <div className="relative max-w-4xl max-h-full">
-            <button
-              onClick={() => setIsImageModalOpen(false)}
-              className="absolute top-4 right-4 text-white hover:text-gray-300 z-10"
-            >
-              <X className="w-8 h-8" />
-            </button>
-            
-            <div className="flex items-center justify-center">
-              <button
-                onClick={() => setSelectedImageIndex(prev => prev > 0 ? prev - 1 : program.photos.length - 1)}
-                className="absolute left-4 text-white hover:text-gray-300 z-10"
-              >
-                <ArrowLeft className="w-8 h-8" />
-              </button>
-              
-              <img
-                src={program.photos[selectedImageIndex]}
-                alt={`Campus photo ${selectedImageIndex + 1}`}
-                className="max-w-full max-h-full object-contain rounded-lg"
-              />
-              
-              <button
-                onClick={() => setSelectedImageIndex(prev => prev < program.photos.length - 1 ? prev + 1 : 0)}
-                className="absolute right-4 text-white hover:text-gray-300 z-10"
-              >
-                <ArrowLeft className="w-8 h-8 rotate-180" />
-              </button>
-            </div>
-            
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white text-center">
-              <p className="text-sm">
-                {selectedImageIndex + 1} / {program.photos.length}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Application Confirmation Modal */}
+      <ApplicationConfirmationModal
+        isOpen={showApplicationModal}
+        onClose={() => setShowApplicationModal(false)}
+        onConfirm={() => {
+          setShowApplicationModal(false);
+          navigate(`/apply/${program.id}`);
+        }}
+        program={program}
+        language={language}
+      />
     </>
   );
 };

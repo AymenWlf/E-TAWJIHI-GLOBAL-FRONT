@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Services Display</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .service-card {
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            background: white;
+        }
+        .service-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .service-icon {
+            font-size: 2em;
+            margin-right: 15px;
+        }
+        .service-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #333;
+        }
+        .service-price {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .service-description {
+            color: #666;
+            margin: 10px 0;
+        }
+        .service-features {
+            list-style: none;
+            padding: 0;
+        }
+        .service-features li {
+            padding: 5px 0;
+            color: #555;
+        }
+        .service-features li:before {
+            content: "✓ ";
+            color: green;
+            font-weight: bold;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin: 2px;
+        }
+        .badge-popular {
+            background: #ffc107;
+            color: #000;
+        }
+        .badge-new {
+            background: #28a745;
+            color: white;
+        }
+        .badge-mobile {
+            background: #007bff;
+            color: white;
+        }
+        .category-filter {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+        .category-filter button {
+            padding: 8px 16px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: white;
+            cursor: pointer;
+        }
+        .category-filter button.active {
+            background: #007bff;
+            color: white;
+        }
+        .country-info {
+            margin: 20px 0;
+            padding: 15px;
+            background: #e3f2fd;
+            border-radius: 5px;
+            border-left: 4px solid #2196f3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Services Display - All Services</h1>
+        
+        <div class="country-info">
+            <h3>📋 Services Configuration</h3>
+            <p><strong>Total Services:</strong> 8 services</p>
+            <p><strong>Categories:</strong> Diagnostic, Morocco, France, International</p>
+            <p><strong>Display Logic:</strong> All services visible regardless of country</p>
+        </div>
+
+        <div class="category-filter">
+            <h3>Filter by Category:</h3>
+            <button class="active" onclick="filterServices('all')">All Services</button>
+            <button onclick="filterServices('diagnostic')">🔍 Diagnostic & Assessment</button>
+            <button onclick="filterServices('morocco_services')">🇲🇦 Morocco Services</button>
+            <button onclick="filterServices('france_services')">🇫🇷 France Services</button>
+            <button onclick="filterServices('international')">🌍 International Services</button>
+        </div>
+
+        <div id="servicesContainer">
+            <!-- Services will be dynamically loaded here -->
+        </div>
+    </div>
+
+    <script>
+        // Mock services data (simplified version)
+        const services = [
+            {
+                id: 'diagnostic_system',
+                name: 'Complete Diagnostic System',
+                nameFr: 'Système de Diagnostic Complet',
+                description: 'Comprehensive assessment of your academic profile, career goals, and study abroad readiness',
+                descriptionFr: 'Évaluation complète de votre profil académique, objectifs de carrière et préparation aux études à l\'étranger',
+                price: 50,
+                currency: 'USD',
+                category: 'diagnostic',
+                targetCountries: ['ALL'],
+                features: [
+                    'Academic Profile Analysis',
+                    'Career Path Recommendations',
+                    'Study Abroad Readiness Assessment',
+                    'Personalized Action Plan',
+                    'Detailed Report (PDF)',
+                    '1-on-1 Consultation (30 min)'
+                ],
+                icon: '🔍',
+                color: 'bg-blue-500',
+                isPopular: true,
+                exampleReportUrl: '/examples/diagnostic-report-sample.pdf',
+                duration: '2-3 business days'
+            },
+            {
+                id: 'tassjil',
+                name: 'TASSJIL Service',
+                nameFr: 'Service TASSJIL',
+                description: 'Complete assistance for registration in Moroccan public, private, and semi-public schools',
+                descriptionFr: 'Assistance complète pour l\'inscription dans les écoles marocaines publiques, privées et semi-publiques',
+                price: 2300,
+                currency: 'MAD',
+                category: 'morocco_services',
+                targetCountries: ['Morocco'],
+                features: [
+                    'School Selection Guidance',
+                    'Application Form Assistance',
+                    'Document Preparation',
+                    'Submission Support',
+                    'Follow-up & Updates',
+                    'Mobile App Access'
+                ],
+                icon: '📚',
+                color: 'bg-red-500',
+                mobileApp: true,
+                duration: 'Throughout application period'
+            },
+            {
+                id: 'tassjil_top15',
+                name: 'TASSJIL TOP 15',
+                nameFr: 'TASSJIL TOP 15',
+                description: 'Premium service for top 15 Moroccan universities and schools',
+                descriptionFr: 'Service premium pour les 15 meilleures universités et écoles marocaines',
+                price: 1800,
+                currency: 'MAD',
+                category: 'morocco_services',
+                targetCountries: ['Morocco'],
+                features: [
+                    'Top 15 Schools Priority',
+                    'Exclusive Application Support',
+                    'Priority Processing',
+                    'Enhanced Success Rate',
+                    'Premium Consultation',
+                    'Mobile App Premium Features'
+                ],
+                icon: '🏆',
+                color: 'bg-yellow-500',
+                isPopular: true,
+                mobileApp: true,
+                duration: 'Throughout application period'
+            },
+            {
+                id: 'tawjih_plus',
+                name: 'TAWJIH PLUS Mobile App',
+                nameFr: 'Application Mobile TAWJIH PLUS',
+                description: 'Mobile application sending notifications for Moroccan opportunities and international scholarships',
+                descriptionFr: 'Application mobile envoyant des notifications pour les opportunités marocaines et les bourses internationales',
+                price: 500,
+                currency: 'MAD',
+                category: 'morocco_services',
+                targetCountries: ['Morocco'],
+                features: [
+                    'Real-time Notifications',
+                    'Personalized Alerts',
+                    'Moroccan Opportunities',
+                    'International Scholarships',
+                    'Bac to Doctorate Coverage',
+                    'Mobile App Access'
+                ],
+                icon: '📱',
+                color: 'bg-purple-500',
+                mobileApp: true,
+                duration: 'Annual subscription'
+            },
+            {
+                id: 'campus_france',
+                name: 'Campus France Service',
+                nameFr: 'Service Campus France',
+                description: 'Complete assistance for French public school applications through Campus France procedure',
+                descriptionFr: 'Assistance complète pour les candidatures dans les écoles publiques françaises via la procédure Campus France',
+                price: 3500,
+                currency: 'MAD',
+                category: 'france_services',
+                targetCountries: ['Morocco', 'Algeria', 'Tunisia', 'Senegal', 'Ivory Coast', 'Cameroon', 'Mali', 'Burkina Faso', 'Niger', 'Chad', 'Madagascar', 'Mauritius', 'Lebanon', 'Syria', 'Jordan', 'Egypt', 'Libya'],
+                features: [
+                    'Campus France Procedure',
+                    'Application Preparation',
+                    'Document Translation',
+                    'Interview Preparation',
+                    'Visa Support',
+                    'University Selection'
+                ],
+                icon: '🇫🇷',
+                color: 'bg-blue-600',
+                duration: '3-6 months'
+            },
+            {
+                id: 'parcoursup_france',
+                name: 'Parcoursup Service (CPGE & BTS)',
+                nameFr: 'Service Parcoursup (CPGE & BTS)',
+                description: 'Assistance for CPGE and BTS applications in France via Parcoursup',
+                descriptionFr: 'Assistance pour les candidatures CPGE et BTS en France via Parcoursup',
+                price: 2500,
+                currency: 'MAD',
+                category: 'france_services',
+                targetCountries: ['Morocco', 'Algeria', 'Tunisia', 'Senegal', 'Ivory Coast', 'Cameroon', 'Mali', 'Burkina Faso', 'Niger', 'Chad', 'Madagascar', 'Mauritius', 'Lebanon', 'Syria', 'Jordan', 'Egypt', 'Libya'],
+                features: [
+                    'Parcoursup Platform Navigation',
+                    'Dossier Preparation',
+                    'CPGE Application Support',
+                    'BTS Application Support',
+                    'Interview Preparation',
+                    'Success Tracking'
+                ],
+                icon: '🎓',
+                color: 'bg-indigo-500',
+                duration: 'Application period'
+            },
+            {
+                id: 'student_visa',
+                name: 'Student Visa Support',
+                nameFr: 'Accompagnement Visa Étudiant',
+                description: 'Complete visa assistance for study abroad in any destination',
+                descriptionFr: 'Assistance complète pour visa étudiant pour toute destination d\'étude',
+                price: 4000,
+                currency: 'MAD',
+                category: 'international',
+                targetCountries: ['ALL'],
+                features: [
+                    'Visa Application Support',
+                    'Document Preparation',
+                    'Interview Preparation',
+                    'Embassy Liaison',
+                    'Application Tracking',
+                    'Success Guarantee'
+                ],
+                icon: '✈️',
+                color: 'bg-indigo-500',
+                isPopular: true,
+                duration: '2-4 months'
+            },
+            {
+                id: 'housing_guarantor',
+                name: 'Housing & Guarantor Service',
+                nameFr: 'Service Logement & Garant',
+                description: 'We help you find suitable accommodation and provide guarantor services according to your study country',
+                descriptionFr: 'Nous vous aidons à trouver un logement adapté et fournissons des services de garant selon votre pays d\'étude',
+                price: 4000,
+                currency: 'MAD',
+                category: 'international',
+                targetCountries: ['ALL'],
+                features: [
+                    'Housing Search Assistance',
+                    'Guarantor Services',
+                    'Document Preparation',
+                    'Landlord Liaison',
+                    'Contract Review',
+                    'Ongoing Support'
+                ],
+                icon: '🏠',
+                color: 'bg-orange-500',
+                isPopular: true,
+                duration: '1-3 months'
+            }
+        ];
+
+        let selectedCategory = 'all';
+
+        function filterServices(category) {
+            selectedCategory = category;
+            
+            // Update active button
+            document.querySelectorAll('.category-filter button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            renderServices();
+        }
+
+        function renderServices() {
+            const container = document.getElementById('servicesContainer');
+            container.innerHTML = '';
+
+            const filteredServices = selectedCategory === 'all' 
+                ? services 
+                : services.filter(service => service.category === selectedCategory);
+
+            filteredServices.forEach(service => {
+                const serviceCard = document.createElement('div');
+                serviceCard.className = 'service-card';
+                
+                let badges = '';
+                if (service.isPopular) badges += '<span class="badge badge-popular">Popular</span>';
+                if (service.isNew) badges += '<span class="badge badge-new">New</span>';
+                if (service.mobileApp) badges += '<span class="badge badge-mobile">Mobile App</span>';
+
+                serviceCard.innerHTML = `
+                    <div class="service-header">
+                        <div style="display: flex; align-items: center;">
+                            <span class="service-icon">${service.icon}</span>
+                            <div>
+                                <div class="service-title">${service.name}</div>
+                                <div style="color: #666; font-size: 0.9em;">${service.category.replace('_', ' ').toUpperCase()}</div>
+                            </div>
+                        </div>
+                        <div class="service-price">${service.price.toLocaleString()} ${service.currency}</div>
+                    </div>
+                    
+                    <div class="service-description">${service.description}</div>
+                    
+                    <ul class="service-features">
+                        ${service.features.map(feature => `<li>${feature}</li>`).join('')}
+                    </ul>
+                    
+                    <div style="margin-top: 15px;">
+                        ${badges}
+                        <span style="color: #666; font-size: 0.9em;">Duration: ${service.duration}</span>
+                    </div>
+                    
+                    <div style="margin-top: 15px; padding: 10px; background: #d4edda; border-radius: 5px;">
+                        <strong style="color: #155724;">
+                            ✅ Available - All services are now visible
+                        </strong>
+                    </div>
+                    
+                    <button 
+                        style="margin-top: 15px; padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;"
+                        onclick="purchaseService('${service.id}')"
+                    >
+                        Purchase Now
+                    </button>
+                `;
+                
+                container.appendChild(serviceCard);
+            });
+
+            // Show count
+            const countDiv = document.createElement('div');
+            countDiv.style.marginTop = '20px';
+            countDiv.style.padding = '10px';
+            countDiv.style.background = '#f8f9fa';
+            countDiv.style.borderRadius = '5px';
+            countDiv.innerHTML = `<strong>Showing ${filteredServices.length} service(s) in category: ${selectedCategory === 'all' ? 'All Services' : selectedCategory.replace('_', ' ').toUpperCase()}</strong>`;
+            container.appendChild(countDiv);
+        }
+
+        function purchaseService(serviceId) {
+            const service = services.find(s => s.id === serviceId);
+            alert(`Purchase initiated for: ${service.name}\nPrice: ${service.price.toLocaleString()} ${service.currency}\n\nThis would open the payment modal in the real application.`);
+        }
+
+        // Initial render
+        renderServices();
+    </script>
+</body>
+</html>

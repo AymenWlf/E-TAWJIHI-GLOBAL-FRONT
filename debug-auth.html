@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Authentication</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .info { background-color: #d1ecf1; color: #0c5460; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .danger {
+            background-color: #dc3545;
+        }
+        .danger:hover {
+            background-color: #c82333;
+        }
+        pre {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug Authentication E-TAWJIHI</h1>
+        
+        <div id="status"></div>
+        
+        <h2>Actions</h2>
+        <button onclick="checkAuth()">Vérifier l'authentification</button>
+        <button onclick="clearAuth()" class="danger">Effacer l'authentification</button>
+        <button onclick="testLogin()">Tester la navigation vers /login</button>
+        <button onclick="testRegister()">Tester la navigation vers /register</button>
+        
+        <h2>Informations de debug</h2>
+        <pre id="debugInfo"></pre>
+    </div>
+
+    <script>
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function updateDebugInfo() {
+            const debugDiv = document.getElementById('debugInfo');
+            const token = localStorage.getItem('jwt_token');
+            const user = localStorage.getItem('user');
+            
+            const debugInfo = {
+                'JWT Token': token ? `${token.substring(0, 50)}...` : 'Non trouvé',
+                'User Data': user ? JSON.parse(user) : 'Non trouvé',
+                'Current URL': window.location.href,
+                'User Agent': navigator.userAgent,
+                'Timestamp': new Date().toISOString()
+            };
+            
+            debugDiv.textContent = JSON.stringify(debugInfo, null, 2);
+        }
+
+        function checkAuth() {
+            const token = localStorage.getItem('jwt_token');
+            const user = localStorage.getItem('user');
+            
+            if (token && user) {
+                try {
+                    const userData = JSON.parse(user);
+                    updateStatus(`✅ Utilisateur connecté: ${userData.email}`, 'success');
+                } catch (e) {
+                    updateStatus('❌ Données utilisateur corrompues', 'error');
+                }
+            } else {
+                updateStatus('❌ Aucun utilisateur connecté', 'error');
+            }
+            
+            updateDebugInfo();
+        }
+
+        function clearAuth() {
+            localStorage.removeItem('jwt_token');
+            localStorage.removeItem('user');
+            updateStatus('🗑️ Authentification effacée', 'info');
+            updateDebugInfo();
+        }
+
+        function testLogin() {
+            window.location.href = '/login';
+        }
+
+        function testRegister() {
+            window.location.href = '/register';
+        }
+
+        // Vérification automatique au chargement
+        window.onload = function() {
+            checkAuth();
+        };
+    </script>
+</body>
+</html>

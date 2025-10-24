@@ -4,6 +4,7 @@ export interface User {
   firstName?: string;
   lastName?: string;
   roles: string[];
+  preferredLanguage?: string;
 }
 
 export interface AuthContextType {
@@ -12,6 +13,12 @@ export interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, firstName?: string, lastName?: string) => Promise<void>;
   logout: () => void;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (token: string, password: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  verifyEmail: (token: string) => Promise<void>;
+  resendVerificationEmail: () => Promise<void>;
+  updateLanguage: (language: string) => Promise<void>;
   isLoading: boolean;
 }
 

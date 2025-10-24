@@ -275,8 +275,16 @@ const SearchEngine = ({ language }) => {
 
 
   const handleSearch = () => {
-    // Handle search logic here
-    console.log('Searching with filters:', searchFilters);
+    // Rediriger vers la page des établissements avec les filtres
+    const queryParams = new URLSearchParams();
+    if (searchFilters.country) queryParams.append('country', searchFilters.country);
+    if (searchFilters.field) queryParams.append('field', searchFilters.field);
+    if (searchFilters.intakes) queryParams.append('intakes', searchFilters.intakes);
+    if (searchFilters.degree) queryParams.append('degree', searchFilters.degree);
+    
+    const queryString = queryParams.toString();
+    const url = queryString ? `/establishments?${queryString}` : '/establishments';
+    window.location.href = url;
   };
 
   const handleInputChange = (field, value) => {

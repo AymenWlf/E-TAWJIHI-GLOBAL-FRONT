@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import { Search, Globe, ArrowRight, Play, Star, Users, Building2, Award } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const HeroGlobal = ({ language }) => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleSearch = () => {
-    // Scroll to search section
-    const element = document.getElementById('search');
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
+    // Rediriger vers la page des établissements
+    window.location.href = '/establishments';
   };
 
   const content = {

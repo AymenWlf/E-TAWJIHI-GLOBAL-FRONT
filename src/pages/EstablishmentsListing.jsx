@@ -1,30 +1,521 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, MapPin, Star, Users, BookOpen, Globe, Filter, ChevronDown, ChevronUp, X, Heart, Eye, Calendar, Award, Building2, TrendingUp, CheckCircle, ExternalLink, SlidersHorizontal, Bell, Grid, List, MessageCircle, Zap, Bot, Sparkles } from 'lucide-react';
+import { Search, MapPin, Star, Users, BookOpen, Globe, Filter, ChevronDown, ChevronUp, X, Heart, Eye, Calendar, Award, Building2, TrendingUp, CheckCircle, ExternalLink, SlidersHorizontal, Bell, Grid, List, MessageCircle, Zap, Bot, Sparkles, ChevronLeft, ChevronRight, GraduationCap, DollarSign, Home, Trophy, Phone, Languages, FileText, Mic, PenTool, Clock } from 'lucide-react';
 import SEO from '../components/SEO';
 import HeaderAuth from '../components/HeaderAuth';
+import establishmentService from '../services/establishmentService';
+import programService from '../services/programService';
+import SelectSearchable from '../components/ui/SelectSearchable';
+import MultiSelect from '../components/ui/MultiSelect';
+import CountryMultiSelect from '../components/profile/CountryMultiSelect';
+import SubjectMultiSelect from '../components/profile/SubjectMultiSelect';
+import FieldMultiSelect from '../components/ui/FieldMultiSelect';
+import GradeInput from '../components/ui/GradeInput';
+import { gradeConversionService } from '../services/gradeConversionService';
+import { useCurrency } from '../contexts/CurrencyContext';
+import parameterService from '../services/parameterService';
+import { useAllParameters } from '../hooks/useAllParameters';
+import HeartButton from '../components/HeartButton';
+import { useShortlist } from '../hooks/useShortlist';
+
+// Mapping between SubjectMultiSelect IDs and database values
+const subjectMapping = {
+  'computer-science': 'Computer Science',
+  'business-administration': 'Business',
+  'engineering': 'Engineering',
+  'medicine': 'Medicine',
+  'law': 'Law',
+  'economics': 'Economics',
+  'finance': 'Finance',
+  'psychology': 'Psychology',
+  'education': 'Education',
+  'arts': 'Arts',
+  'sciences': 'Sciences',
+  'philosophy': 'Philosophy',
+  'nursing': 'Nursing',
+  'pharmacy': 'Pharmacy',
+  'dentistry': 'Dentistry',
+  'veterinary': 'Veterinary Science',
+  'agriculture': 'Agriculture',
+  'environmental-science': 'Environmental Science',
+  'geology': 'Geology',
+  'astronomy': 'Astronomy',
+  'mathematics': 'Mathematics',
+  'physics': 'Physics',
+  'chemistry': 'Chemistry',
+  'biology': 'Biology',
+  'accounting': 'Accounting',
+  'marketing': 'Marketing',
+  'management': 'Management',
+  'international-business': 'International Business',
+  'entrepreneurship': 'Entrepreneurship',
+  'human-resources': 'Human Resources',
+  'supply-chain': 'Supply Chain Management',
+  'literature': 'Literature',
+  'history': 'History',
+  'languages': 'Languages',
+  'linguistics': 'Linguistics',
+  'art': 'Art',
+  'music': 'Music',
+  'theater': 'Theater',
+  'film': 'Film Studies',
+  'design': 'Design',
+  'architecture': 'Architecture',
+  'journalism': 'Journalism',
+  'communication': 'Communication',
+  'sociology': 'Sociology',
+  'anthropology': 'Anthropology',
+  'political-science': 'Political Science',
+  'international-relations': 'International Relations',
+  'criminology': 'Criminology',
+  'social-work': 'Social Work',
+  'public-administration': 'Public Administration',
+  'urban-planning': 'Urban Planning',
+  'geography': 'Geography',
+  'tourism': 'Tourism',
+  'hospitality': 'Hospitality',
+  'culinary-arts': 'Culinary Arts',
+  'fashion': 'Fashion',
+  'sports': 'Sports',
+  'kinesiology': 'Kinesiology',
+  'nutrition': 'Nutrition',
+  'forestry': 'Forestry',
+  'marine-science': 'Marine Science',
+  'aviation': 'Aviation',
+  'transportation': 'Transportation',
+  'logistics': 'Logistics',
+  'information-technology': 'Information Technology',
+  'cybersecurity': 'Cybersecurity',
+  'data-science': 'Data Science',
+  'artificial-intelligence': 'Artificial Intelligence',
+  'robotics': 'Robotics',
+  'biotechnology': 'Biotechnology',
+  'nanotechnology': 'Nanotechnology',
+  'renewable-energy': 'Renewable Energy',
+  'sustainable-development': 'Sustainable Development',
+  'public-health': 'Public Health',
+  'epidemiology': 'Epidemiology',
+  'global-health': 'Global Health',
+  'mental-health': 'Mental Health',
+  'occupational-therapy': 'Occupational Therapy',
+  'physical-therapy': 'Physical Therapy',
+  'speech-therapy': 'Speech Therapy',
+  'radiology': 'Radiology',
+  'pathology': 'Pathology',
+  'oncology': 'Oncology',
+  'cardiology': 'Cardiology',
+  'neurology': 'Neurology',
+  'pediatrics': 'Pediatrics',
+  'geriatrics': 'Geriatrics',
+  'emergency-medicine': 'Emergency Medicine',
+  'surgery': 'Surgery',
+  'anesthesiology': 'Anesthesiology',
+  'dermatology': 'Dermatology',
+  'ophthalmology': 'Ophthalmology',
+  'otolaryngology': 'Otolaryngology',
+  'urology': 'Urology',
+  'gynecology': 'Gynecology',
+  'orthopedics': 'Orthopedics',
+  'plastic-surgery': 'Plastic Surgery',
+  'cosmetic-surgery': 'Cosmetic Surgery',
+  'veterinary-medicine': 'Veterinary Medicine',
+  'animal-science': 'Animal Science',
+  'food-science': 'Food Science',
+  'nutrition-science': 'Nutrition Science',
+  'exercise-science': 'Exercise Science',
+  'sports-medicine': 'Sports Medicine',
+  'rehabilitation-science': 'Rehabilitation Science',
+  'therapeutic-recreation': 'Therapeutic Recreation',
+  'recreation-management': 'Recreation Management',
+  'event-management': 'Event Management',
+  'project-management': 'Project Management',
+  'quality-management': 'Quality Management',
+  'risk-management': 'Risk Management',
+  'crisis-management': 'Crisis Management',
+  'change-management': 'Change Management',
+  'knowledge-management': 'Knowledge Management',
+  'information-management': 'Information Management',
+  'database-management': 'Database Management',
+  'network-management': 'Network Management',
+  'system-management': 'System Management',
+  'security-management': 'Security Management',
+  'compliance-management': 'Compliance Management',
+  'regulatory-affairs': 'Regulatory Affairs',
+  'legal-studies': 'Legal Studies',
+  'paralegal': 'Paralegal',
+  'court-reporting': 'Court Reporting',
+  'forensic-science': 'Forensic Science',
+  'criminal-justice': 'Criminal Justice',
+  'law-enforcement': 'Law Enforcement',
+  'corrections': 'Corrections',
+  'probation': 'Probation',
+  'parole': 'Parole',
+  'victim-services': 'Victim Services',
+  'juvenile-justice': 'Juvenile Justice',
+  'restorative-justice': 'Restorative Justice',
+  'mediation': 'Mediation',
+  'arbitration': 'Arbitration',
+  'conflict-resolution': 'Conflict Resolution',
+  'peace-studies': 'Peace Studies',
+  'international-law': 'International Law',
+  'human-rights': 'Human Rights',
+  'environmental-law': 'Environmental Law',
+  'health-law': 'Health Law',
+  'business-law': 'Business Law',
+  'corporate-law': 'Corporate Law',
+  'tax-law': 'Tax Law',
+  'intellectual-property': 'Intellectual Property',
+  'patent-law': 'Patent Law',
+  'copyright-law': 'Copyright Law',
+  'trademark-law': 'Trademark Law',
+  'entertainment-law': 'Entertainment Law',
+  'sports-law': 'Sports Law',
+  'immigration-law': 'Immigration Law',
+  'family-law': 'Family Law',
+  'estate-planning': 'Estate Planning',
+  'real-estate-law': 'Real Estate Law',
+  'construction-law': 'Construction Law',
+  'labor-law': 'Labor Law',
+  'employment-law': 'Employment Law',
+  'workers-compensation': 'Workers Compensation',
+  'disability-law': 'Disability Law',
+  'elder-law': 'Elder Law',
+  'education-law': 'Education Law',
+  'student-affairs': 'Student Affairs',
+  'academic-affairs': 'Academic Affairs',
+  'institutional-research': 'Institutional Research',
+  'assessment': 'Assessment',
+  'evaluation': 'Evaluation',
+  'measurement': 'Measurement',
+  'statistics': 'Statistics',
+  'research-methods': 'Research Methods',
+  'qualitative-research': 'Qualitative Research',
+  'quantitative-research': 'Quantitative Research',
+  'mixed-methods': 'Mixed Methods',
+  'action-research': 'Action Research',
+  'participatory-research': 'Participatory Research',
+  'community-based-research': 'Community Based Research',
+  'applied-research': 'Applied Research',
+  'basic-research': 'Basic Research',
+  'translational-research': 'Translational Research',
+  'clinical-research': 'Clinical Research',
+  'biomedical-research': 'Biomedical Research',
+  'pharmaceutical-research': 'Pharmaceutical Research',
+  'drug-development': 'Drug Development',
+  'clinical-trials': 'Clinical Trials',
+  'pharmacovigilance': 'Pharmacovigilance',
+  'pharmacoeconomics': 'Pharmacoeconomics',
+  'pharmacoepidemiology': 'Pharmacoepidemiology',
+  'pharmacogenomics': 'Pharmacogenomics',
+  'pharmacokinetics': 'Pharmacokinetics',
+  'pharmacodynamics': 'Pharmacodynamics',
+  'pharmacology': 'Pharmacology',
+  'toxicology': 'Toxicology',
+  'pharmaceutical-sciences': 'Pharmaceutical Sciences',
+  'pharmaceutical-chemistry': 'Pharmaceutical Chemistry',
+  'pharmaceutical-analysis': 'Pharmaceutical Analysis',
+  'pharmaceutical-technology': 'Pharmaceutical Technology',
+  'pharmaceutical-engineering': 'Pharmaceutical Engineering',
+  'pharmaceutical-manufacturing': 'Pharmaceutical Manufacturing',
+  'pharmaceutical-quality': 'Pharmaceutical Quality',
+  'pharmaceutical-regulatory': 'Pharmaceutical Regulatory',
+  'pharmaceutical-marketing': 'Pharmaceutical Marketing',
+  'pharmaceutical-sales': 'Pharmaceutical Sales',
+  'pharmaceutical-management': 'Pharmaceutical Management',
+  'pharmaceutical-administration': 'Pharmaceutical Administration',
+  'pharmaceutical-policy': 'Pharmaceutical Policy',
+  'pharmaceutical-economics': 'Pharmaceutical Economics',
+  'pharmaceutical-law': 'Pharmaceutical Law',
+  'pharmaceutical-ethics': 'Pharmaceutical Ethics',
+  'pharmaceutical-communication': 'Pharmaceutical Communication',
+  'pharmaceutical-education': 'Pharmaceutical Education',
+  'pharmaceutical-training': 'Pharmaceutical Training',
+  'pharmaceutical-development': 'Pharmaceutical Development',
+  'pharmaceutical-innovation': 'Pharmaceutical Innovation',
+  'pharmaceutical-entrepreneurship': 'Pharmaceutical Entrepreneurship',
+  'pharmaceutical-consulting': 'Pharmaceutical Consulting',
+  'pharmaceutical-advocacy': 'Pharmaceutical Advocacy',
+  'pharmaceutical-outcomes': 'Pharmaceutical Outcomes',
+  'pharmaceutical-effectiveness': 'Pharmaceutical Effectiveness',
+  'pharmaceutical-safety': 'Pharmaceutical Safety',
+  'pharmaceutical-efficacy': 'Pharmaceutical Efficacy',
+  'pharmaceutical-quality-assurance': 'Pharmaceutical Quality Assurance',
+  'pharmaceutical-quality-control': 'Pharmaceutical Quality Control',
+  'pharmaceutical-compliance': 'Pharmaceutical Compliance',
+  'pharmaceutical-auditing': 'Pharmaceutical Auditing',
+  'pharmaceutical-inspection': 'Pharmaceutical Inspection',
+  'pharmaceutical-certification': 'Pharmaceutical Certification',
+  'pharmaceutical-accreditation': 'Pharmaceutical Accreditation',
+  'pharmaceutical-licensing': 'Pharmaceutical Licensing',
+  'pharmaceutical-approval': 'Pharmaceutical Approval',
+  'pharmaceutical-clearance': 'Pharmaceutical Clearance',
+  'pharmaceutical-authorization': 'Pharmaceutical Authorization',
+  'pharmaceutical-permission': 'Pharmaceutical Permission',
+  'pharmaceutical-consent': 'Pharmaceutical Consent',
+  'pharmaceutical-agreement': 'Pharmaceutical Agreement',
+  'pharmaceutical-contract': 'Pharmaceutical Contract',
+  'pharmaceutical-partnership': 'Pharmaceutical Partnership',
+  'pharmaceutical-collaboration': 'Pharmaceutical Collaboration',
+  'pharmaceutical-cooperation': 'Pharmaceutical Cooperation',
+  'pharmaceutical-coordination': 'Pharmaceutical Coordination',
+  'pharmaceutical-integration': 'Pharmaceutical Integration',
+  'pharmaceutical-synergy': 'Pharmaceutical Synergy',
+  'pharmaceutical-alliance': 'Pharmaceutical Alliance',
+  'pharmaceutical-consortium': 'Pharmaceutical Consortium',
+  'pharmaceutical-network': 'Pharmaceutical Network',
+  'pharmaceutical-community': 'Pharmaceutical Community',
+  'pharmaceutical-society': 'Pharmaceutical Society',
+  'pharmaceutical-association': 'Pharmaceutical Association',
+  'pharmaceutical-organization': 'Pharmaceutical Organization',
+  'pharmaceutical-institution': 'Pharmaceutical Institution',
+  'pharmaceutical-academy': 'Pharmaceutical Academy',
+  'pharmaceutical-institute': 'Pharmaceutical Institute',
+  'pharmaceutical-center': 'Pharmaceutical Center',
+  'pharmaceutical-facility': 'Pharmaceutical Facility',
+  'pharmaceutical-laboratory': 'Pharmaceutical Laboratory',
+  'pharmaceutical-clinic': 'Pharmaceutical Clinic',
+  'pharmaceutical-hospital': 'Pharmaceutical Hospital',
+  'pharmaceutical-pharmacy': 'Pharmaceutical Pharmacy',
+  'pharmaceutical-dispensary': 'Pharmaceutical Dispensary',
+  'pharmaceutical-warehouse': 'Pharmaceutical Warehouse',
+  'pharmaceutical-distribution': 'Pharmaceutical Distribution',
+  'pharmaceutical-logistics': 'Pharmaceutical Logistics',
+  'pharmaceutical-supply-chain': 'Pharmaceutical Supply Chain',
+  'pharmaceutical-procurement': 'Pharmaceutical Procurement',
+  'pharmaceutical-sourcing': 'Pharmaceutical Sourcing',
+  'pharmaceutical-purchasing': 'Pharmaceutical Purchasing',
+  'pharmaceutical-buying': 'Pharmaceutical Buying',
+  'pharmaceutical-acquisition': 'Pharmaceutical Acquisition'
+};
+
+// Function to map SubjectMultiSelect IDs to database values
+const mapSubjectToDatabase = (subjectId) => {
+  if (!subjectId || typeof subjectId !== 'string') {
+    return '';
+  }
+  return subjectMapping[subjectId] || subjectId;
+};
+
+// Function to map database values to SubjectMultiSelect IDs
+const mapDatabaseToSubject = (databaseValue) => {
+  const entry = Object.entries(subjectMapping).find(([id, value]) => value === databaseValue);
+  return entry ? entry[0] : databaseValue;
+};
+
+// Function to generate program slug for SEO-friendly URLs
+const generateProgramSlug = (program) => {
+  if (!program) return '';
+  
+  const establishmentName = program.establishment?.name || program.establishment?.slug || 'university';
+  const programName = program.name || program.slug || 'program';
+  
+  // Create SEO-friendly slugs with proper French character handling
+  const establishmentSlug = establishmentName
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim();
+    
+  const programSlug = programName
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim();
+  
+  return `programs/${establishmentSlug}/${programSlug}`;
+};
+
+// Function to analyze program requirements and determine required types
+const analyzeProgramRequirements = (program) => {
+  const requirements = {
+    hasEnglishTest: false,
+    hasStandardizedTest: false,
+    hasInterview: false,
+    hasWrittenTest: false
+  };
+
+
+  // Check if program has structured requirements
+  if (program.structuredRequirements) {
+    const structured = program.structuredRequirements;
+    
+    // Check English tests
+    if (structured.english && structured.english.items && structured.english.items.length > 0) {
+      const hasRequiredEnglish = structured.english.items.some(item => item.required === true);
+      if (hasRequiredEnglish) requirements.hasEnglishTest = true;
+    }
+    
+    // Check Standardized tests
+    if (structured.standardizedTests && structured.standardizedTests.items && structured.standardizedTests.items.length > 0) {
+      const hasRequiredStandardized = structured.standardizedTests.items.some(item => item.required === true);
+      if (hasRequiredStandardized) requirements.hasStandardizedTest = true;
+    }
+    
+    // Check Academic requirements for interviews and written tests
+    if (structured.academic && structured.academic.items && structured.academic.items.length > 0) {
+      const academicItems = structured.academic.items;
+      const hasInterview = academicItems.some(item => 
+        item.required === true && 
+        (item.name?.en?.toLowerCase().includes('interview') || 
+         item.name?.fr?.toLowerCase().includes('entretien') ||
+         item.description?.en?.toLowerCase().includes('interview') ||
+         item.description?.fr?.toLowerCase().includes('entretien'))
+      );
+      const hasWrittenTest = academicItems.some(item => 
+        item.required === true && 
+        (item.name?.en?.toLowerCase().includes('written') || 
+         item.name?.fr?.toLowerCase().includes('écrit') ||
+         item.description?.en?.toLowerCase().includes('written') ||
+         item.description?.fr?.toLowerCase().includes('écrit'))
+      );
+      
+      if (hasInterview) requirements.hasInterview = true;
+      if (hasWrittenTest) requirements.hasWrittenTest = true;
+    }
+  }
+  
+  // Only use structured requirements - no fallback to deprecated requirements array
+  
+  // Check program-specific exam fields
+  if (program.oralExam) requirements.hasInterview = true;
+  if (program.writtenExam) requirements.hasWrittenTest = true;
+  
+  
+  return requirements;
+};
+
+// Function to analyze intake status
+const analyzeIntakeStatus = (intake) => {
+  if (!intake.applicationOpens || !intake.applicationCloses) {
+    return { status: 'no-dates', color: 'gray', text: 'No dates available' };
+  }
+  
+  const now = new Date();
+  const opensDate = new Date(intake.applicationOpens);
+  const closesDate = new Date(intake.applicationCloses);
+  
+  // Check if application is open
+  if (now >= opensDate && now <= closesDate) {
+    // Check if closing soon (within 30 days)
+    const daysUntilClose = Math.ceil((closesDate - now) / (1000 * 60 * 60 * 24));
+    if (daysUntilClose <= 30) {
+      return { status: 'closing-soon', color: 'red', text: `Closes in ${daysUntilClose} days` };
+    }
+    return { status: 'open', color: 'green', text: 'Open' };
+  }
+  
+  // Check if not yet open
+  if (now < opensDate) {
+    const daysUntilOpen = Math.ceil((opensDate - now) / (1000 * 60 * 60 * 24));
+    return { status: 'not-open', color: 'blue', text: `Opens in ${daysUntilOpen} days` };
+  }
+  
+  // Application is closed
+  return { status: 'closed', color: 'gray', text: 'Closed' };
+};
+
+// Function to find the next application period
+const findNextIntake = (multiIntakes) => {
+  if (!multiIntakes || multiIntakes.length === 0) return null;
+  
+  const now = new Date();
+  const validIntakes = multiIntakes.filter(intake => 
+    intake.applicationOpens && intake.applicationCloses
+  );
+  
+  if (validIntakes.length === 0) return null;
+  
+  // Sort by opening date
+  const sortedIntakes = validIntakes.sort((a, b) => 
+    new Date(a.applicationOpens) - new Date(b.applicationOpens)
+  );
+  
+  // Find the next intake (either currently open or future)
+  const nextIntake = sortedIntakes.find(intake => {
+    const opensDate = new Date(intake.applicationOpens);
+    const closesDate = new Date(intake.applicationCloses);
+    return now <= closesDate; // Not yet closed
+  });
+  
+  return nextIntake || null;
+};
+
+// Month mapping for localization
+const monthMapping = {
+  en: {
+    'January': 'January', 'February': 'February', 'March': 'March', 'April': 'April',
+    'May': 'May', 'June': 'June', 'July': 'July', 'August': 'August',
+    'September': 'September', 'October': 'October', 'November': 'November', 'December': 'December'
+  },
+  fr: {
+    'January': 'Janvier', 'February': 'Février', 'March': 'Mars', 'April': 'Avril',
+    'May': 'Mai', 'June': 'Juin', 'July': 'Juillet', 'August': 'Août',
+    'September': 'Septembre', 'October': 'Octobre', 'November': 'Novembre', 'December': 'Décembre'
+  }
+};
+
+// Function to localize month names in intake names
+const localizeIntakeName = (intakeName, language) => {
+  if (!intakeName) return intakeName;
+  
+  const months = monthMapping[language] || monthMapping.en;
+  let localizedName = intakeName;
+  
+  // Handle formats like "february-2026" or "February 2026"
+  Object.keys(monthMapping.en).forEach(englishMonth => {
+    const localizedMonth = months[englishMonth];
+    const englishMonthLower = englishMonth.toLowerCase();
+    
+    // Replace exact month names (case insensitive)
+    const regex = new RegExp(`\\b${englishMonth}\\b`, 'gi');
+    localizedName = localizedName.replace(regex, localizedMonth);
+    
+    // Handle hyphenated format like "february-2026"
+    const hyphenRegex = new RegExp(`\\b${englishMonthLower}-(\\d{4})\\b`, 'gi');
+    localizedName = localizedName.replace(hyphenRegex, (match, year) => {
+      return `${localizedMonth} ${year}`;
+    });
+  });
+  
+  return localizedName;
+};
 
 const EstablishmentsListing = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [language, setLanguage] = useState('en');
   const [showFilters, setShowFilters] = useState(true);
+  const { userCurrency, formatPrice, convertPrice } = useCurrency();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('programs'); // 'establishments' or 'programs'
   const [selectedFilters, setSelectedFilters] = useState({
-    country: '',
-    city: '',
-    studyLevel: '',
-    subject: '',
-    startYear: '',
-    studyType: '',
-    universityType: '',
+    country: [],
+    city: [],
+    studyLevel: [],
+    degree: [],
+    subject: [],
+    field: [],
+    intake: [],
+    studyType: [],
+    universityType: [],
     nationality: '',
     residenceCountry: '',
     academicQualification: '',
     englishTest: '',
     standardizedTest: '',
-    waiver: false
+    waiver: false,
+    // New filters
+    requiresAcademicQualification: null, // null, true, false
+    academicQualifications: [],
+    minimumGrade: '',
+    gradeSystem: '', // Empty by default to avoid sending in payload
   });
+  const [paramOptions, setParamOptions] = useState({ studyLevels: [], studyTypes: [] });
   const [expandedSections, setExpandedSections] = useState({
     studentDetails: true,
     studyPreference: true,
@@ -32,63 +523,315 @@ const EstablishmentsListing = () => {
   });
   const [isFiltersCollapsed, setIsFiltersCollapsed] = useState(true);
   
+  // Function to format price with currency conversion
+  const formatPriceWithConversion = async (amount, currency) => {
+    try {
+      return await formatPrice(amount, currency, false);
+    } catch (error) {
+      console.error('Error formatting price:', error);
+      return `${currency} ${amount.toLocaleString()}`;
+    }
+  };
+
+  // Component to display price without loading state
+  const PriceWithLoading = ({ amount, currency, className = "" }) => {
+    const [displayPrice, setDisplayPrice] = useState(`${currency} ${amount.toLocaleString()}`);
+    
+    useEffect(() => {
+      const updatePrice = async () => {
+        try {
+          const converted = await formatPriceWithConversion(amount, currency);
+          setDisplayPrice(converted);
+        } catch (error) {
+          console.error('Error converting price:', error);
+          setDisplayPrice(`${currency} ${amount.toLocaleString()}`);
+        }
+      };
+      updatePrice();
+    }, [amount, currency, userCurrency]);
+    
+    return <span className={className}>{displayPrice}</span>;
+  };
+
+  // Function to parse price string and extract amount and currency
+  const parsePriceString = (priceString) => {
+    if (!priceString) return { amount: 0, currency: 'USD' };
+    
+    // Remove commas and extract currency symbol and amount
+    const cleanString = priceString.replace(/,/g, '');
+    const currencyMatch = cleanString.match(/^([^\d]+)/);
+    const amountMatch = cleanString.match(/([\d.]+)/);
+    
+    if (!amountMatch) return { amount: 0, currency: 'USD' };
+    
+    const amount = parseFloat(amountMatch[1]);
+    let currency = 'USD';
+    
+    if (currencyMatch) {
+      const symbol = currencyMatch[1].trim();
+      // Map common currency symbols to codes
+      const symbolMap = {
+        '$': 'USD',
+        '€': 'EUR',
+        '£': 'GBP',
+        '¥': 'JPY',
+        'A$': 'AUD',
+        'C$': 'CAD',
+        'CHF': 'CHF',
+        'MAD': 'MAD',
+        'AED': 'AED',
+        'SAR': 'SAR',
+        'EGP': 'EGP',
+        'ZAR': 'ZAR',
+        'S$': 'SGD',
+        'HK$': 'HKD',
+        'NZ$': 'NZD',
+        'kr': 'SEK',
+        'zł': 'PLN',
+        'Kč': 'CZK',
+        'Ft': 'HUF',
+        'lei': 'RON',
+        'лв': 'BGN',
+        'kn': 'HRK',
+        'дин': 'RSD',
+        '₺': 'TRY',
+        '₽': 'RUB',
+        '₴': 'UAH',
+        '₪': 'ILS',
+        'QR': 'QAR',
+        'KD': 'KWD',
+        'BD': 'BHD',
+        'OMR': 'OMR',
+        'JD': 'JOD',
+        'L£': 'LBP',
+        '₨': 'PKR',
+        '৳': 'BDT',
+        'Rs': 'LKR',
+        '؋': 'AFN',
+        '฿': 'THB',
+        '₫': 'VND',
+        'Rp': 'IDR',
+        'RM': 'MYR',
+        '₱': 'PHP',
+        'NT$': 'TWD',
+        'S/': 'PEN',
+        '$U': 'UYU',
+        '₲': 'PYG',
+        'Bs': 'BOB',
+        'Bs.S': 'VES',
+        'G$': 'GYD',
+        'د.ج': 'DZD',
+        'د.ت': 'TND',
+        'ل.د': 'LYD',
+        'ج.س': 'SDG',
+        'Br': 'ETB',
+        'KSh': 'KES',
+        'USh': 'UGX',
+        'TSh': 'TZS',
+        '₵': 'GHS',
+        '₦': 'NGN',
+        'P': 'BWP',
+        'N$': 'NAD',
+        'Z$': 'ZWL',
+        'ZK': 'ZMW',
+        'MK': 'MWK',
+        'MT': 'MZN',
+        'Kz': 'AOA',
+        'FCFA': 'XAF',
+        'CFA': 'XOF',
+        'FC': 'CDF',
+        'Db': 'STN',
+        'FG': 'GNF',
+        'Le': 'SLE',
+        'L$': 'LRD',
+        'D': 'GMD',
+        'UM': 'MRU',
+        'CF': 'KMF',
+        'Ar': 'MGA',
+        'L': 'LSL',
+        '₾': 'GEL',
+        '֏': 'AMD',
+        '₼': 'AZN',
+        '₸': 'KZT',
+        'лв': 'KGS',
+        'SM': 'TJS',
+        'T': 'TMT',
+        'Rf': 'MVR',
+        'K': 'MMK',
+        '₭': 'LAK',
+        '៛': 'KHR',
+        'B$': 'BND',
+        'MOP$': 'MOP',
+        '₮': 'MNT',
+        '₩': 'KRW',
+        '﷼': 'YER',
+        'ع.د': 'IQD',
+        'IRR': 'IRR',
+        '£': 'SYP',
+        'kr': 'ISK',
+        'L': 'ALL',
+        'ден': 'MKD',
+        'КМ': 'BAM'
+      };
+      currency = symbolMap[symbol] || 'USD';
+    }
+    
+    return { amount, currency };
+  };
+
+  // Component to display converted price
+  const PriceDisplay = ({ amount, currency, className = "", id = "" }) => {
+    const [displayPrice, setDisplayPrice] = useState(`${currency} ${amount.toLocaleString()}`);
+    
+    useEffect(() => {
+      const updatePrice = async () => {
+        try {
+          const converted = await formatPrice(amount, currency, false);
+          setDisplayPrice(converted);
+        } catch (error) {
+          console.error('Error converting price:', error);
+          setDisplayPrice(`${currency} ${amount.toLocaleString()}`);
+        }
+      };
+      updatePrice();
+    }, [amount, currency, userCurrency]);
+    
+    return <span className={className}>{displayPrice}</span>;
+  };
+
+  // Component to display converted price from string
+  const PriceDisplayFromString = ({ priceString, className = "", id = "" }) => {
+    const [displayPrice, setDisplayPrice] = useState(priceString);
+    
+    useEffect(() => {
+      const updatePrice = async () => {
+        try {
+          const { amount, currency } = parsePriceString(priceString);
+          const converted = await formatPrice(amount, currency, false);
+          setDisplayPrice(converted);
+        } catch (error) {
+          console.error('Error converting price:', error);
+          setDisplayPrice(priceString);
+        }
+      };
+      updatePrice();
+    }, [priceString, userCurrency]);
+    
+    return <span className={className}>{displayPrice}</span>;
+  };
+  
+  // Dynamic data states
+  const [establishments, setEstablishments] = useState([]);
+  const [programs, setPrograms] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  
+  // Parameters for localization
+  const [parameters, setParameters] = useState({
+    countries: [],
+    cities: [],
+    languages: [],
+    schoolTypes: [],
+    degrees: []
+  });
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 15, // Multiple of 3 for better grid display
+    total: 0,
+    pages: 0,
+    hasNext: false,
+    hasPrev: false
+  });
+  const [availableFilters, setAvailableFilters] = useState({
+    countries: [],
+    cities: [],
+    types: [],
+    universityTypes: [],
+    languages: []
+  });
+  const [programFilters, setProgramFilters] = useState({
+    countries: [],
+    cities: [],
+    degrees: [],
+    studyLevels: [],
+    subjects: [],
+    languages: [],
+    studyTypes: [],
+    universityTypes: []
+  });
+  
+  // Utility functions for parameter-based localization
+  const getParameterLabel = (category, code, language = 'en') => {
+    const params = parameters[category] || [];
+    const param = params.find(p => p.code === code);
+    if (!param) return code;
+    return language === 'fr' ? param.labelFr : param.labelEn;
+  };
+
+  const getCountryLabel = (countryCode) => {
+    return getParameterLabel('countries', countryCode, language);
+  };
+
+  const getCityLabel = (cityCode) => {
+    return getParameterLabel('cities', cityCode, language);
+  };
+
+  const getLanguageLabel = (languageCode) => {
+    return getParameterLabel('languages', languageCode, language);
+  };
+
+  const getDegreeLabel = (degreeCode) => {
+    const result = getParameterLabel('degrees', degreeCode, language);
+    return result;
+  };
+
+  const getSchoolTypeLabel = (typeCode) => {
+    return getParameterLabel('schoolTypes', typeCode, language);
+  };
+  
   // University type utility functions
   const getUniversityTypeInfo = (establishment) => {
-    const { universityType, countrySpecific, commissionRate, freeApplications, visaSupport } = establishment;
+    const { universityType, countrySpecific, commissionRate, freeApplications, visaSupport, servicePricing } = establishment;
     
     if (universityType === "A") {
       return {
         type: "Type A",
         color: "green",
-        icon: "💰",
-        description: `3 free applications available`,
-        freeApps: freeApplications,
-        visaSupport: visaSupport === "free" ? "Free visa support" : "Paid visa support",
-        serviceFees: "Free for first 3 applications"
+        description: language === 'fr' ? "3 candidatures gratuites" : "3 free applications",
+        freeApps: 3,
+        visaSupport: language === 'fr' ? "Gratuit" : "Free",
+        serviceFees: language === 'fr' ? "3 candidatures gratuites" : "3 free applications",
+        originalPrice: servicePricing?.normalPrice,
+        promotionPrice: servicePricing?.promotionPrice,
+        promotionDeadline: servicePricing?.promotionDeadline,
+        currency: servicePricing?.currency || 'EUR'
       };
     } else if (universityType === "B") {
       return {
         type: "Type B",
         color: "blue",
-        icon: "🏛️",
-        description: "Service fee required for application",
+        description: language === 'fr' ? "Service payant" : "Paid service",
         freeApps: 0,
-        visaSupport: "Paid service",
-        serviceFees: "Service fee per application"
+        visaSupport: language === 'fr' ? "Service payant" : "Paid service",
+        serviceFees: language === 'fr' ? "Frais de service requis" : "Service fee required",
+        originalPrice: servicePricing?.normalPrice,
+        promotionPrice: servicePricing?.promotionPrice,
+        promotionDeadline: servicePricing?.promotionDeadline,
+        currency: servicePricing?.currency || 'EUR'
       };
     } else if (universityType === "C") {
-      const countryType = countrySpecific?.type;
-      if (countryType === "france") {
         return {
           type: "Type C",
           color: "purple",
-          icon: "🇫🇷",
-          description: "Campus France & Parcoursup procedure management",
+        description: language === 'fr' ? "Configuration spéciale" : "Special configuration",
           freeApps: 0,
-          visaSupport: "Paid service",
-          serviceFees: "Service fee for procedure management"
-        };
-      } else if (countryType === "china") {
-        return {
-          type: "Type C",
-          color: "red",
-          icon: "🇨🇳",
-          description: "Chinese admission procedure management",
-          freeApps: 0,
-          visaSupport: "Free if accepted",
-          serviceFees: "Service fee for procedure management"
-        };
-      } else {
-        return {
-          type: "Type C",
-          color: "orange",
-          icon: "📋",
-          description: "Special admission procedure management",
-          freeApps: 0,
-          visaSupport: "Paid service",
-          serviceFees: "Service fee for procedure management"
-        };
-      }
+        visaSupport: language === 'fr' ? "Service payant" : "Paid service",
+        serviceFees: language === 'fr' ? "Configuration spéciale" : "Special configuration",
+        originalPrice: servicePricing?.normalPrice,
+        promotionPrice: servicePricing?.promotionPrice,
+        promotionDeadline: servicePricing?.promotionDeadline,
+        currency: servicePricing?.currency || 'EUR'
+      };
     }
     
     // Default fallback
@@ -96,10 +839,10 @@ const EstablishmentsListing = () => {
       type: "Unknown",
       color: "gray",
       icon: "❓",
-      description: "Unknown university type",
+      description: language === 'fr' ? "Type d'université inconnu" : "Unknown university type",
       freeApps: 0,
-      visaSupport: "Unknown",
-      serviceFees: "Unknown"
+      visaSupport: language === 'fr' ? "Inconnu" : "Unknown",
+      serviceFees: language === 'fr' ? "Inconnu" : "Unknown"
     };
   };
 
@@ -108,15 +851,15 @@ const EstablishmentsListing = () => {
     
     if (universityType === "A") {
       return { 
-        amount: "Free", 
+        amount: language === 'fr' ? "Gratuit" : "Free", 
         originalAmount: "$50",
-        description: "First 3 applications free",
+        description: language === 'fr' ? "3 premières candidatures gratuites" : "First 3 applications free",
         showStrikethrough: true
       };
     } else if (universityType === "B") {
       return { 
         amount: "$100", 
-        description: "Service fee per application",
+        description: language === 'fr' ? "Frais de service par candidature" : "Service fee per application",
         showStrikethrough: false
       };
     } else if (universityType === "C") {
@@ -124,19 +867,19 @@ const EstablishmentsListing = () => {
       if (countryType === "france") {
         return { 
           amount: "€150", 
-          description: "Campus France procedure management",
+          description: language === 'fr' ? "Gestion des procédures Campus France" : "Campus France procedure management",
           showStrikethrough: false
         };
       } else if (countryType === "china") {
         return { 
           amount: "¥800", 
-          description: "Chinese procedure management",
+          description: language === 'fr' ? "Gestion des procédures chinoises" : "Chinese procedure management",
           showStrikethrough: false
         };
       } else {
         return { 
           amount: "$150", 
-          description: "Special procedure management",
+          description: language === 'fr' ? "Gestion des procédures spéciales" : "Special procedure management",
           showStrikethrough: false
         };
       }
@@ -144,26 +887,167 @@ const EstablishmentsListing = () => {
     
     // Default fallback
     return {
-      amount: "Unknown",
-      description: "Unknown service fee",
+      amount: language === 'fr' ? "Inconnu" : "Unknown",
+      description: language === 'fr' ? "Frais de service inconnus" : "Unknown service fee",
       showStrikethrough: false
     };
+  };
+
+  // Function to get the next application period from multi-intakes
+  const getNextApplicationPeriod = (multiIntakes) => {
+    if (!multiIntakes || multiIntakes.length === 0) return null;
+    
+    const now = new Date();
+    
+    // Find the next upcoming intake (not yet closed)
+    const nextIntake = multiIntakes.find(intake => {
+      if (!intake.applicationCloses) return false;
+      const closesDate = new Date(intake.applicationCloses);
+      return now <= closesDate; // Not yet closed
+    });
+    
+    return nextIntake || null;
+  };
+
+  // Function to get application period status
+  const getApplicationPeriodStatus = (intake) => {
+    if (!intake.applicationOpens || !intake.applicationCloses) {
+      return { status: 'no-dates', color: 'gray', text: language === 'fr' ? 'Aucune date disponible' : 'No dates available' };
+    }
+    
+    const now = new Date();
+    const opensDate = new Date(intake.applicationOpens);
+    const closesDate = new Date(intake.applicationCloses);
+    
+    // Check if application is open
+    if (now >= opensDate && now <= closesDate) {
+      // Check if closing soon (within 30 days)
+      const daysUntilClose = Math.ceil((closesDate - now) / (1000 * 60 * 60 * 24));
+      if (daysUntilClose <= 30) {
+        return { 
+          status: 'closing-soon', 
+          color: 'red', 
+          text: language === 'fr' ? `Se ferme dans ${daysUntilClose} jours` : `Closes in ${daysUntilClose} days` 
+        };
+      }
+      return { status: 'open', color: 'green', text: language === 'fr' ? 'Ouvert' : 'Open' };
+    }
+    
+    // Check if not yet open
+    if (now < opensDate) {
+      const daysUntilOpen = Math.ceil((opensDate - now) / (1000 * 60 * 60 * 24));
+      return { 
+        status: 'not-open', 
+        color: 'blue', 
+        text: language === 'fr' ? `S'ouvre dans ${daysUntilOpen} jours` : `Opens in ${daysUntilOpen} days` 
+      };
+    }
+    
+    // Application is closed
+    return { status: 'closed', color: 'gray', text: language === 'fr' ? 'Fermé' : 'Closed' };
+  };
+
+  // Function to format price with currency and conversion
+  const formatServicePrice = async (price, currency, isPromotion = false) => {
+    if (!price) return null;
+    
+    try {
+      // If currency is the same as user currency, no conversion needed
+      if (currency === userCurrency) {
+        const formatted = await formatPrice(price, currency, false);
+        return formatted;
+      }
+      
+      // Convert to user currency
+      const converted = await convertPrice(price, currency, userCurrency);
+      // Extract the formatted string from the conversion result and format it properly
+      if (converted.convertedAmount) {
+        return await formatPrice(converted.convertedAmount, userCurrency, false);
+      } else {
+        return await formatPrice(price, currency, false);
+      }
+    } catch (error) {
+      console.error('Error formatting service price:', error);
+      // Fallback to original price with original currency
+      return await formatPrice(price, currency, false);
+    }
+  };
+
+  // Component to display service price with conversion
+  const ServicePriceDisplay = ({ price, currency, isPromotion = false, className = "" }) => {
+    const [displayPrice, setDisplayPrice] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+      const loadPrice = async () => {
+        if (!price) {
+          setDisplayPrice(null);
+          setIsLoading(false);
+          return;
+        }
+
+        try {
+          setIsLoading(true);
+          const formatted = await formatServicePrice(price, currency, isPromotion);
+          setDisplayPrice(formatted);
+        } catch (error) {
+          console.error('Error loading service price:', error);
+          setDisplayPrice(`${currency} ${price}`);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      loadPrice();
+    }, [price, currency, isPromotion]);
+
+    if (isLoading) {
+      return <span className={`${className} animate-pulse`}>...</span>;
+    }
+
+    if (!displayPrice) {
+      return null;
+    }
+
+    return <span className={className}>{displayPrice}</span>;
   };
   
   // Detailed filters state
   const [detailedFilters, setDetailedFilters] = useState({
-    academicQualification: '',
     awardingBoard: '',
     grade: '',
-    gradeType: 'CGPA 4',
+    gradeType: '', // Start with empty value to show placeholder
     englishTest: '',
     englishScore: '',
     standardizedTest: '',
     standardizedScore: '',
     studyGap: '',
     minFees: 0,
+    maxFees: 300000,
+    // New choice field filters
+    languageTestFilter: null,
+    standardizedTestFilter: null,
+    scholarshipFilter: null,
+    housingFilter: null,
+    rankingFilter: null,
+    featuredFilter: null
+  });
+
+  // Temporary fee filters for Apply button
+  const [tempFeeFilters, setTempFeeFilters] = useState({
+    minFees: 0,
     maxFees: 300000
   });
+
+
+  // Initialize temp fee filters with current detailed filters
+  useEffect(() => {
+    setTempFeeFilters({
+      minFees: detailedFilters.minFees,
+      maxFees: detailedFilters.maxFees
+    });
+  }, [detailedFilters.minFees, detailedFilters.maxFees]);
+
 
   // Handle URL parameters for university filtering
   useEffect(() => {
@@ -174,8 +1058,457 @@ const EstablishmentsListing = () => {
     }
   }, [searchParams]);
 
-  // Sample data for establishments with enhanced information
-  const establishments = [
+  // Handle tab parameter from URL
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && (tabParam === 'establishments' || tabParam === 'programs')) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
+
+  // Function to handle tab change and update URL
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    const newSearchParams = new URLSearchParams(searchParams);
+    newSearchParams.set('tab', tab);
+    setSearchParams(newSearchParams);
+  };
+
+  // Load establishments data
+  const loadEstablishments = async (filters = {}, page = 1) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await establishmentService.getEstablishments({
+        ...filters,
+        page,
+        limit: pagination.limit
+      });
+      
+      if (response.success) {
+        setEstablishments(response.data);
+        setPagination(response.pagination);
+        
+      } else {
+        setError('Failed to load establishments');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to load establishments');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load programs data
+  const loadPrograms = async (filters = {}, page = 1) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await programService.getPrograms({
+        ...filters,
+        status: 'published',
+        page,
+        limit: pagination.limit
+      });
+      
+      if (response.success) {
+        setPrograms(response.data);
+        setPagination(response.pagination);
+        
+      } else {
+        setError('Failed to load programs');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to load programs');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load all parameters using centralized service
+  const { parameters: allParams, loading: paramsLoading } = useAllParameters();
+
+  // Fonction pour obtenir le drapeau correspondant à une langue
+  const getLanguageFlag = (languageCode) => {
+    const flagMap = {
+      'English': '🇺🇸',
+      'French': '🇫🇷',
+      'Spanish': '🇪🇸',
+      'German': '🇩🇪',
+      'Italian': '🇮🇹',
+      'Portuguese': '🇵🇹',
+      'Arabic': '🇸🇦',
+      'Chinese': '🇨🇳',
+      'Japanese': '🇯🇵',
+      'Korean': '🇰🇷',
+      'en': '🇺🇸',
+      'fr': '🇫🇷',
+      'es': '🇪🇸',
+      'de': '🇩🇪',
+      'it': '🇮🇹',
+      'pt': '🇵🇹',
+      'ar': '🇸🇦',
+      'zh': '🇨🇳',
+      'ja': '🇯🇵',
+      'ko': '🇰🇷'
+    };
+    return flagMap[languageCode] || '🌐';
+  };
+
+  // Load filters from centralized parameters
+  const loadFiltersFromParameters = (params, currentLanguage) => {
+    if (params) {
+      // Map parameters to the correct format for filters
+      const mapParameterToFilter = (param) => ({
+        value: param.code,
+        label: currentLanguage === 'fr' ? (param.labelFr || param.labelEn) : param.labelEn
+      });
+
+      // Set establishment filters from parameters
+      const mappedCountries = (params.countries || []).map(mapParameterToFilter);
+      const mappedCities = (params.cities || []).map(mapParameterToFilter);
+      const mappedTypes = (params.schoolTypes || []).map(mapParameterToFilter);
+      const mappedUniversityTypes = (params.universityTypes || []).map(mapParameterToFilter);
+      const mappedLanguages = (params.languages || []).map(param => ({
+        value: param.code,
+        label: currentLanguage === 'fr' ? (param.labelFr || param.labelEn) : param.labelEn,
+        labelFr: param.labelFr,
+        flag: getLanguageFlag(param.code)
+      }));
+      
+      setAvailableFilters({
+        countries: mappedCountries,
+        cities: mappedCities,
+        types: mappedTypes,
+        universityTypes: mappedUniversityTypes,
+        languages: mappedLanguages
+      });
+      
+      // Set program filters from parameters
+      const mappedProgramCountries = (params.countries || []).map(mapParameterToFilter);
+      const mappedProgramCities = (params.cities || []).map(mapParameterToFilter);
+      const mappedDegrees = (params.degrees || []).map(mapParameterToFilter);
+      const mappedStudyLevels = (params.studyLevels || []).map(mapParameterToFilter);
+      const mappedSubjects = (params.fields || []).map(mapParameterToFilter);
+      const mappedProgramLanguages = (params.languages || []).map(param => ({
+        value: param.code,
+        label: currentLanguage === 'fr' ? (param.labelFr || param.labelEn) : param.labelEn,
+        labelFr: param.labelFr,
+        flag: getLanguageFlag(param.code)
+      }));
+      const mappedStudyTypes = (params.studyTypes || []).map(mapParameterToFilter);
+      const mappedProgramUniversityTypes = (params.universityTypes || []).map(mapParameterToFilter);
+      
+      setProgramFilters({
+        countries: mappedProgramCountries,
+        cities: mappedProgramCities,
+        degrees: mappedDegrees,
+        studyLevels: mappedStudyLevels,
+        subjects: mappedSubjects,
+        languages: mappedProgramLanguages,
+        studyTypes: mappedStudyTypes,
+        universityTypes: mappedProgramUniversityTypes
+      });
+    }
+  };
+
+  // Load filters when parameters are available
+  useEffect(() => {
+    if (allParams && !paramsLoading) {
+      // Load filters from parameters first
+      loadFiltersFromParameters(allParams, language);
+      
+      // Set parameters for other uses
+      setParameters({
+        countries: allParams.countries,
+        cities: allParams.cities,
+        languages: allParams.languages,
+        schoolTypes: allParams.schoolTypes,
+        degrees: allParams.degrees
+      });
+      
+      // Set param options directly from allParams
+      const studyLevels = (allParams.studyLevels || []).map(i => ({ 
+        value: i.code, 
+        label: language === 'fr' ? (i.labelFr || i.labelEn) : i.labelEn 
+      }));
+      const studyTypes = (allParams.studyTypes || []).map(i => ({ 
+        value: i.code, 
+        label: language === 'fr' ? (i.labelFr || i.labelEn) : i.labelEn 
+      }));
+      
+      setParamOptions({ 
+        studyLevels, 
+        studyTypes 
+      });
+
+      // Load grade types from parameters
+      const gradeTypes = (allParams.gradeSystems || []).map(type => ({
+        value: type.code,
+        label: language === 'fr' ? type.labelFr : type.labelEn
+      }));
+      setGradeTypes(gradeTypes);
+
+      // Load English tests from parameters
+      const englishTests = (allParams.englishTests || []).map(test => ({
+        value: test.code,
+        label: language === 'fr' ? test.labelFr : test.labelEn,
+        range: getTestRange(test.code),
+        steps: getTestSteps(test.code)
+      }));
+      setEnglishTests(englishTests);
+
+      // Load standardized tests from parameters
+      const standardizedTests = (allParams.standardizedTests || []).map(test => ({
+        value: test.code,
+        label: language === 'fr' ? test.labelFr : test.labelEn,
+        range: getStandardizedTestRange(test.code),
+        steps: getStandardizedTestSteps(test.code)
+      }));
+      setStandardizedTests(standardizedTests);
+    }
+  }, [allParams]);
+
+  // Update labels when language changes (without reloading parameters)
+  useEffect(() => {
+    if (allParams) {
+      // Use the already mapped filters
+      setParamOptions({ 
+        studyLevels: programFilters.studyLevels || [], 
+        studyTypes: programFilters.studyTypes || [] 
+      });
+
+      // Update grade types labels
+      const gradeTypes = (allParams.gradeSystems || []).map(type => ({
+        value: type.code,
+        label: language === 'fr' ? type.labelFr : type.labelEn
+      }));
+      setGradeTypes(gradeTypes);
+
+      // Update English tests labels
+      const englishTests = (allParams.englishTests || []).map(test => ({
+        value: test.code,
+        label: language === 'fr' ? test.labelFr : test.labelEn,
+        range: getTestRange(test.code),
+        steps: getTestSteps(test.code)
+      }));
+      setEnglishTests(englishTests);
+
+      // Update standardized tests labels
+      const standardizedTests = (allParams.standardizedTests || []).map(test => ({
+        value: test.code,
+        label: language === 'fr' ? test.labelFr : test.labelEn,
+        range: getStandardizedTestRange(test.code),
+        steps: getStandardizedTestSteps(test.code)
+      }));
+      setStandardizedTests(standardizedTests);
+    }
+  }, [language, allParams]);
+
+  // Load data when filters or search query change (with debouncing)
+  useEffect(() => {
+    // Clear previous timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
+    // Set new timer
+    debounceTimerRef.current = setTimeout(() => {
+      const buildFilters = async () => {
+        const filters = {
+          country: selectedFilters.country,
+          city: selectedFilters.city,
+          studyLevel: selectedFilters.studyLevel,
+          degree: selectedFilters.degree,
+          intake: selectedFilters.intake,
+          studyType: selectedFilters.studyType,
+          universityType: selectedFilters.universityType,
+          subject: selectedFilters.subject.filter(s => s && String(s).trim() !== '').map(mapSubjectToDatabase), // Map subject IDs to database values
+          field: selectedFilters.field.map(f => f.code), // Map field objects to codes
+          search: searchQuery,
+          // New filters
+          requiresAcademicQualification: selectedFilters.requiresAcademicQualification,
+          academicQualifications: selectedFilters.academicQualifications,
+          minimumGrade: selectedFilters.minimumGrade,
+          // Only include gradeSystem if it has a value
+          ...(selectedFilters.gradeSystem && { gradeSystem: selectedFilters.gradeSystem }),
+          // No test filters
+          // Include choice filters if they have a value
+          ...(detailedFilters.languageTestFilter && { languageTestFilter: detailedFilters.languageTestFilter }),
+          ...(detailedFilters.standardizedTestFilter && { standardizedTestFilter: detailedFilters.standardizedTestFilter }),
+          ...(detailedFilters.scholarshipFilter && { scholarshipFilter: detailedFilters.scholarshipFilter }),
+          ...(detailedFilters.housingFilter && { housingFilter: detailedFilters.housingFilter }),
+          ...(detailedFilters.rankingFilter && { rankingFilter: detailedFilters.rankingFilter }),
+          ...(detailedFilters.featuredFilter && { featuredFilter: detailedFilters.featuredFilter }),
+          // Detailed grade filters
+          detailedGrade: detailedFilters.grade,
+          detailedGradeType: detailedFilters.gradeType,
+          // Language and standardized test filters
+          englishTest: detailedFilters.englishTest,
+          englishScore: detailedFilters.englishScore,
+          standardizedTest: detailedFilters.standardizedTest,
+          standardizedScore: detailedFilters.standardizedScore,
+          // Fee filters (send as entered by user with current currency)
+          minFees: detailedFilters.minFees >= 0 ? detailedFilters.minFees : null,
+          maxFees: detailedFilters.maxFees >= 0 ? detailedFilters.maxFees : null,
+          feeCurrency: userCurrency
+        };
+      
+        // Remove empty filters (but keep false values for boolean filters)
+        Object.keys(filters).forEach(key => {
+          if (filters[key] === null || filters[key] === undefined || filters[key] === '' || 
+              (Array.isArray(filters[key]) && filters[key].length === 0)) {
+            delete filters[key];
+          }
+        });
+        
+        if (activeTab === 'establishments') {
+          loadEstablishments(filters, 1);
+        } else {
+          loadPrograms(filters, 1);
+        }
+      };
+      
+      buildFilters();
+    }, 300); // 300ms debounce delay
+    
+    // Cleanup function
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [selectedFilters, detailedFilters, searchQuery, activeTab, userCurrency]);
+
+  // Track if we've already converted for this currency to avoid infinite loops
+  const convertedCurrencyRef = useRef(null);
+  
+  // Debounce timer for API calls
+  const debounceTimerRef = useRef(null);
+
+  // Convert maxFees when currency changes to maintain equivalent value
+  useEffect(() => {
+    const convertMaxFees = async () => {
+      if (userCurrency === 'USD') {
+        // Reset to USD default and clear the ref
+        setDetailedFilters(prev => ({
+          ...prev,
+          maxFees: 300000
+        }));
+        setTempFeeFilters(prev => ({
+          ...prev,
+          maxFees: 300000
+        }));
+        convertedCurrencyRef.current = null;
+      } else if (convertedCurrencyRef.current !== userCurrency) {
+        // Only convert if we haven't converted for this currency yet
+        const baseMaxFeesUSD = 300000;
+        try {
+          const conversion = await convertPrice(baseMaxFeesUSD, 'USD');
+          if (conversion && conversion.convertedAmount > 0) {
+            const convertedValue = Math.round(conversion.convertedAmount);
+            setDetailedFilters(prev => ({
+              ...prev,
+              maxFees: convertedValue
+            }));
+            setTempFeeFilters(prev => ({
+              ...prev,
+              maxFees: convertedValue
+            }));
+            convertedCurrencyRef.current = userCurrency;
+          }
+        } catch (error) {
+          console.error('Error converting maxFees:', error);
+        }
+      }
+    };
+
+    // Add debouncing to currency conversion to avoid multiple API calls
+    const timeoutId = setTimeout(() => {
+      convertMaxFees();
+    }, 100); // Small delay to batch currency changes
+
+    return () => clearTimeout(timeoutId);
+  }, [userCurrency]); // Only depend on userCurrency, not convertPrice
+
+  // Handle pagination
+  const handlePageChange = async (newPage) => {
+    // Validate page number
+    if (newPage < 1 || newPage > pagination.pages) {
+      console.warn(`Invalid page number: ${newPage}. Valid range: 1-${pagination.pages}`);
+      return;
+    }
+
+    // Prevent multiple simultaneous page changes
+    if (loading) {
+      console.warn('Page change ignored: already loading');
+      return;
+    }
+
+    try {
+      const filters = {
+        country: selectedFilters.country,
+        city: selectedFilters.city,
+        studyLevel: selectedFilters.studyLevel,
+        degree: selectedFilters.degree,
+        intake: selectedFilters.intake,
+        studyType: selectedFilters.studyType,
+        universityType: selectedFilters.universityType,
+        subject: selectedFilters.subject.filter(s => s && String(s).trim() !== '').map(mapSubjectToDatabase), // Map subject IDs to database values
+        field: selectedFilters.field.map(f => f.code), // Map field objects to codes
+        search: searchQuery,
+        // New filters
+        requiresAcademicQualification: selectedFilters.requiresAcademicQualification,
+        academicQualifications: selectedFilters.academicQualifications,
+        minimumGrade: selectedFilters.minimumGrade,
+          // Only include gradeSystem if it has a value
+          ...(selectedFilters.gradeSystem && { gradeSystem: selectedFilters.gradeSystem }),
+          // No test filters
+          // Include choice filters if they have a value
+          ...(detailedFilters.languageTestFilter && { languageTestFilter: detailedFilters.languageTestFilter }),
+          ...(detailedFilters.standardizedTestFilter && { standardizedTestFilter: detailedFilters.standardizedTestFilter }),
+          ...(detailedFilters.scholarshipFilter && { scholarshipFilter: detailedFilters.scholarshipFilter }),
+          ...(detailedFilters.housingFilter && { housingFilter: detailedFilters.housingFilter }),
+          ...(detailedFilters.rankingFilter && { rankingFilter: detailedFilters.rankingFilter }),
+          ...(detailedFilters.featuredFilter && { featuredFilter: detailedFilters.featuredFilter }),
+          // Detailed grade filters
+          detailedGrade: detailedFilters.grade,
+          detailedGradeType: detailedFilters.gradeType,
+          // Language and standardized test filters
+          englishTest: detailedFilters.englishTest,
+          englishScore: detailedFilters.englishScore,
+          standardizedTest: detailedFilters.standardizedTest,
+          standardizedScore: detailedFilters.standardizedScore,
+        // Fee filters (send as entered by user with current currency)
+        minFees: detailedFilters.minFees >= 0 ? detailedFilters.minFees : null,
+        maxFees: detailedFilters.maxFees >= 0 ? detailedFilters.maxFees : null,
+        feeCurrency: userCurrency
+      };
+      
+      // Remove empty filters (but keep false values for boolean filters)
+      Object.keys(filters).forEach(key => {
+        if (filters[key] === null || filters[key] === undefined || filters[key] === '' || 
+            (Array.isArray(filters[key]) && filters[key].length === 0)) {
+          delete filters[key];
+        }
+      });
+      
+      if (activeTab === 'establishments') {
+        await loadEstablishments(filters, newPage);
+      } else {
+        await loadPrograms(filters, newPage);
+      }
+    } catch (error) {
+      console.error('Error during page change:', error);
+      setError('Failed to load page. Please try again.');
+    }
+  };
+
+  // Dynamic establishments data loaded from API
+  // const establishments = [
+  /*
     {
       id: 1,
       name: "University of Toronto",
@@ -463,10 +1796,12 @@ const EstablishmentsListing = () => {
         requirements: ["Chinese Language Test", "Academic Records"]
       }
     }
-  ];
+  */
+  // ];
 
-  // Sample data for programs
-  const programs = [
+  // Dynamic programs data loaded from API
+  // const programs = [
+  /*
     {
       id: 1,
       name: "Master of Computer Science",
@@ -603,91 +1938,138 @@ const EstablishmentsListing = () => {
       ranking: 23,
       studyType: "hybrid"
     }
-  ];
+  */
+  // ];
 
-  const countries = [
-    { value: 'canada', label: language === 'en' ? 'Canada' : 'Canada' },
-    { value: 'france', label: language === 'en' ? 'France' : 'France' },
-    { value: 'usa', label: language === 'en' ? 'United States' : 'États-Unis' },
-    { value: 'australia', label: language === 'en' ? 'Australia' : 'Australie' },
-    { value: 'switzerland', label: language === 'en' ? 'Switzerland' : 'Suisse' },
-    { value: 'japan', label: language === 'en' ? 'Japan' : 'Japon' },
-    { value: 'germany', label: language === 'en' ? 'Germany' : 'Allemagne' },
-    { value: 'uk', label: language === 'en' ? 'United Kingdom' : 'Royaume-Uni' }
-  ];
+  // Use the already mapped filters from loadFiltersFromParameters
+  const countries = availableFilters.countries || [];
+  const studyLevels = programFilters.studyLevels || [];
+  const degrees = programFilters.degrees || [];
+  const subjects = programFilters.subjects || [];
 
-  const studyLevels = [
-    { value: 'bachelor', label: language === 'en' ? 'Bachelor\'s Degree' : 'Licence' },
-    { value: 'master', label: language === 'en' ? 'Master\'s Degree' : 'Master' },
-    { value: 'phd', label: language === 'en' ? 'PhD' : 'Doctorat' },
-    { value: 'diploma', label: language === 'en' ? 'Diploma' : 'Diplôme' },
-    { value: 'certificate', label: language === 'en' ? 'Certificate' : 'Certificat' }
-  ];
+  // Generate intake options (same as preferences)
+  const currentYear = new Date().getFullYear();
+  const generateIntakes = () => {
+    const intakes = [];
+    const months = ['January', 'March', 'May', 'July', 'September', 'November'];
+    
+    // Generate for current year and following years until 2027
+    for (let year = currentYear; year <= 2027; year++) {
+      months.forEach(month => {
+        // For current year, don't include past months
+        if (year === currentYear) {
+          const currentMonth = new Date().getMonth();
+          const monthIndex = months.indexOf(month);
+          if (monthIndex < currentMonth) return; // Skip past months
+        }
+        
+        // For 2027, stop at January
+        if (year === 2027 && month !== 'January') return;
+        
+        intakes.push({
+          value: `${month} ${year}`,
+          label: `${month} ${year}`
+        });
+      });
+    }
+    
+    return intakes;
+  };
+  
+  const intakes = generateIntakes();
 
-  const subjects = [
-    { value: 'computer-science', label: language === 'en' ? 'Computer Science' : 'Informatique' },
-    { value: 'engineering', label: language === 'en' ? 'Engineering' : 'Ingénierie' },
-    { value: 'business', label: language === 'en' ? 'Business' : 'Commerce' },
-    { value: 'medicine', label: language === 'en' ? 'Medicine' : 'Médecine' },
-    { value: 'law', label: language === 'en' ? 'Law' : 'Droit' },
-    { value: 'arts', label: language === 'en' ? 'Arts' : 'Arts' },
-    { value: 'sciences', label: language === 'en' ? 'Sciences' : 'Sciences' }
-  ];
+  // Use the already mapped filters from loadFiltersFromParameters
+  const studyTypes = programFilters.studyTypes || [];
+  const schoolTypes = availableFilters.types || [];
+  const universityTypes = availableFilters.universityTypes || [];
+  const languages = availableFilters.languages || [];
 
-  const startYears = [2025, 2026, 2027];
-
-  const studyTypes = [
-    { value: 'on-campus', label: language === 'en' ? '100% On-Campus' : '100% Présentiel' },
-    { value: 'hybrid', label: language === 'en' ? 'Hybrid' : 'Hybride' },
-    { value: 'online', label: language === 'en' ? '100% Online' : '100% En ligne' }
-  ];
-
-  // Detailed filter options
+  // Academic qualifications from profile preferences
   const academicQualifications = [
-    { value: 'high-school', label: language === 'en' ? 'High School Diploma' : 'Baccalauréat' },
-    { value: 'bachelor', label: language === 'en' ? 'Bachelor\'s Degree' : 'Licence' },
-    { value: 'master', label: language === 'en' ? 'Master\'s Degree' : 'Master' },
-    { value: 'phd', label: language === 'en' ? 'PhD' : 'Doctorat' }
+    { value: 'High School Diploma', label: language === 'en' ? 'High School Diploma' : 'Baccalauréat' },
+    { value: 'Bachelor\'s Degree', label: language === 'en' ? 'Bachelor\'s Degree' : 'Licence' },
+    { value: 'Master\'s Degree', label: language === 'en' ? 'Master\'s Degree' : 'Master' },
+    { value: 'Doctorate', label: language === 'en' ? 'Doctorate' : 'Doctorat' },
+    { value: 'Associate Degree', label: language === 'en' ? 'Associate Degree' : 'DUT/BTS' },
+    { value: 'Professional Certificate', label: language === 'en' ? 'Professional Certificate' : 'Certificat Professionnel' }
   ];
 
-  const awardingBoards = [
-    { value: 'morocco', label: 'Morocco' },
-    { value: 'france', label: 'France' },
-    { value: 'usa', label: 'United States' },
-    { value: 'uk', label: 'United Kingdom' },
-    { value: 'canada', label: 'Canada' }
+  // Academic qualification requirement options
+  const academicQualificationRequirementOptions = [
+    { value: null, label: language === 'en' ? 'All Programs' : 'Tous les programmes' },
+    { value: false, label: language === 'en' ? 'No Academic Qualification Required' : 'Aucune qualification académique requise' },
+    { value: 'High School Diploma', label: language === 'en' ? 'High School Diploma' : 'Baccalauréat' },
+    { value: 'Bachelor\'s Degree', label: language === 'en' ? 'Bachelor\'s Degree' : 'Licence' },
+    { value: 'Master\'s Degree', label: language === 'en' ? 'Master\'s Degree' : 'Master' },
+    { value: 'Doctorate', label: language === 'en' ? 'Doctorate' : 'Doctorat' },
+    { value: 'Associate Degree', label: language === 'en' ? 'Associate Degree' : 'DUT/BTS' },
+    { value: 'Professional Certificate', label: language === 'en' ? 'Professional Certificate' : 'Certificat Professionnel' }
   ];
 
-  const gradeTypes = [
-    { value: 'CGPA 4', label: 'CGPA 4' },
-    { value: 'CGPA 5', label: 'CGPA 5' },
-    { value: 'CGPA 7', label: 'CGPA 7' },
-    { value: 'CGPA 10', label: 'CGPA 10' },
-    { value: 'Percentage', label: 'Percentage' },
-    { value: '20', label: '20' }
-  ];
+  // Grade types from parameters
+  const [gradeTypes, setGradeTypes] = useState([]);
 
-  const englishTests = [
-    { value: 'duolingo', label: 'Duolingo', range: '10-160', steps: 5 },
-    { value: 'ielts', label: 'IELTS', range: '0-9', steps: 0.5 },
-    { value: 'toefl', label: 'TOEFL', range: '0-120', steps: 1 },
-    { value: 'pte', label: 'PTE', range: '10-90', steps: 1 }
-  ];
+  // English tests from parameters
+  const [englishTests, setEnglishTests] = useState([]);
+  
 
-  const standardizedTests = [
-    { value: 'lsat', label: 'LSAT', range: '120-180', steps: 1 },
-    { value: 'act', label: 'ACT', range: '1-36', steps: 1 },
-    { value: 'gmat', label: 'GMAT', range: '200-800', steps: 10 },
-    { value: 'gre', label: 'GRE', range: '130-170', steps: 1 },
-    { value: 'sat', label: 'SAT', range: '400-1600', steps: 10 }
-  ];
+  const getTestRange = (testCode) => {
+    const ranges = {
+      'ielts': '1-9',
+      'toefl': '0-120',
+      'pte': '10-90',
+      'duolingo': '10-160',
+      'oet': '0-500',
+      'c1-advanced': '0-210',
+      'cael': '0-90',
+      'languagecert': '0-50',
+      'goethe': '0-100',
+      'testdaf': '0-5'
+    };
+    return ranges[testCode] || '0-100';
+  };
 
-  const studyGaps = [
-    { value: 'less-than-1', label: language === 'en' ? 'Less Than 1 Year' : 'Moins d\'1 an' },
-    { value: '1-to-2', label: language === 'en' ? '1 To 2 Years' : '1 à 2 ans' },
-    { value: '2-to-5', label: language === 'en' ? '2 To 5 Years' : '2 à 5 ans' },
-    { value: 'greater-than-5', label: language === 'en' ? 'Greater Than 5 Years' : 'Plus de 5 ans' }
-  ];
+  const getTestSteps = (testCode) => {
+    const steps = {
+      'ielts': 0.5,
+      'toefl': 1,
+      'pte': 1,
+      'duolingo': 5,
+      'oet': 10,
+      'c1-advanced': 1,
+      'cael': 1,
+      'languagecert': 1,
+      'goethe': 1,
+      'testdaf': 0.5
+    };
+    return steps[testCode] || 1;
+  };
+
+  // Standardized tests from parameters
+  const [standardizedTests, setStandardizedTests] = useState([]);
+
+  const getStandardizedTestRange = (testCode) => {
+    const ranges = {
+      'gmat': '200-800',
+      'gre': '130-170',
+      'sat': '400-1600',
+      'act': '1-36',
+      'lsat': '120-180'
+    };
+    return ranges[testCode] || '0-100';
+  };
+
+  const getStandardizedTestSteps = (testCode) => {
+    const steps = {
+      'gmat': 10,
+      'gre': 1,
+      'sat': 10,
+      'act': 1,
+      'lsat': 1
+    };
+    return steps[testCode] || 1;
+  };
+
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
@@ -697,21 +2079,31 @@ const EstablishmentsListing = () => {
   };
 
   const handleFilterChange = (filter, value) => {
+    // For SubjectMultiSelect, extract IDs from objects
+    if (filter === 'subject' && Array.isArray(value)) {
+      const subjectIds = value.map(item => item.id || item);
+      setSelectedFilters(prev => ({
+        ...prev,
+        [filter]: subjectIds
+      }));
+    } else {
     setSelectedFilters(prev => ({
       ...prev,
       [filter]: value
     }));
+    }
   };
 
   const clearFilters = () => {
     setSelectedFilters({
-      country: '',
-      city: '',
-      studyLevel: '',
-      subject: '',
-      startYear: '',
-      studyType: '',
-      universityType: '',
+      country: [],
+      city: [],
+      studyLevel: [],
+      degree: [],
+      subject: [],
+      intake: [],
+      studyType: [],
+      universityType: [],
       nationality: '',
       residenceCountry: '',
       academicQualification: '',
@@ -720,17 +2112,23 @@ const EstablishmentsListing = () => {
       waiver: false
     });
     setDetailedFilters({
-      academicQualification: '',
       awardingBoard: '',
       grade: '',
-      gradeType: 'CGPA 4',
+      gradeType: '',
       englishTest: '',
       englishScore: '',
       standardizedTest: '',
       standardizedScore: '',
       studyGap: '',
       minFees: 0,
-      maxFees: 300000
+      maxFees: 300000,
+      // New choice field filters
+      languageTestFilter: null,
+      standardizedTestFilter: null,
+      scholarshipFilter: null,
+      housingFilter: null,
+      rankingFilter: null,
+      featuredFilter: null
     });
   };
 
@@ -738,69 +2136,445 @@ const EstablishmentsListing = () => {
     setDetailedFilters(prev => ({ ...prev, [filterName]: value }));
   };
 
-  const filteredEstablishments = establishments.filter(establishment => {
-    const matchesSearch = establishment.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         establishment.country.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         establishment.city.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesCountry = !selectedFilters.country || establishment.country.toLowerCase() === selectedFilters.country;
-    
-    const matchesUniversityType = !selectedFilters.universityType || (() => {
-      if (selectedFilters.universityType === 'A') {
-        return establishment.universityType === 'A';
-      } else if (selectedFilters.universityType === 'B') {
-        return establishment.universityType === 'B';
-      } else if (selectedFilters.universityType === 'C') {
-        return establishment.universityType === 'C';
+  // Handle temporary fee filter changes
+  const handleTempFeeFilterChange = (key, value) => {
+    setTempFeeFilters(prev => {
+      const newFilters = { ...prev, [key]: value };
+      
+      // Ensure min doesn't exceed max and vice versa
+      if (key === 'minFees' && newFilters.minFees > newFilters.maxFees) {
+        newFilters.maxFees = newFilters.minFees;
+      } else if (key === 'maxFees' && newFilters.maxFees < newFilters.minFees) {
+        newFilters.minFees = newFilters.maxFees;
       }
-      return true;
+      
+      return newFilters;
+    });
+  };
+
+  // Apply fee filters
+  const applyFeeFilters = () => {
+    setDetailedFilters(prev => ({
+      ...prev,
+      minFees: tempFeeFilters.minFees,
+      maxFees: tempFeeFilters.maxFees
+    }));
+  };
+
+  // Clear all filters (main and detailed)
+  const clearAllFilters = async () => {
+    // Clear main filters
+    setSelectedFilters({
+      country: [],
+      city: [],
+      studyLevel: [],
+      subject: [],
+      intake: [],
+      studyType: [],
+      universityType: [],
+      nationality: '',
+      residenceCountry: '',
+      academicQualification: '',
+      englishTest: '',
+      standardizedTest: '',
+      waiver: false,
+      requiresAcademicQualification: null,
+      academicQualifications: [],
+      minimumGrade: '',
+      gradeSystem: '' // Empty to avoid sending in payload
+    });
+
+    // Get the default maxFees for current currency
+    let defaultMaxFees = 300000;
+    if (userCurrency !== 'USD') {
+      try {
+        const conversion = await convertPrice(300000, 'USD');
+        if (conversion && conversion.convertedAmount > 0) {
+          defaultMaxFees = Math.round(conversion.convertedAmount);
+        }
+      } catch (error) {
+        console.error('Error converting maxFees in clearAllFilters:', error);
+      }
+    }
+
+    // Clear detailed filters
+    setDetailedFilters({
+      awardingBoard: '',
+      grade: '',
+      gradeType: '', // Empty to show placeholder
+      englishTest: '',
+      englishScore: '',
+      standardizedTest: '',
+      standardizedScore: '',
+      studyGap: '',
+      minFees: 0,
+      maxFees: defaultMaxFees
+    });
+
+    // Clear temporary fee filters
+    setTempFeeFilters({
+      minFees: 0,
+      maxFees: defaultMaxFees
+    });
+
+    // Clear search query
+    setSearchQuery('');
+  };
+
+  // Get the default maxFees value for current currency
+  const getDefaultMaxFees = () => {
+    // For USD, return 300000 directly
+    if (userCurrency === 'USD') {
+      return 300000;
+    }
+    // For other currencies, we'll use a simple approach: 
+    // if maxFees is the current converted value, consider it default
+    // This is a bit tricky, so we'll use a tolerance approach
+    const tolerance = 1000; // Allow 1000 units tolerance
+    const currentMaxFees = detailedFilters.maxFees;
+    
+    // If maxFees is close to what we expect for the current currency, consider it default
+    // This is not perfect but works for the hasActiveFilters check
+    return currentMaxFees;
+  };
+
+  // Get the maximum value for sliders based on current currency
+  const getSliderMaxValue = () => {
+    // For USD, return 300000 directly
+    if (userCurrency === 'USD') {
+      return 300000;
+    }
+    // For other currencies, use the current maxFees value or calculate it
+    return detailedFilters.maxFees || 300000;
+  };
+
+  // Check if any filters are active
+  const hasActiveFilters = () => {
+    // Check main filters
+    const hasMainFilters = selectedFilters.country.length > 0 ||
+                          selectedFilters.city.length > 0 ||
+                          selectedFilters.studyLevel.length > 0 ||
+                          selectedFilters.degree.length > 0 ||
+                          selectedFilters.subject.length > 0 ||
+                          selectedFilters.intake.length > 0 ||
+                          selectedFilters.studyType.length > 0 ||
+                          selectedFilters.universityType.length > 0 ||
+                          selectedFilters.nationality ||
+                          selectedFilters.residenceCountry ||
+                          selectedFilters.academicQualification ||
+                          selectedFilters.englishTest ||
+                          selectedFilters.standardizedTest ||
+                          selectedFilters.waiver ||
+                          selectedFilters.requiresAcademicQualification !== null ||
+                          selectedFilters.academicQualifications.length > 0 ||
+                          selectedFilters.minimumGrade ||
+                          selectedFilters.gradeSystem;
+
+    // Check detailed filters
+    const hasDetailedFilters = detailedFilters.awardingBoard ||
+                              detailedFilters.grade ||
+                              detailedFilters.gradeType ||
+                              detailedFilters.englishTest ||
+                              detailedFilters.englishScore ||
+                              detailedFilters.standardizedTest ||
+                              detailedFilters.standardizedScore ||
+                              detailedFilters.studyGap ||
+                              detailedFilters.minFees >= 0 ||
+                              detailedFilters.maxFees !== getDefaultMaxFees() ||
+                              detailedFilters.languageTestFilter ||
+                              detailedFilters.standardizedTestFilter ||
+                              detailedFilters.scholarshipFilter ||
+                              detailedFilters.housingFilter ||
+                              detailedFilters.rankingFilter ||
+                              detailedFilters.featuredFilter;
+
+    // Check search query
+    const hasSearchQuery = searchQuery.trim().length > 0;
+
+    return hasMainFilters || hasDetailedFilters || hasSearchQuery;
+  };
+
+  const filteredEstablishments = establishments.filter(establishment => {
+    // Search query applies to name, country, or city (OR logic for search)
+    const matchesSearch = !searchQuery || 
+                         (establishment.name && establishment.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                         (establishment.country && establishment.country.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                         (establishment.city && establishment.city.toLowerCase().includes(searchQuery.toLowerCase()));
+    
+    // All other filters use AND logic
+    const matchesCountry = selectedFilters.country.length === 0 || selectedFilters.country.includes(establishment.country);
+    const matchesStudyLevel = selectedFilters.studyLevel.length === 0 || 
+      (establishment.programsList && establishment.programsList.some(program => 
+        selectedFilters.studyLevel.includes(program.studyLevel)
+      ));
+    
+    const matchesDegree = selectedFilters.degree.length === 0 || 
+      (establishment.programsList && establishment.programsList.some(program => 
+        selectedFilters.degree.includes(program.degree)
+      ));
+    
+    const matchesSubject = selectedFilters.subject.length === 0 || 
+      (establishment.programsList && establishment.programsList.some(program => {
+        const subjectStr = String(program.subject || '');
+        const fieldStr = String(program.field || '');
+        return selectedFilters.subject.some(filterSubject => {
+          const mappedSubject = String(mapSubjectToDatabase(filterSubject) || '');
+          return subjectStr.toLowerCase().includes(mappedSubject.toLowerCase()) ||
+                 fieldStr.toLowerCase().includes(mappedSubject.toLowerCase());
+        });
+      }));
+    
+    const matchesField = selectedFilters.field.length === 0 || 
+      (establishment.programsList && establishment.programsList.some(program => {
+        const programField = String(program.field || '');
+        return selectedFilters.field.some(filterField => {
+          return programField.toLowerCase().includes(filterField.code.toLowerCase());
+        });
+      }));
+    
+    const matchesIntake = selectedFilters.intake.length === 0 || 
+      (establishment.programsList && establishment.programsList.some(program => 
+        selectedFilters.intake.includes(program.intake)
+      ));
+    
+    const matchesStudyType = selectedFilters.studyType.length === 0 || 
+      (establishment.programsList && establishment.programsList.some(program => 
+        selectedFilters.studyType.includes(program.studyType)
+      ));
+    
+    const matchesUniversityType = selectedFilters.universityType.length === 0 || selectedFilters.universityType.includes(establishment.universityType);
+    
+    // Grade filtering for establishments (check if any program meets grade requirements)
+    const matchesGrade = !detailedFilters.grade || !detailedFilters.gradeType || (() => {
+      try {
+        // Convert user's grade to standard 10-point scale
+        const userStandardGrade = gradeConversionService.convertToStandard(
+          parseFloat(detailedFilters.grade), 
+          detailedFilters.gradeType
+        );
+        
+        // Check if any program in the establishment meets grade requirements
+        if (establishment.programsList && establishment.programsList.length > 0) {
+          return establishment.programsList.some(program => {
+            if (program.structuredRequirements?.academic?.items) {
+              const gradeRequirements = program.structuredRequirements.academic.items.filter(
+                item => item.type === 'grade' && item.gradeSystem && item.minimumScore
+              );
+              
+              if (gradeRequirements.length === 0) {
+                return true; // No grade requirements, so it matches
+              }
+              
+              // Check if user meets any of the grade requirements
+              return gradeRequirements.some(requirement => {
+                try {
+                  const requirementStandardGrade = gradeConversionService.convertToStandard(
+                    parseFloat(requirement.minimumScore),
+                    requirement.gradeSystem
+                  );
+                  return userStandardGrade >= requirementStandardGrade;
+                } catch (error) {
+                  console.warn('Error converting requirement grade:', error);
+                  return true; // If conversion fails, assume it matches
+                }
+              });
+            }
+            
+            return true; // No structured requirements, so it matches
+          });
+        }
+        
+        return true; // No programs, so it matches
+      } catch (error) {
+        console.warn('Error in grade filtering for establishment:', error);
+        return true; // If conversion fails, assume it matches
+      }
     })();
     
-    return matchesSearch && matchesCountry && matchesUniversityType;
+    return matchesSearch && matchesCountry && matchesStudyLevel && matchesDegree && matchesSubject && matchesField && matchesIntake && matchesStudyType && matchesUniversityType && matchesGrade;
   });
 
   const filteredPrograms = programs.filter(program => {
-    const matchesSearch = program.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         program.university.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         program.country.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         program.city.toLowerCase().includes(searchQuery.toLowerCase());
+    const universityName = program.establishment?.name || '';
     
-    const matchesCountry = !selectedFilters.country || program.country.toLowerCase() === selectedFilters.country;
-    const matchesStudyLevel = !selectedFilters.studyLevel || program.degree.toLowerCase().includes(selectedFilters.studyLevel);
-    const matchesSubject = !selectedFilters.subject || program.name.toLowerCase().includes(selectedFilters.subject);
-    const matchesStudyType = !selectedFilters.studyType || program.studyType === selectedFilters.studyType;
+    // Search query applies to name, university, country, or city (OR logic for search)
+    const matchesSearch = !searchQuery || 
+                         (program.name && program.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                         (universityName && universityName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                         (program.country && program.country.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                         (program.city && program.city.toLowerCase().includes(searchQuery.toLowerCase()));
     
-    return matchesSearch && matchesCountry && matchesStudyLevel && matchesSubject && matchesStudyType;
+    // All other filters use AND logic
+    const matchesCountry = selectedFilters.country.length === 0 || selectedFilters.country.includes(program.country);
+    const matchesStudyLevel = selectedFilters.studyLevel.length === 0 || selectedFilters.studyLevel.includes(program.studyLevel);
+    const matchesDegree = selectedFilters.degree.length === 0 || selectedFilters.degree.includes(program.degree);
+    const matchesSubject = selectedFilters.subject.length === 0 || selectedFilters.subject.some(subject => {
+      const mappedSubject = String(mapSubjectToDatabase(subject) || '');
+      const programSubject = String(program.subject || '');
+      const programField = String(program.field || '');
+      return programSubject.toLowerCase().includes(mappedSubject.toLowerCase()) || 
+             programField.toLowerCase().includes(mappedSubject.toLowerCase());
+    });
+    const matchesField = selectedFilters.field.length === 0 || selectedFilters.field.some(filterField => {
+      const programField = String(program.field || '');
+      return programField.toLowerCase().includes(filterField.code.toLowerCase());
+    });
+    const matchesStudyType = selectedFilters.studyType.length === 0 || selectedFilters.studyType.includes(program.studyType);
+    const matchesIntake = selectedFilters.intake.length === 0 || selectedFilters.intake.includes(program.intake);
+    
+    // Grade filtering using conversion service
+    const matchesGrade = !detailedFilters.grade || !detailedFilters.gradeType || (() => {
+      try {
+        // Convert user's grade to standard 10-point scale
+        const userStandardGrade = gradeConversionService.convertToStandard(
+          parseFloat(detailedFilters.grade), 
+          detailedFilters.gradeType
+        );
+        
+        // Check if program has grade requirements
+        if (program.structuredRequirements?.academic?.items) {
+          const gradeRequirements = program.structuredRequirements.academic.items.filter(
+            item => item.type === 'grade' && item.gradeSystem && item.minimumScore
+          );
+          
+          if (gradeRequirements.length === 0) {
+            return true; // No grade requirements, so it matches
+          }
+          
+          // Check if user meets any of the grade requirements
+          return gradeRequirements.some(requirement => {
+            try {
+              const requirementStandardGrade = gradeConversionService.convertToStandard(
+                parseFloat(requirement.minimumScore),
+                requirement.gradeSystem
+              );
+              return userStandardGrade >= requirementStandardGrade;
+            } catch (error) {
+              console.warn('Error converting requirement grade:', error);
+              return true; // If conversion fails, assume it matches
+            }
+          });
+        }
+        
+        return true; // No structured requirements, so it matches
+      } catch (error) {
+        console.warn('Error in grade filtering:', error);
+        return true; // If conversion fails, assume it matches
+      }
+    })();
+    
+    return matchesSearch && matchesCountry && matchesStudyLevel && matchesDegree && matchesSubject && matchesField && matchesStudyType && matchesIntake && matchesGrade;
   });
 
-  const seoData = {
-    title: language === 'en' 
+  // Generate dynamic SEO data based on current filters and results
+  const generateDynamicTitle = () => {
+    const baseTitle = language === 'en' 
       ? 'Universities & Programs - Find Your Perfect Study Abroad Option | E-TAWJIHI Global' 
-      : 'Universités & Programmes - Trouvez Votre Option d\'Études à l\'Étranger Parfaite | E-TAWJIHI Global',
-    description: language === 'en'
+      : 'Universités & Programmes - Trouvez Votre Option d\'Études à l\'Étranger Parfaite | E-TAWJIHI Global';
+    
+    if (selectedFilters.country.length > 0) {
+      const countries = selectedFilters.country.join(', ');
+      return language === 'en' 
+        ? `Study in ${countries} - Universities & Programs | E-TAWJIHI Global`
+        : `Étudier en ${countries} - Universités & Programmes | E-TAWJIHI Global`;
+    }
+    
+    if (selectedFilters.subject.length > 0) {
+      const subjects = selectedFilters.subject.join(', ');
+      return language === 'en' 
+        ? `${subjects} Programs - Universities Worldwide | E-TAWJIHI Global`
+        : `Programmes ${subjects} - Universités Mondiales | E-TAWJIHI Global`;
+    }
+    
+    return baseTitle;
+  };
+
+  const generateDynamicDescription = () => {
+    const baseDescription = language === 'en'
       ? 'Search and compare universities and programs worldwide. Find the perfect study abroad option with detailed information, rankings, and admission requirements.'
-      : 'Recherchez et comparez les universités et programmes du monde entier. Trouvez l\'option d\'études à l\'étranger parfaite avec des informations détaillées, classements et exigences d\'admission.',
-    keywords: language === 'en'
-      ? 'universities, study programs, study abroad, international education, university search, program comparison, admission requirements, university rankings'
-      : 'universités, programmes d\'études, études à l\'étranger, éducation internationale, recherche universitaire, comparaison programmes, exigences admission, classements universitaires',
+      : 'Recherchez et comparez les universités et programmes du monde entier. Trouvez l\'option d\'études à l\'étranger parfaite avec des informations détaillées, classements et exigences d\'admission.';
+    
+    const filters = [];
+    if (selectedFilters.country.length > 0) filters.push(selectedFilters.country.join(', '));
+    if (selectedFilters.subject.length > 0) filters.push(selectedFilters.subject.join(', '));
+    if (selectedFilters.field.length > 0) filters.push(selectedFilters.field.map(f => f.labelEn || f.code).join(', '));
+    if (selectedFilters.studyLevel.length > 0) filters.push(selectedFilters.studyLevel.join(', '));
+    if (selectedFilters.degree.length > 0) filters.push(selectedFilters.degree.join(', '));
+    
+    if (filters.length > 0) {
+      return language === 'en'
+        ? `Find ${filters.join(' ')} programs at top universities worldwide. Compare tuition fees, admission requirements, and rankings. ${establishments.length} universities available.`
+        : `Trouvez des programmes ${filters.join(' ')} dans les meilleures universités mondiales. Comparez les frais de scolarité, exigences d'admission et classements. ${establishments.length} universités disponibles.`;
+    }
+    
+    return baseDescription;
+  };
+
+  const generateKeywords = () => {
+    const baseKeywords = language === 'en'
+      ? 'universities, study programs, study abroad, international education, university search, program comparison, admission requirements, university rankings, tuition fees, scholarships'
+      : 'universités, programmes d\'études, études à l\'étranger, éducation internationale, recherche universitaire, comparaison programmes, exigences admission, classements universitaires, frais scolarité, bourses';
+    
+    const dynamicKeywords = [];
+    if (selectedFilters.country.length > 0) {
+      dynamicKeywords.push(...selectedFilters.country.map(country => 
+        language === 'en' ? `study in ${country}` : `étudier en ${country}`
+      ));
+    }
+    if (selectedFilters.subject.length > 0) {
+      dynamicKeywords.push(...selectedFilters.subject.map(subject => 
+        language === 'en' ? `${subject} programs` : `programmes ${subject}`
+      ));
+    }
+    if (selectedFilters.studyLevel.length > 0) {
+      dynamicKeywords.push(...selectedFilters.studyLevel.map(level => 
+        language === 'en' ? `${level} programs` : `programmes ${level}`
+      ));
+    }
+    if (selectedFilters.degree.length > 0) {
+      dynamicKeywords.push(...selectedFilters.degree.map(degree => 
+        language === 'en' ? `${degree} programs` : `programmes ${degree}`
+      ));
+    }
+    
+    return [...dynamicKeywords, baseKeywords].join(', ');
+  };
+
+  const seoData = {
+    title: generateDynamicTitle(),
+    description: generateDynamicDescription(),
+    keywords: generateKeywords(),
     canonical: 'https://e-tawjihi-global.com/establishments',
     ogType: 'website',
     structuredData: {
       "@context": "https://schema.org",
       "@type": "WebPage",
       "name": language === 'en' ? "Universities & Programs Search" : "Recherche Universités & Programmes",
-      "description": language === 'en' 
-        ? "Search and compare universities and programs worldwide for international education"
-        : "Recherchez et comparez les universités et programmes du monde entier pour l'éducation internationale",
+      "description": generateDynamicDescription(),
       "url": "https://e-tawjihi-global.com/establishments",
+      "breadcrumb": {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": language === 'en' ? "Home" : "Accueil",
+            "item": "https://e-tawjihi-global.com"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": language === 'en' ? "Universities & Programs" : "Universités & Programmes",
+            "item": "https://e-tawjihi-global.com/establishments"
+          }
+        ]
+      },
       "mainEntity": {
         "@type": "ItemList",
-        "name": language === 'en' ? "Universities and Programs" : "Universités et Programmes",
-        "itemListElement": establishments.slice(0, 10).map((establishment, index) => ({
-          "@type": "ListItem",
-          "position": index + 1,
-          "item": {
+        "numberOfItems": establishments.length,
+        "itemListElement": establishments.slice(0, 20).map((establishment, index) => ({
             "@type": "EducationalOrganization",
+          "position": index + 1,
             "name": establishment.name,
             "description": establishment.description,
             "url": establishment.website,
@@ -813,9 +2587,22 @@ const EstablishmentsListing = () => {
               "@type": "OfferCatalog",
               "name": language === 'en' ? "Programs" : "Programmes",
               "numberOfItems": establishment.programs || 0
-            }
-          }
+          },
+          "aggregateRating": establishment.ranking ? {
+            "@type": "AggregateRating",
+            "ratingValue": establishment.ranking,
+            "bestRating": 1,
+            "worstRating": 1000
+          } : undefined
         }))
+      },
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://e-tawjihi-global.com/establishments?search={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
       }
     },
     alternateLanguages: [
@@ -824,9 +2611,35 @@ const EstablishmentsListing = () => {
     ]
   };
 
+  // Map filter data for JSX components
+
   return (
+    <>
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-emerald-50">
-      <SEO {...seoData} language={language} />
+      <SEO 
+        {...seoData} 
+        language={language}
+        // Additional SEO enhancements
+        ogImage="https://e-tawjihi-global.com/images/universities-programs-og.jpg"
+        twitterImage="https://e-tawjihi-global.com/images/universities-programs-twitter.jpg"
+        // Add more specific meta tags
+        additionalMeta={[
+          { name: "google-site-verification", content: "your-google-verification-code" },
+          { name: "msvalidate.01", content: "your-bing-verification-code" },
+          { name: "yandex-verification", content: "your-yandex-verification-code" },
+          { name: "format-detection", content: "telephone=no" },
+          { name: "mobile-web-app-capable", content: "yes" },
+          { name: "apple-mobile-web-app-capable", content: "yes" },
+          { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+          { name: "apple-mobile-web-app-title", content: "E-TAWJIHI Global" },
+          { name: "application-name", content: "E-TAWJIHI Global" },
+          { name: "msapplication-TileColor", content: "#2563eb" },
+          { name: "msapplication-config", content: "/browserconfig.xml" },
+          { name: "theme-color", content: "#2563eb" },
+          { name: "color-scheme", content: "light" },
+          { name: "supported-color-schemes", content: "light" }
+        ]}
+      />
       {/* Enhanced Authenticated Header */}
       <HeaderAuth language={language} setLanguage={setLanguage} />
 
@@ -879,7 +2692,7 @@ const EstablishmentsListing = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-blue-600">🏛️</span>
-                  <span><strong>{language === 'en' ? 'Type B:' : 'Type B:'}</strong> {language === 'en' ? 'Service fee required for application ($100)' : 'Frais de service requis pour candidature ($100)'}</span>
+                  <span><strong>{language === 'en' ? 'Type B:' : 'Type B:'}</strong> {language === 'en' ? 'Service fee required for application' : 'Frais de service requis pour candidature'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-purple-600">📋</span>
@@ -924,12 +2737,15 @@ const EstablishmentsListing = () => {
                 </h2>
               </div>
               <div className="flex items-center gap-2">
+                {hasActiveFilters() && (
                 <button
-                  onClick={clearFilters}
-                  className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
+                    onClick={clearAllFilters}
+                    className="text-sm text-red-600 hover:text-red-800 font-medium transition-colors flex items-center gap-1"
                 >
+                    <X className="w-4 h-4" />
                   {language === 'en' ? 'Clear All' : 'Tout effacer'}
                 </button>
+                )}
               </div>
             </div>)}
 
@@ -947,30 +2763,6 @@ const EstablishmentsListing = () => {
               </div>
             </div>
 
-            {/* Quick Filters */}
-            <div className={`mb-6 ${!isFiltersCollapsed ? 'block' : 'hidden'} xl:block`}>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                {language === 'en' ? 'Quick Filters' : 'Filtres Rapides'}
-              </h3>
-              <div className="grid grid-cols-2 gap-2">
-                <button className="flex items-center justify-center space-x-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium">
-                  <Award className="w-4 h-4" />
-                  <span>{language === 'en' ? 'Top Ranked' : 'Top Classé'}</span>
-                </button>
-                <button className="flex items-center justify-center space-x-2 px-3 py-2 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 transition-colors text-sm font-medium">
-                  <TrendingUp className="w-4 h-4" />
-                  <span>{language === 'en' ? 'Popular' : 'Populaire'}</span>
-                </button>
-                <button className="flex items-center justify-center space-x-2 px-3 py-2 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors text-sm font-medium">
-                  <CheckCircle className="w-4 h-4" />
-                  <span>{language === 'en' ? 'Scholarships' : 'Bourses'}</span>
-                </button>
-                <button className="flex items-center justify-center space-x-2 px-3 py-2 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition-colors text-sm font-medium">
-                  <Building2 className="w-4 h-4" />
-                  <span>{language === 'en' ? 'Housing' : 'Logement'}</span>
-                </button>
-              </div>
-            </div>
 
             {/* Study Preference Section */}
             <div className={`mb-6 ${!isFiltersCollapsed ? 'block' : 'hidden'} xl:block`}>
@@ -990,18 +2782,15 @@ const EstablishmentsListing = () => {
                   {/* Study Destination */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {language === 'en' ? 'Study Destination' : 'Destination d\'Études'}
+                      {language === 'en' ? 'Destinations' : 'Destinations'}
                     </label>
-                    <select
+                    <MultiSelect
+                      options={countries}
                       value={selectedFilters.country}
-                      onChange={(e) => handleFilterChange('country', e.target.value)}
-                      className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-all"
-                    >
-                      <option value="">{language === 'en' ? 'All Countries' : 'Tous les Pays'}</option>
-                      {countries.map(country => (
-                        <option key={country.value} value={country.value}>{country.label}</option>
-                      ))}
-                    </select>
+                      onChange={(value) => handleFilterChange('country', value)}
+                      placeholder={language === 'en' ? 'All Destinations' : 'Toutes les destinations'}
+                      searchPlaceholder={language === 'en' ? 'Search destinations...' : 'Rechercher des destinations...'}
+                    />
                   </div>
 
                   {/* Study Level */}
@@ -1009,55 +2798,55 @@ const EstablishmentsListing = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       {language === 'en' ? 'Study Level' : 'Niveau d\'Études'}
                     </label>
-                    <select
+                    <MultiSelect
+                      options={studyLevels}
                       value={selectedFilters.studyLevel}
-                      onChange={(e) => handleFilterChange('studyLevel', e.target.value)}
-                      className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-all"
-                    >
-                      <option value="">{language === 'en' ? 'All Levels' : 'Tous les Niveaux'}</option>
-                      {studyLevels.map(level => (
-                        <option key={level.value} value={level.value}>{level.label}</option>
-                      ))}
-                    </select>
+                      onChange={(value) => handleFilterChange('studyLevel', value)}
+                      placeholder={language === 'en' ? 'All Levels' : 'Tous les niveaux'}
+                      searchPlaceholder={language === 'en' ? 'Search study levels...' : 'Rechercher des niveaux...'}
+                    />
                   </div>
 
-                  {/* Start Year */}
+                  {/* Degree */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      {language === 'en' ? 'Start Year' : 'Année de Début'}
+                      {language === 'en' ? 'Degree' : 'Diplôme'}
                     </label>
-                    <div className="flex flex-wrap gap-2">
-                      {startYears.map(year => (
-                        <button
-                          key={year}
-                          onClick={() => handleFilterChange('startYear', selectedFilters.startYear === year ? '' : year)}
-                          className={`px-4 py-2 text-sm rounded-full border transition-all ${
-                            selectedFilters.startYear === year
-                              ? 'bg-blue-800 text-white border-blue-800 shadow-md'
-                              : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:bg-blue-50'
-                          }`}
-                        >
-                          {year}
-                        </button>
-                      ))}
+                    <MultiSelect
+                      options={degrees}
+                      value={selectedFilters.degree}
+                      onChange={(value) => handleFilterChange('degree', value)}
+                      placeholder={language === 'en' ? 'All Degrees' : 'Tous les diplômes'}
+                      searchPlaceholder={language === 'en' ? 'Search degrees...' : 'Rechercher des diplômes...'}
+                    />
                     </div>
+
+                  {/* Intake */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {language === 'en' ? 'Intake' : 'Période d\'Admission'}
+                    </label>
+                    <MultiSelect
+                      options={intakes}
+                      value={selectedFilters.intake}
+                      onChange={(value) => handleFilterChange('intake', value)}
+                      placeholder={language === 'en' ? 'All Intakes' : 'Toutes les admissions'}
+                      searchPlaceholder={language === 'en' ? 'Search intakes...' : 'Rechercher des admissions...'}
+                    />
                   </div>
 
-                  {/* Subjects */}
+                  {/* Fields of Study */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       {language === 'en' ? 'Field of Study' : 'Domaine d\'Études'}
                     </label>
-                    <select
-                      value={selectedFilters.subject}
-                      onChange={(e) => handleFilterChange('subject', e.target.value)}
-                      className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-all"
-                    >
-                      <option value="">{language === 'en' ? 'All Fields' : 'Tous les Domaines'}</option>
-                      {subjects.map(subject => (
-                        <option key={subject.value} value={subject.value}>{subject.label}</option>
-                      ))}
-                    </select>
+                    <FieldMultiSelect
+                      value={Array.isArray(selectedFilters.field) ? selectedFilters.field : []}
+                      onChange={(value) => handleFilterChange('field', value)}
+                      placeholder={language === 'en' ? 'Select fields of study...' : 'Sélectionner des domaines d\'études...'}
+                      language={language}
+                      maxSelections={10}
+                    />
                   </div>
 
                   {/* Study Type */}
@@ -1065,16 +2854,13 @@ const EstablishmentsListing = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       {language === 'en' ? 'Study Type' : 'Type d\'Étude'}
                     </label>
-                    <select
+                    <MultiSelect
+                      options={studyTypes}
                       value={selectedFilters.studyType}
-                      onChange={(e) => handleFilterChange('studyType', e.target.value)}
-                      className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-all"
-                    >
-                      <option value="">{language === 'en' ? 'All Types' : 'Tous les Types'}</option>
-                      {studyTypes.map(type => (
-                        <option key={type.value} value={type.value}>{type.label}</option>
-                      ))}
-                    </select>
+                      onChange={(value) => handleFilterChange('studyType', value)}
+                      placeholder={language === 'en' ? 'All Types' : 'Tous les types'}
+                      searchPlaceholder={language === 'en' ? 'Search study types...' : 'Rechercher des types...'}
+                    />
                   </div>
 
                   {/* University Type */}
@@ -1082,20 +2868,31 @@ const EstablishmentsListing = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       {language === 'en' ? 'University Type' : 'Type d\'Université'}
                     </label>
-                    <select
-                      value={selectedFilters.universityType || ''}
-                      onChange={(e) => handleFilterChange('universityType', e.target.value)}
-                      className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white transition-all"
-                    >
-                      <option value="">{language === 'en' ? 'All Types' : 'Tous les Types'}</option>
-                      <option value="A">{language === 'en' ? '💰 Type A: 3 free applications available' : '💰 Type A: 3 candidatures gratuites disponibles'}</option>
-                      <option value="B">{language === 'en' ? '🏛️ Type B: Service fee required for application' : '🏛️ Type B: Frais de service requis pour candidature'}</option>
-                      <option value="C">{language === 'en' ? '📋 Type C: Special admission procedure management' : '📋 Type C: Gestion de procédure d\'admission spéciale'}</option>
-                    </select>
+                    <MultiSelect
+                      options={universityTypes}
+                      value={selectedFilters.universityType}
+                      onChange={(value) => handleFilterChange('universityType', value)}
+                      placeholder={language === 'en' ? 'All Types' : 'Tous les Types'}
+                      searchPlaceholder={language === 'en' ? 'Search types...' : 'Rechercher des types...'}
+                    />
                   </div>
+
                 </div>
               )}
             </div>
+
+            {/* Clear All Filters Button */}
+            {hasActiveFilters() && (
+              <div className="mb-4">
+                <button
+                  onClick={clearAllFilters}
+                  className="w-full bg-red-50 hover:bg-red-100 text-red-700 hover:text-red-800 text-sm font-medium py-3 px-4 rounded-lg border border-red-200 hover:border-red-300 transition-colors duration-200 flex items-center justify-center gap-2"
+                >
+                  <X className="w-4 h-4" />
+                  {language === 'en' ? 'Clear All Filters' : 'Effacer Tous les Filtres'}
+                </button>
+              </div>
+            )}
 
             {/* Detailed Filters Section */}
             <div className={`mb-6 ${!isFiltersCollapsed ? 'block' : 'hidden'} xl:block`}>
@@ -1112,123 +2909,131 @@ const EstablishmentsListing = () => {
               
               {expandedSections.detailedFilters && (
                 <div className="mt-4 space-y-6">
-                  {/* Academic Qualification */}
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                      {language === 'en' ? 'Academic Qualification' : 'Qualification Académique'}
+                  {/* Clear All Button */}
+                  {(detailedFilters.gradeType || detailedFilters.grade || detailedFilters.englishTest || detailedFilters.englishScore || detailedFilters.standardizedTest || detailedFilters.standardizedScore || detailedFilters.languageTestFilter || detailedFilters.standardizedTestFilter || detailedFilters.scholarshipFilter || detailedFilters.housingFilter || detailedFilters.rankingFilter || detailedFilters.featuredFilter) && (
+                    <div className="flex justify-end mb-4">
+                      <button
+                        onClick={() => {
+                          handleDetailedFilterChange('gradeType', '');
+                          handleDetailedFilterChange('grade', '');
+                          handleDetailedFilterChange('englishTest', '');
+                          handleDetailedFilterChange('englishScore', '');
+                          handleDetailedFilterChange('standardizedTest', '');
+                          handleDetailedFilterChange('standardizedScore', '');
+                          handleDetailedFilterChange('languageTestFilter', null);
+                          handleDetailedFilterChange('standardizedTestFilter', null);
+                          handleDetailedFilterChange('scholarshipFilter', null);
+                          handleDetailedFilterChange('housingFilter', null);
+                          handleDetailedFilterChange('rankingFilter', null);
+                          handleDetailedFilterChange('featuredFilter', null);
+                        }}
+                        className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg border border-red-200 hover:border-red-300 transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                        {language === 'en' ? 'Clear All Filters' : 'Effacer Tous les Filtres'}
+                      </button>
+                      </div>
+                  )}
+
+                  {/* Grade Requirements */}
+                      <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold text-gray-700">
+                        {language === 'en' ? 'Grade Requirements' : 'Exigences de Note'}
                     </h3>
+                      {(detailedFilters.gradeType || detailedFilters.grade) && (
+                        <button
+                          onClick={() => {
+                            handleDetailedFilterChange('gradeType', '');
+                            handleDetailedFilterChange('grade', '');
+                          }}
+                          className="flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                          title={language === 'en' ? 'Clear grade filters' : 'Effacer les filtres de note'}
+                        >
+                          <X className="w-3 h-3" />
+                          {language === 'en' ? 'Clear' : 'Effacer'}
+                        </button>
+                      )}
+                      </div>
                     <div className="space-y-4">
-                      {/* Applying for */}
+                      {/* Grade System */}
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">
-                          {language === 'en' ? 'Applying for' : 'Candidature pour'}
+                          {language === 'en' ? 'Grade System' : 'Système de Notation'}
                         </label>
-                        <select
-                          value={detailedFilters.academicQualification}
-                          onChange={(e) => handleDetailedFilterChange('academicQualification', e.target.value)}
-                          className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm"
-                        >
-                          <option value="">{language === 'en' ? 'Select Level' : 'Sélectionner le niveau'}</option>
-                          <option value="undergraduate">{language === 'en' ? 'Undergraduate' : 'Premier cycle'}</option>
-                          <option value="graduate">{language === 'en' ? 'Graduate' : 'Deuxième cycle'}</option>
-                        </select>
-                      </div>
-
-                      {/* Highest Qualification */}
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">
-                          {language === 'en' ? 'Highest Qualification' : 'Plus haute qualification'}
-                        </label>
-                        <select
-                          value={detailedFilters.academicQualification}
-                          onChange={(e) => handleDetailedFilterChange('academicQualification', e.target.value)}
-                          className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm"
-                        >
-                          <option value="">{language === 'en' ? 'Select Qualification' : 'Sélectionner la qualification'}</option>
-                          {academicQualifications.map(qual => (
-                            <option key={qual.value} value={qual.value}>{qual.label}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Country of Education */}
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">
-                          {language === 'en' ? 'Country of Education' : 'Pays d\'éducation'}
-                        </label>
-                        <select
-                          value={detailedFilters.awardingBoard}
-                          onChange={(e) => handleDetailedFilterChange('awardingBoard', e.target.value)}
-                          className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm"
-                        >
-                          <option value="">{language === 'en' ? 'Select Country' : 'Sélectionner le pays'}</option>
-                          {awardingBoards.map(board => (
-                            <option key={board.value} value={board.value}>{board.label}</option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Awarding Board */}
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">
-                          {language === 'en' ? 'Awarding Board' : 'Organisme délivrant'}
-                        </label>
-                        <input
-                          type="text"
-                          value={detailedFilters.awardingBoard}
-                          onChange={(e) => handleDetailedFilterChange('awardingBoard', e.target.value)}
-                          placeholder={language === 'en' ? 'Enter awarding board' : 'Saisir l\'organisme délivrant'}
-                          className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm"
+                        <SelectSearchable
+                          options={gradeTypes}
+                          value={detailedFilters.gradeType}
+                          onChange={(value) => handleDetailedFilterChange('gradeType', value)}
+                          placeholder={language === 'en' ? 'Select Grade System' : 'Sélectionner le système de notation'}
+                          searchPlaceholder={language === 'en' ? 'Search grade systems...' : 'Rechercher des systèmes de notation...'}
                         />
                       </div>
 
-                      {/* Grade */}
+                      {/* Grade Score */}
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">
-                          {language === 'en' ? 'Grade' : 'Note'}
+                          {language === 'en' ? 'Your Grade Score' : 'Votre Note'}
                         </label>
-                        <div className="flex gap-2">
                           <input
                             type="number"
+                          step={detailedFilters.gradeType === 'cgpa-4' ? '0.01' : detailedFilters.gradeType === 'cgpa-20' ? '0.01' : detailedFilters.gradeType === 'percentage' ? '0.01' : detailedFilters.gradeType === 'gpa-5' ? '0.01' : detailedFilters.gradeType === 'gpa-10' ? '0.01' : detailedFilters.gradeType === 'cgpa-7' ? '0.01' : '0.01'}
+                          min={detailedFilters.gradeType === 'cgpa-4' ? '0' : detailedFilters.gradeType === 'cgpa-20' ? '0' : detailedFilters.gradeType === 'percentage' ? '0' : detailedFilters.gradeType === 'gpa-5' ? '0' : detailedFilters.gradeType === 'gpa-10' ? '0' : detailedFilters.gradeType === 'cgpa-7' ? '0' : '0'}
+                          max={detailedFilters.gradeType === 'cgpa-4' ? '4' : detailedFilters.gradeType === 'cgpa-20' ? '20' : detailedFilters.gradeType === 'percentage' ? '100' : detailedFilters.gradeType === 'gpa-5' ? '5' : detailedFilters.gradeType === 'gpa-10' ? '10' : detailedFilters.gradeType === 'cgpa-7' ? '7' : '100'}
                             value={detailedFilters.grade}
                             onChange={(e) => handleDetailedFilterChange('grade', e.target.value)}
-                            placeholder={language === 'en' ? 'Enter Score' : 'Saisir la note'}
-                            className="flex-1 p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm"
-                          />
-                          <select
-                            value={detailedFilters.gradeType}
-                            onChange={(e) => handleDetailedFilterChange('gradeType', e.target.value)}
-                            className="p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm"
-                          >
-                            {gradeTypes.map(type => (
-                              <option key={type.value} value={type.value}>{type.label}</option>
-                            ))}
-                          </select>
-                        </div>
+                          placeholder={
+                            detailedFilters.gradeType === 'cgpa-4' ? 'e.g., 3.75' :
+                            detailedFilters.gradeType === 'cgpa-20' ? 'e.g., 17.5' :
+                            detailedFilters.gradeType === 'percentage' ? 'e.g., 85.5' :
+                            detailedFilters.gradeType === 'gpa-5' ? 'e.g., 4.2' :
+                            detailedFilters.gradeType === 'gpa-10' ? 'e.g., 8.9' :
+                            detailedFilters.gradeType === 'cgpa-7' ? 'e.g., 5.5' :
+                            language === 'en' ? 'Enter Score' : 'Saisir la note'
+                          }
+                          className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm"
+                        />
+                        {detailedFilters.grade && detailedFilters.gradeType && (
+                          <p className="mt-1 text-xs text-gray-500">
+                            {language === 'en' ? 'Showing programs with requirements ≤ your grade' : 'Affichage des programmes avec exigences ≤ votre note'}: {detailedFilters.grade} ({gradeTypes.find(gt => gt.value === detailedFilters.gradeType)?.label || detailedFilters.gradeType})
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
 
                   {/* English Language Test */}
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold text-gray-700">
                       {language === 'en' ? 'English Language Test' : 'Test de Langue Anglaise'}
                     </h3>
+                      {(detailedFilters.englishTest || detailedFilters.englishScore) && (
+                        <button
+                          onClick={() => {
+                            handleDetailedFilterChange('englishTest', '');
+                            handleDetailedFilterChange('englishScore', '');
+                          }}
+                          className="flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                          title={language === 'en' ? 'Clear English test filters' : 'Effacer les filtres de test d\'anglais'}
+                        >
+                          <X className="w-3 h-3" />
+                          {language === 'en' ? 'Clear' : 'Effacer'}
+                        </button>
+                      )}
+                    </div>
                     <div className="space-y-4">
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">
                           {language === 'en' ? 'Test Type' : 'Type de test'}
                         </label>
-                        <select
+                        <SelectSearchable
+                          options={englishTests}
                           value={detailedFilters.englishTest}
-                          onChange={(e) => handleDetailedFilterChange('englishTest', e.target.value)}
-                          className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm"
-                        >
-                          <option value="">{language === 'en' ? 'Select Test' : 'Sélectionner le test'}</option>
-                          {englishTests.map(test => (
-                            <option key={test.value} value={test.value}>{test.label}</option>
-                          ))}
-                        </select>
+                          onChange={(value) => handleDetailedFilterChange('englishTest', value)}
+                          placeholder={language === 'en' ? 'Select Test' : 'Sélectionner le test'}
+                          searchPlaceholder={language === 'en' ? 'Search tests...' : 'Rechercher des tests...'}
+                        />
                       </div>
                       {detailedFilters.englishTest && (
                         <div>
@@ -1249,24 +3054,36 @@ const EstablishmentsListing = () => {
 
                   {/* Standardized Test */}
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold text-gray-700">
                       {language === 'en' ? 'Standardized Test' : 'Test Standardisé'}
                     </h3>
+                      {(detailedFilters.standardizedTest || detailedFilters.standardizedScore) && (
+                        <button
+                          onClick={() => {
+                            handleDetailedFilterChange('standardizedTest', '');
+                            handleDetailedFilterChange('standardizedScore', '');
+                          }}
+                          className="flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                          title={language === 'en' ? 'Clear standardized test filters' : 'Effacer les filtres de test standardisé'}
+                        >
+                          <X className="w-3 h-3" />
+                          {language === 'en' ? 'Clear' : 'Effacer'}
+                        </button>
+                      )}
+                    </div>
                     <div className="space-y-4">
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">
                           {language === 'en' ? 'Test Type' : 'Type de test'}
                         </label>
-                        <select
+                        <SelectSearchable
+                          options={standardizedTests}
                           value={detailedFilters.standardizedTest}
-                          onChange={(e) => handleDetailedFilterChange('standardizedTest', e.target.value)}
-                          className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm"
-                        >
-                          <option value="">{language === 'en' ? 'Select Test' : 'Sélectionner le test'}</option>
-                          {standardizedTests.map(test => (
-                            <option key={test.value} value={test.value}>{test.label}</option>
-                          ))}
-                        </select>
+                          onChange={(value) => handleDetailedFilterChange('standardizedTest', value)}
+                          placeholder={language === 'en' ? 'Select Test' : 'Sélectionner le test'}
+                          searchPlaceholder={language === 'en' ? 'Search tests...' : 'Rechercher des tests...'}
+                        />
                       </div>
                       {detailedFilters.standardizedTest && (
                         <div>
@@ -1285,37 +3102,70 @@ const EstablishmentsListing = () => {
                     </div>
                   </div>
 
-                  {/* Study Gap */}
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3">
-                      {language === 'en' ? 'Study Gap' : 'Interruption d\'Études'}
-                    </h3>
-                    <select
-                      value={detailedFilters.studyGap}
-                      onChange={(e) => handleDetailedFilterChange('studyGap', e.target.value)}
-                      className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm"
-                    >
-                      <option value="">{language === 'en' ? 'Select Gap' : 'Sélectionner l\'interruption'}</option>
-                      {studyGaps.map(gap => (
-                        <option key={gap.value} value={gap.value}>{gap.label}</option>
-                      ))}
-                    </select>
-                  </div>
 
                   {/* Fees Range */}
                   <div>
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold text-gray-700">
                       {language === 'en' ? 'Fees Range' : 'Gamme de Frais'}
                     </h3>
+                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                        {userCurrency}
+                      </span>
+                    </div>
+                    
+                    {/* Range Slider */}
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+                        <span>0</span>
+                        <span className="font-medium text-blue-600">{userCurrency} {tempFeeFilters.minFees.toLocaleString()} - {tempFeeFilters.maxFees.toLocaleString()}</span>
+                        <span>300,000</span>
+                      </div>
                     <div className="space-y-3">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">
+                            {language === 'en' ? 'Minimum' : 'Minimum'}
+                          </label>
+                          <input
+                            type="range"
+                            min="0"
+                            max={getSliderMaxValue()}
+                            step="1000"
+                            value={tempFeeFilters.minFees}
+                            onChange={(e) => handleTempFeeFilterChange('minFees', parseInt(e.target.value))}
+                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">
+                            {language === 'en' ? 'Maximum' : 'Maximum'}
+                          </label>
+                          <input
+                            type="range"
+                            min="0"
+                            max={getSliderMaxValue()}
+                            step="1000"
+                            value={tempFeeFilters.maxFees}
+                            onChange={(e) => handleTempFeeFilterChange('maxFees', parseInt(e.target.value))}
+                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider-thumb"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Number Inputs */}
+                    <div className="grid grid-cols-2 gap-3 mb-3">
                       <div>
                         <label className="block text-xs text-gray-500 mb-1">
                           {language === 'en' ? 'Min Fees' : 'Frais minimum'}
                         </label>
                         <input
                           type="number"
-                          value={detailedFilters.minFees}
-                          onChange={(e) => handleDetailedFilterChange('minFees', parseInt(e.target.value) || 0)}
+                          min="0"
+                          max={getSliderMaxValue()}
+                          step="1000"
+                          value={tempFeeFilters.minFees}
+                          onChange={(e) => handleTempFeeFilterChange('minFees', parseInt(e.target.value) || 0)}
                           className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm"
                         />
                       </div>
@@ -1325,10 +3175,144 @@ const EstablishmentsListing = () => {
                         </label>
                         <input
                           type="number"
-                          value={detailedFilters.maxFees}
-                          onChange={(e) => handleDetailedFilterChange('maxFees', parseInt(e.target.value) || 300000)}
+                          min="0"
+                          max={getSliderMaxValue()}
+                          step="1000"
+                          value={tempFeeFilters.maxFees}
+                          onChange={(e) => handleTempFeeFilterChange('maxFees', parseInt(e.target.value) || getSliderMaxValue())}
                           className="w-full p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm"
                         />
+                      </div>
+                    </div>
+
+                    {/* Apply Button */}
+                    <button
+                      onClick={applyFeeFilters}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      {language === 'en' ? 'Apply Filters' : 'Appliquer les Filtres'}
+                    </button>
+                  </div>
+
+                  {/* Additional Filters */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-semibold text-gray-700">
+                        {language === 'en' ? 'Additional Filters' : 'Filtres Supplémentaires'}
+                      </h3>
+                      {(detailedFilters.languageTestFilter || detailedFilters.standardizedTestFilter || detailedFilters.scholarshipFilter || detailedFilters.housingFilter || detailedFilters.rankingFilter || detailedFilters.featuredFilter) && (
+                        <button
+                          onClick={() => {
+                            handleDetailedFilterChange('languageTestFilter', null);
+                            handleDetailedFilterChange('standardizedTestFilter', null);
+                            handleDetailedFilterChange('scholarshipFilter', null);
+                            handleDetailedFilterChange('housingFilter', null);
+                            handleDetailedFilterChange('rankingFilter', null);
+                            handleDetailedFilterChange('featuredFilter', null);
+                          }}
+                          className="flex items-center gap-1 px-2 py-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                          title={language === 'en' ? 'Clear additional filters' : 'Effacer les filtres supplémentaires'}
+                        >
+                          <X className="w-3 h-3" />
+                          {language === 'en' ? 'Clear' : 'Effacer'}
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-4">
+                      {/* Language Test Filter */}
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">
+                          {language === 'en' ? 'Language Test' : 'Test de Langue'}
+                        </label>
+                        <select
+                          value={detailedFilters.languageTestFilter || ''}
+                          onChange={(e) => handleDetailedFilterChange('languageTestFilter', e.target.value || null)}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                        >
+                          <option value="">{language === 'en' ? 'All Cases' : 'Tous les cas'}</option>
+                          <option value="without">{language === 'en' ? 'Without Test' : 'Sans Test'}</option>
+                          <option value="with">{language === 'en' ? 'With Test' : 'Avec Test'}</option>
+                        </select>
+                      </div>
+
+                      {/* Standardized Test Filter */}
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">
+                          {language === 'en' ? 'Standardized Test' : 'Test Standardisé'}
+                        </label>
+                        <select
+                          value={detailedFilters.standardizedTestFilter || ''}
+                          onChange={(e) => handleDetailedFilterChange('standardizedTestFilter', e.target.value || null)}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                        >
+                          <option value="">{language === 'en' ? 'All Cases' : 'Tous les cas'}</option>
+                          <option value="without">{language === 'en' ? 'Without Test' : 'Sans Test'}</option>
+                          <option value="with">{language === 'en' ? 'With Test' : 'Avec Test'}</option>
+                        </select>
+                      </div>
+
+                      {/* Scholarship Filter */}
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">
+                          {language === 'en' ? 'Scholarship' : 'Bourse'}
+                        </label>
+                        <select
+                          value={detailedFilters.scholarshipFilter || ''}
+                          onChange={(e) => handleDetailedFilterChange('scholarshipFilter', e.target.value || null)}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                        >
+                          <option value="">{language === 'en' ? 'All Cases' : 'Tous les cas'}</option>
+                          <option value="with">{language === 'en' ? 'With Scholarship' : 'Avec Bourse'}</option>
+                        </select>
+                      </div>
+
+                      {/* Housing Filter */}
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">
+                          {language === 'en' ? 'Housing' : 'Logement'}
+                        </label>
+                        <select
+                          value={detailedFilters.housingFilter || ''}
+                          onChange={(e) => handleDetailedFilterChange('housingFilter', e.target.value || null)}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                        >
+                          <option value="">{language === 'en' ? 'All Cases' : 'Tous les cas'}</option>
+                          <option value="with">{language === 'en' ? 'With Housing' : 'Avec Logement'}</option>
+                        </select>
+                      </div>
+
+                      {/* Ranking Filter */}
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">
+                          {language === 'en' ? 'Ranking' : 'Classement'}
+                        </label>
+                        <select
+                          value={detailedFilters.rankingFilter || ''}
+                          onChange={(e) => handleDetailedFilterChange('rankingFilter', e.target.value || null)}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                        >
+                          <option value="">{language === 'en' ? 'All Cases' : 'Tous les cas'}</option>
+                          <option value="top">{language === 'en' ? 'Top Ranked' : 'Top Classé'}</option>
+                        </select>
+                      </div>
+
+                      {/* Featured Filter */}
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">
+                          {language === 'en' ? 'Featured' : 'En Vedette'}
+                        </label>
+                        <select
+                          value={detailedFilters.featuredFilter || ''}
+                          onChange={(e) => handleDetailedFilterChange('featuredFilter', e.target.value || null)}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                        >
+                          <option value="">{language === 'en' ? 'All Cases' : 'Tous les cas'}</option>
+                          <option value="featured">{language === 'en' ? 'Featured' : 'En Vedette'}</option>
+                        </select>
                       </div>
                     </div>
                   </div>
@@ -1344,7 +3328,7 @@ const EstablishmentsListing = () => {
           <div className="mb-4 sm:mb-8">
             <div className="flex w-full bg-gray-100 rounded-lg p-1 border border-gray-200">
               <button
-                onClick={() => setActiveTab('establishments')}
+                onClick={() => handleTabChange('establishments')}
                 className={`flex-1 py-3 sm:py-4 rounded-md font-medium transition-all duration-200 flex items-center justify-center space-x-1 sm:space-x-2 border ${
                   activeTab === 'establishments'
                     ? 'bg-white text-blue-800 shadow-sm border-blue-200'
@@ -1355,7 +3339,7 @@ const EstablishmentsListing = () => {
                 <span className="text-sm sm:text-base">{language === 'en' ? 'Universities' : 'Universités'}</span>
               </button>
               <button
-                onClick={() => setActiveTab('programs')}
+                onClick={() => handleTabChange('programs')}
                 className={`flex-1 py-3 sm:py-4 rounded-md font-medium transition-all duration-200 flex items-center justify-center space-x-1 sm:space-x-2 border ${
                   activeTab === 'programs'
                     ? 'bg-white text-blue-800 shadow-sm border-blue-200'
@@ -1377,16 +3361,21 @@ const EstablishmentsListing = () => {
                   : (language === 'en' ? 'Study Programs' : 'Programmes d\'Études')
                 }
               </h2>
-              <p className="text-gray-600">
-                {activeTab === 'establishments' 
+              <div className="text-gray-600">
+                {loading ? (
+                  <span className="flex items-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    {language === 'en' ? 'Loading...' : 'Chargement...'}
+                  </span>
+                ) : activeTab === 'establishments' 
                   ? (language === 'en' 
-                      ? `${filteredEstablishments.length} universities found` 
-                      : `${filteredEstablishments.length} universités trouvées`)
+                      ? `${pagination.total} universities found` 
+                      : `${pagination.total} universités trouvées`)
                   : (language === 'en' 
-                      ? `${filteredPrograms.length} programs found` 
-                      : `${filteredPrograms.length} programmes trouvés`)
+                      ? `${pagination.total} programs found` 
+                      : `${pagination.total} programmes trouvés`)
                 }
-              </p>
+              </div>
             </div>
             
             <div className="flex items-center space-x-4">
@@ -1433,21 +3422,20 @@ const EstablishmentsListing = () => {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredPrograms.filter(p => p.aidvisorRecommended).slice(0, 3).map(program => (
-                    <Link key={program.id} to={`/programs/${program.id}`} className="block">
-                      <div className="bg-white rounded-lg p-4 border border-blue-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 cursor-pointer group">
+                    <div key={program.id} className="bg-white rounded-lg p-4 border border-blue-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 group">
                         <div className="flex items-center gap-3 mb-2">
                           <img 
-                            src={program.logo} 
-                            alt={program.university}
+                            src={program.establishment?.logo || program.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(program.establishment?.name || 'University')}&size=64&background=3B82F6&color=fff`} 
+                            alt={program.establishment?.name || 'University'}
                             className="w-8 h-8 rounded object-cover"
                           />
                           <div>
                             <h4 className="font-semibold text-gray-900 text-sm group-hover:text-blue-600 transition-colors">{program.name}</h4>
-                            <p className="text-xs text-gray-600">{program.university}</p>
+                            <p className="text-xs text-gray-600">{program.establishment?.name || 'University'}</p>
                           </div>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">{program.degree}</span>
+                          <span className="text-xs text-gray-500">{getDegreeLabel(program.degree)}</span>
                           <div className="flex items-center gap-1">
                             {program.universityType === 'A' && (
                               <>
@@ -1458,13 +3446,28 @@ const EstablishmentsListing = () => {
                             {program.universityType !== 'A' && (
                               <span className="text-blue-600 font-semibold text-sm">
                                 {program.universityType === 'B' ? '$100' : 
-                                 program.universityType === 'C' ? (program.university.includes('Sorbonne') ? '€150' : '¥800') : '$100'}
+                                 program.universityType === 'C' ? ((program.establishment?.name || '').includes('Sorbonne') ? '€150' : '¥800') : '$100'}
                               </span>
                             )}
                           </div>
                         </div>
-                      </div>
+                        <div className="mt-3 flex gap-2">
+                          <Link 
+                            to={`/${generateProgramSlug(program)}`}
+                            className="flex-1 inline-flex items-center justify-center px-3 py-2 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                          >
+                            {language === 'fr' ? 'Voir détails' : 'View Details'}
                     </Link>
+                          <HeartButton 
+                            type="program"
+                            id={program.id}
+                            isShortlisted={program.isShortlisted}
+                            className="px-3 py-2 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-xs font-medium flex items-center justify-center"
+                            size="w-3 h-3"
+                            language={language}
+                          />
+                        </div>
+                      </div>
                   ))}
                 </div>
               </div>
@@ -1473,11 +3476,29 @@ const EstablishmentsListing = () => {
 
           {/* Content Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-            {activeTab === 'establishments' ? (
+            {loading ? (
+              /* Loading State */
+              <>
+                {[...Array(6)].map((_, index) => (
+                  <div key={index} className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden animate-pulse">
+                    <div className="h-48 sm:h-56 bg-gray-200"></div>
+                    <div className="p-6">
+                      <div className="h-6 bg-gray-200 rounded mb-3"></div>
+                      <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                      <div className="h-4 bg-gray-200 rounded mb-4 w-3/4"></div>
+                      <div className="flex justify-between items-center mb-4">
+                        <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                      </div>
+                      <div className="h-10 bg-gray-200 rounded"></div>
+                    </div>
+                  </div>
+                ))}
+              </>
+            ) : activeTab === 'establishments' ? (
               /* Establishments Cards */
               filteredEstablishments.map(establishment => (
-              <Link key={establishment.id} to={`/establishments/${establishment.id}`} className="block">
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group">
+                <div key={establishment.id} className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group">
                 {/* Enhanced Logo Section */}
                 <div className="relative h-48 sm:h-56 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
                   <div className="logo-container">
@@ -1531,11 +3552,21 @@ const EstablishmentsListing = () => {
                       </h3>
                       <div className="flex items-center text-gray-600 text-sm mb-2">
                         <MapPin className="w-4 h-4 mr-1 text-blue-500" />
-                        {establishment.city}, {establishment.country}
+                        {getCityLabel(establishment.city)}, {getCountryLabel(establishment.country)}
                       </div>
                       <div className="flex items-center text-gray-500 text-sm">
                         <Globe className="w-4 h-4 mr-1" />
-                        {establishment.language}
+                        {establishment.languages && establishment.languages.length > 0 
+                          ? establishment.languages.map(lang => {
+                              // Si lang est un objet avec une propriété label, utiliser cette propriété
+                              if (typeof lang === 'object' && lang.label) {
+                                return lang.label;
+                              }
+                              // Sinon, utiliser getLanguageLabel pour les codes
+                              return getLanguageLabel(lang);
+                            }).join(', ')
+                          : getLanguageLabel(establishment.language)
+                        }
                       </div>
                     </div>
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
@@ -1543,7 +3574,7 @@ const EstablishmentsListing = () => {
                         ? 'bg-blue-100 text-blue-800' 
                         : 'bg-purple-100 text-purple-800'
                     }`}>
-                      {establishment.type}
+                      {getSchoolTypeLabel(establishment.type)}
                     </span>
                   </div>
 
@@ -1551,96 +3582,61 @@ const EstablishmentsListing = () => {
                   <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="bg-gray-50 rounded-lg p-3">
                       <div className="text-xs text-gray-500 mb-1">{language === 'en' ? 'Tuition Range' : 'Gamme de frais'}</div>
-                      <div className="text-sm font-semibold text-gray-800">{establishment.tuition}</div>
+                      <div className="text-sm font-semibold text-gray-800">
+                        <PriceDisplay 
+                          amount={establishment.tuitionRange.min} 
+                          currency={establishment.tuitionRange.currency}
+                        />
                       {establishment.tuitionRange.min !== establishment.tuitionRange.max && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          {language === 'en' ? 'From' : 'À partir de'} {establishment.tuitionRange.min.toLocaleString()} {establishment.tuitionRange.currency}
-                        </div>
+                          <>
+                            <span className="mx-1">-</span>
+                            <PriceDisplay 
+                              amount={establishment.tuitionRange.max} 
+                              currency={establishment.tuitionRange.currency}
+                            />
+                          </>
                       )}
                     </div>
+                    </div>{establishment.acceptanceRate && (
                     <div className="bg-gray-50 rounded-lg p-3">
-                      <div className="text-xs text-gray-500 mb-1">{language === 'en' ? 'Acceptance Rate' : 'Taux d\'admission'}</div>
-                      <div className="text-sm font-semibold text-gray-800">{establishment.acceptanceRate}</div>
+                        <div className="text-xs text-gray-500 mb-1">
+                          {language === 'en' ? 'Acceptance Rate' : "Taux d'admission"}
                     </div>
+                        <div className="text-sm font-semibold text-gray-800">
+                          {establishment.acceptanceRate}%
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Rankings */}
+                  {establishment.rankings && (establishment.rankings.qs || establishment.rankings.times || establishment.rankings.arwu || establishment.rankings.usNews) && (
                   <div className="mb-4">
                     <div className="text-xs text-gray-500 mb-2">{language === 'en' ? 'Global Rankings' : 'Classements Mondiaux'}</div>
                     <div className="flex flex-wrap gap-2">
+                        {establishment.rankings.qs && (
                       <div className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs font-medium">
                         QS #{establishment.rankings.qs}
                       </div>
+                        )}
+                        {establishment.rankings.times && (
                       <div className="bg-purple-50 text-purple-700 px-2 py-1 rounded-md text-xs font-medium">
                         Times #{establishment.rankings.times}
                       </div>
+                        )}
+                        {establishment.rankings.arwu && (
                       <div className="bg-green-50 text-green-700 px-2 py-1 rounded-md text-xs font-medium">
                         ARWU #{establishment.rankings.arwu}
                       </div>
+                        )}
+                        {establishment.rankings.usNews && (
                       <div className="bg-orange-50 text-orange-700 px-2 py-1 rounded-md text-xs font-medium">
                         US News #{establishment.rankings.usNews}
                       </div>
+                        )}
                     </div>
                   </div>
-
-                  {/* University Type Information */}
-                  {(() => {
-                    const typeInfo = getUniversityTypeInfo(establishment);
-                    const serviceFee = getServiceFee(establishment);
-                    return (
-                      <div className="mb-4">
-                        <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold mb-2 ${
-                          typeInfo.color === 'green' ? 'bg-green-100 text-green-800' :
-                          typeInfo.color === 'blue' ? 'bg-blue-100 text-blue-800' :
-                          typeInfo.color === 'purple' ? 'bg-purple-100 text-purple-800' :
-                          typeInfo.color === 'red' ? 'bg-red-100 text-red-800' :
-                          typeInfo.color === 'orange' ? 'bg-orange-100 text-orange-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          <span className="text-lg">{typeInfo.icon}</span>
-                          {typeInfo.type}
-                        </div>
-                        <div className="text-xs text-gray-600 mb-2">{typeInfo.description}</div>
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-gray-500">
-                            {typeInfo.freeApps > 0 
-                              ? `${typeInfo.freeApps} free applications`
-                              : 'Paid service'
-                            }
-                          </span>
-                          <div className="flex items-center gap-2">
-                            {serviceFee.showStrikethrough && serviceFee.originalAmount && (
-                              <span className="text-gray-400 line-through text-xs">
-                                {serviceFee.originalAmount}
-                              </span>
-                            )}
-                            <span className={`font-semibold ${
-                              serviceFee.amount === 'Free' ? 'text-green-600' : 'text-blue-600'
-                            }`}>
-                              {serviceFee.amount}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Popular Programs */}
-                  <div className="mb-4">
-                    <div className="text-xs text-gray-500 mb-2">{language === 'en' ? 'Popular Programs' : 'Programmes populaires'}</div>
-                    <div className="flex flex-wrap gap-1">
-                      {establishment.popularPrograms.slice(0, 2).map((program, index) => (
-                        <span key={index} className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-md">
-                          {program}
-                        </span>
-                      ))}
-                      {establishment.popularPrograms.length > 2 && (
-                        <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md">
-                          +{establishment.popularPrograms.length - 2}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+                  )}
 
                   {/* Features */}
                   <div className="flex items-center gap-4 mb-4 text-xs text-gray-600">
@@ -1648,6 +3644,9 @@ const EstablishmentsListing = () => {
                       <div className="flex items-center gap-1">
                         <CheckCircle className="w-3 h-3 text-green-500" />
                         <span>{language === 'en' ? 'Scholarships' : 'Bourses'}</span>
+                        {establishment.scholarshipTypes && establishment.scholarshipTypes.length > 0 && (
+                          <span className="text-gray-500">({establishment.scholarshipTypes.length})</span>
+                        )}
                       </div>
                     )}
                     {establishment.housing && (
@@ -1668,35 +3667,280 @@ const EstablishmentsListing = () => {
                       <BookOpen className="w-4 h-4 text-emerald-500" />
                       <span>{establishment.programs} {language === 'en' ? 'programs' : 'programmes'}</span>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4 text-purple-500" />
-                      <span>{establishment.applicationDeadline}</span>
+                  </div>
+
+
+
+                  {/* University Type Information */}
+                  {(() => {
+                    const typeInfo = getUniversityTypeInfo(establishment);
+                    const serviceFee = getServiceFee(establishment);
+                    return (
+                      <div className="mb-4">
+                        <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold mb-2 ${
+                          typeInfo.color === 'green' ? 'bg-green-100 text-green-800' :
+                          typeInfo.color === 'blue' ? 'bg-blue-100 text-blue-800' :
+                          typeInfo.color === 'purple' ? 'bg-purple-100 text-purple-800' :
+                          typeInfo.color === 'red' ? 'bg-red-100 text-red-800' :
+                          typeInfo.color === 'orange' ? 'bg-orange-100 text-orange-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {typeInfo.type}
+                        </div>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-gray-500">
+                            {typeInfo.freeApps > 0 
+                              ? (language === 'fr' ? `${typeInfo.freeApps} candidatures gratuites` : `${typeInfo.freeApps} free applications`)
+                              : (language === 'fr' ? 'Service payant' : 'Paid service')
+                            }
+                          </span>
+                          <div className="flex items-center gap-2">
+                            {/* Type A: Gratuit avec prix original barré */}
+                            {typeInfo.type === "Type A" && (
+                              <>
+                                {typeInfo.originalPrice && (
+                              <ServicePriceDisplay 
+                                price={typeInfo.originalPrice}
+                                currency={typeInfo.currency}
+                                className="text-gray-400 line-through text-xs"
+                              />
+                            )}
+                                <span className="font-semibold text-green-600">
+                                  {language === 'fr' ? 'Gratuit' : 'Free'}
+                              </span>
+                              </>
+                            )}
+                            
+                            {/* Type B: Prix normal ou promotion */}
+                            {typeInfo.type === "Type B" && (
+                              <>
+                                {typeInfo.promotionPrice && typeInfo.originalPrice ? (
+                                  <div className="flex flex-col items-end gap-1">
+                                    <div className="flex items-center gap-2">
+                                      <ServicePriceDisplay 
+                                        price={typeInfo.originalPrice}
+                                        currency={typeInfo.currency}
+                                        className="text-gray-400 line-through text-xs"
+                                      />
+                                      <ServicePriceDisplay 
+                                        price={typeInfo.promotionPrice}
+                                        currency={typeInfo.currency}
+                                        isPromotion={true}
+                                        className="font-semibold text-red-600 text-sm"
+                                      />
+                                    </div>
+                                    {typeInfo.promotionDeadline && typeInfo.promotionDeadline.trim() !== '' && (
+                                      <span className="text-red-500 text-xs bg-red-50 px-2 py-1 rounded">
+                                        {language === 'fr' ? 'Jusqu\'au' : 'Until'} {new Date(typeInfo.promotionDeadline).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+                                          year: 'numeric',
+                                          month: 'long',
+                                          day: 'numeric'
+                                        })}
+                            </span>
+                      )}
+                          </div>
+                                ) : typeInfo.originalPrice ? (
+                                  <ServicePriceDisplay 
+                                    price={typeInfo.originalPrice}
+                                    currency={typeInfo.currency}
+                                    className="font-semibold text-blue-600"
+                                  />
+                                ) : (
+                                  <span className="font-semibold text-blue-600">
+                                    {language === 'fr' ? 'Prix sur demande' : 'Price on request'}
+                                  </span>
+                                )}
+                              </>
+                            )}
+                            
+                            {/* Type C: Prix normal ou promotion */}
+                            {typeInfo.type === "Type C" && (
+                              <>
+                                {typeInfo.promotionPrice && typeInfo.originalPrice ? (
+                                  <div className="flex flex-col items-end gap-1">
+                                    <div className="flex items-center gap-2">
+                                      <ServicePriceDisplay 
+                                        price={typeInfo.originalPrice}
+                                        currency={typeInfo.currency}
+                                        className="text-gray-400 line-through text-xs"
+                                      />
+                                      <ServicePriceDisplay 
+                                        price={typeInfo.promotionPrice}
+                                        currency={typeInfo.currency}
+                                        isPromotion={true}
+                                        className="font-semibold text-red-600 text-sm"
+                                      />
+                      </div>
+                                    {typeInfo.promotionDeadline && typeInfo.promotionDeadline.trim() !== '' && (
+                                      <span className="text-red-500 text-xs bg-red-50 px-2 py-1 rounded">
+                                        {language === 'fr' ? 'Jusqu\'au' : 'Until'} {new Date(typeInfo.promotionDeadline).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+                                          year: 'numeric',
+                                          month: 'long',
+                                          day: 'numeric'
+                                        })}
+                                      </span>
+                    )}
+                      </div>
+                                ) : typeInfo.originalPrice ? (
+                                  <ServicePriceDisplay 
+                                    price={typeInfo.originalPrice}
+                                    currency={typeInfo.currency}
+                                    className="font-semibold text-purple-600"
+                                  />
+                                ) : (
+                                  <span className="font-semibold text-purple-600">
+                                    {language === 'fr' ? 'Prix sur demande' : 'Price on request'}
+                                  </span>
+                                )}
+                              </>
+                    )}
+                  </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Next Application Period */}
+                  {(() => {
+                    const nextPeriod = getNextApplicationPeriod(establishment.multiIntakes);
+                    if (!nextPeriod) {
+                      return (
+                  <div className="mb-4">
+                          <div className="bg-gray-50 rounded-lg p-3">
+                            <div className="text-xs text-gray-500 mb-1">{language === 'en' ? 'Application Period' : 'Période de candidature'}</div>
+                            <div className="text-sm text-gray-500">{language === 'en' ? 'No dates available' : 'Aucune date disponible'}</div>
                     </div>
                   </div>
+                      );
+                    }
+
+                    const status = getApplicationPeriodStatus(nextPeriod);
+                    const isOpen = status.status === 'open';
+                    const isClosingSoon = status.status === 'closing-soon';
+                    
+                    return (
+                      <div className="mb-4">
+                        <div className="text-xs text-gray-500 mb-2">
+                          {language === 'en' ? 'Next Application Period' : 'Prochaine période de candidature'}
+                      </div>
+                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                          {/* Header with intake name and status */}
+                          <div className="flex justify-between items-center mb-3">
+                            <div className="text-sm font-semibold text-gray-900">
+                              {localizeIntakeName(nextPeriod.name, language)}
+                      </div>
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              status.color === 'green' ? 'bg-green-100 text-green-800' :
+                              status.color === 'red' ? 'bg-red-100 text-red-800' :
+                              status.color === 'blue' ? 'bg-blue-100 text-blue-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {status.text}
+                            </span>
+                  </div>
+
+                          {/* Dates with icons */}
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center">
+                                <Calendar className="w-3 h-3 text-blue-600" />
+                    </div>
+                              <div className="text-xs text-gray-600">
+                                <span className="font-medium">{language === 'en' ? 'Opens:' : 'Ouverture:'}</span>
+                                <span className="ml-1">
+                                  {nextPeriod.applicationOpens 
+                                    ? new Date(nextPeriod.applicationOpens).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric'
+                                      })
+                                    : (language === 'en' ? 'Not specified' : 'Non spécifié')
+                                  }
+                                </span>
+                    </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2">
+                              <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center">
+                                <Clock className="w-3 h-3 text-red-600" />
+                              </div>
+                              <div className="text-xs text-gray-600">
+                                <span className="font-medium">{language === 'en' ? 'Closes:' : 'Fermeture:'}</span>
+                                <span className="ml-1">
+                                  {nextPeriod.applicationCloses 
+                                    ? new Date(nextPeriod.applicationCloses).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+                                        year: 'numeric',
+                                        month: 'short',
+                                        day: 'numeric'
+                                      })
+                                    : (language === 'en' ? 'Not specified' : 'Non spécifié')
+                                  }
+                                </span>
+                              </div>
+                    </div>
+                  </div>
+                          
+                          {/* Apply button */}
+                          <button 
+                            className={`w-full mt-3 py-2 px-3 rounded-lg text-xs font-semibold transition-all duration-200 flex items-center justify-center gap-1 ${
+                              isOpen 
+                                ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                                : isClosingSoon
+                                ? 'bg-orange-500 text-white hover:bg-orange-600'
+                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            }`}
+                            disabled={!isOpen && !isClosingSoon}
+                            onClick={() => {
+                              if (isOpen || isClosingSoon) {
+                                // Handle application logic here
+                              }
+                            }}
+                          >
+                            {isOpen ? (
+                              <>
+                                <ExternalLink className="w-3 h-3" />
+                                {language === 'en' ? 'Apply Now' : 'Postuler maintenant'}
+                              </>
+                            ) : isClosingSoon ? (
+                              <>
+                                <Clock className="w-3 h-3" />
+                                {language === 'en' ? 'Apply Quickly' : 'Postuler rapidement'}
+                              </>
+                            ) : (
+                              <>
+                                <Calendar className="w-3 h-3" />
+                                {language === 'en' ? 'Not Available' : 'Non disponible'}
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Enhanced Actions */}
                   <div className="space-y-3">
                     {/* Main Actions Row */}
                     <div className="flex gap-2">
-                      <div className="flex-1 bg-blue-800 text-white py-3 px-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2">
+                      <Link
+                        to={`/establishments/${establishment.slug}`}
+                        className="flex-1 bg-blue-800 text-white py-3 px-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-blue-900 transition-colors"
+                      >
                         <Eye className="w-4 h-4" />
                         {language === 'en' ? 'View Details' : 'Voir les détails'}
-                      </div>
-                      <div 
-                        className="px-4 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors text-sm font-semibold flex items-center justify-center cursor-pointer"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          // Handle favorite toggle
-                        }}
-                      >
-                        <Heart className="w-4 h-4" />
-                      </div>
+                      </Link>
+                        <HeartButton 
+                          type="establishment"
+                          id={establishment.id}
+                          isShortlisted={establishment.isShortlisted}
+                          className="px-4 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors text-sm font-semibold flex items-center justify-center"
+                          language={language}
+                        />
                     </div>
                     
                     {/* Secondary Actions Row */}
                     <div className="flex gap-2">
-                      {establishment.easyApply && (
+                      {establishment.freeApplications > 0 && (
                         <div 
                           className={`flex-1 text-white py-2 px-4 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer ${
                             establishment.universityType === 'A' 
@@ -1729,24 +3973,23 @@ const EstablishmentsListing = () => {
                       </div>
                     </div>
                   </div>
+                  
                 </div>
               </div>
-              </Link>
             ))
 
             ) : (
               /* Programs Cards */
               filteredPrograms.map(program => (
-                <Link 
+                <div 
                   key={program.id} 
-                  to={`/programs/${program.id}`}
-                  className="block bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group"
+                  className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group"
                 >
                   {/* Program Logo Section */}
                   <div className="relative h-40 sm:h-48 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
                     <div className="logo-container">
                       <img
-                        src={program.logo}
+                        src={program.establishment?.logo || program.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(program.establishment?.name || program.name)}&size=200&background=3B82F6&color=fff`}
                         alt={program.name}
                         className="logo-image group-hover:scale-105 transition-all duration-300"
                       />
@@ -1768,10 +4011,6 @@ const EstablishmentsListing = () => {
                       )}
                     </div>
                     
-                    {/* University Ranking */}
-                    <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full">
-                      <span className="text-sm font-bold text-gray-800">#{program.ranking}</span>
-                    </div>
                   </div>
 
                   {/* Program Content */}
@@ -1783,24 +4022,61 @@ const EstablishmentsListing = () => {
                       </h3>
                       <div className="flex items-center text-gray-600 text-sm mb-2">
                         <Building2 className="w-4 h-4 mr-1 text-blue-500" />
-                        {program.university}
+                        {program.establishment?.name || 'University'}
+                      </div>
+                      <div className="flex items-center text-gray-500 text-sm mb-2">
+                        <MapPin className="w-4 h-4 mr-1" />
+                        {getCityLabel(program.establishment?.city)}, {getCountryLabel(program.establishment?.country)}
                       </div>
                       <div className="flex items-center text-gray-500 text-sm">
-                        <MapPin className="w-4 h-4 mr-1" />
-                        {program.city}, {program.country}
+                        <Globe className="w-4 h-4 mr-1" />
+                        {program.language ? getLanguageLabel(program.language) : (language === 'en' ? 'Not specified' : 'Non spécifié')}
                       </div>
                     </div>
 
+                    {/* University Rankings */}
+                    {program.establishmentRankings && (program.establishmentRankings.qs || program.establishmentRankings.times || program.establishmentRankings.arwu || program.establishmentRankings.usNews) && (
+                      <div className="mb-4">
+                        <div className="text-xs text-gray-500 mb-2">{language === 'en' ? 'University Rankings' : 'Classements de l\'Université'}</div>
+                        <div className="flex flex-wrap gap-2">
+                          {program.establishmentRankings?.qs && (
+                            <div className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs font-medium">
+                              QS #{program.establishmentRankings.qs}
+                            </div>
+                          )}
+                          {program.establishmentRankings?.times && (
+                            <div className="bg-purple-50 text-purple-700 px-2 py-1 rounded-md text-xs font-medium">
+                              Times #{program.establishmentRankings.times}
+                            </div>
+                          )}
+                          {program.establishmentRankings?.arwu && (
+                            <div className="bg-green-50 text-green-700 px-2 py-1 rounded-md text-xs font-medium">
+                              ARWU #{program.establishmentRankings.arwu}
+                            </div>
+                          )}
+                          {program.establishmentRankings?.usNews && (
+                            <div className="bg-orange-50 text-orange-700 px-2 py-1 rounded-md text-xs font-medium">
+                              US News #{program.establishmentRankings.usNews}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
                     {/* Program Details */}
-                    <div className="grid grid-cols-3 gap-3 mb-4">
+                    <div className="grid grid-cols-2 gap-3 mb-4">
                       <div className="bg-gray-50 rounded-lg p-3">
                         <div className="text-xs text-gray-500 mb-1">{language === 'en' ? 'Degree' : 'Diplôme'}</div>
-                        <div className="text-sm font-semibold text-gray-800">{program.degree}</div>
+                        <div className="text-sm font-semibold text-gray-800">{getDegreeLabel(program.degree)}</div>
                       </div>
                       <div className="bg-gray-50 rounded-lg p-3">
                         <div className="text-xs text-gray-500 mb-1">{language === 'en' ? 'Duration' : 'Durée'}</div>
-                        <div className="text-sm font-semibold text-gray-800">{program.duration}</div>
+                        <div className="text-sm font-semibold text-gray-800">{program.duration} {program.durationUnit === 'month' ? (language === 'en' ? 'month' : 'mois') : (language === 'en' ? 'year' : 'an')}</div>
                       </div>
+                    </div>
+
+                    {/* Study Type and Tuition */}
+                    <div className="grid grid-cols-2 gap-3 mb-4">
                       <div className="bg-gray-50 rounded-lg p-3">
                         <div className="text-xs text-gray-500 mb-1">{language === 'en' ? 'Study Type' : 'Type d\'Étude'}</div>
                         <div className="text-sm font-semibold text-gray-800">
@@ -1810,51 +4086,217 @@ const EstablishmentsListing = () => {
                            program.studyType}
                         </div>
                       </div>
-                    </div>
-
-                    {/* Tuition and Start Date */}
-                    <div className="grid grid-cols-2 gap-4 mb-4">
                       <div className="bg-gray-50 rounded-lg p-3">
                         <div className="text-xs text-gray-500 mb-1">{language === 'en' ? 'Tuition' : 'Frais'}</div>
-                        <div className="text-sm font-semibold text-gray-800">{program.tuition}</div>
+                        <div className="text-sm font-semibold text-gray-800">
+                          <PriceDisplayFromString priceString={program.tuition} />
                       </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <div className="text-xs text-gray-500 mb-1">{language === 'en' ? 'Start Date' : 'Date de début'}</div>
-                        <div className="text-sm font-semibold text-gray-800">{program.startDate}</div>
                       </div>
                   </div>
 
-                  {/* Description */}
-                    <div className="mb-4">
-                      <p className="text-sm text-gray-600 line-clamp-2">{program.description}</p>
+
+
+                  {/* Features */}
+                  <div className="flex items-center gap-4 mb-4 text-xs text-gray-600">
+                    {program.scholarships && (
+                      <div className="flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3 text-green-500" />
+                        <span>{language === 'en' ? 'Scholarships' : 'Bourses'}</span>
+                      </div>
+                    )}
+                    {program.housing === true && (
+                      <div className="flex items-center gap-1">
+                        <Home className="w-3 h-3 text-blue-500" />
+                        <span>{language === 'en' ? 'Housing' : 'Logement'}</span>
+                      </div>
+                    )}
                     </div>
 
-                    {/* Requirements */}
+                      {/* Next Application Period */}
+                      {(() => {
+                       // Try to get program's multiIntakes first, then fallback to establishment's multiIntakes
+                       let nextIntake = getNextApplicationPeriod(program.multiIntakes);
+                       let isFromEstablishment = false;
+                       
+                       // If program has no intakes, try to get establishment's intakes
+                       if (!nextIntake && program.establishment?.id) {
+                         const establishment = establishments.find(e => e.id === program.establishment.id);
+                         if (establishment && establishment.multiIntakes) {
+                           nextIntake = getNextApplicationPeriod(establishment.multiIntakes);
+                           isFromEstablishment = true;
+                         }
+                       }
+                       
+                       if (nextIntake) {
+                         const status = getApplicationPeriodStatus(nextIntake);
+                         const isOpen = status.status === 'open';
+                         const isClosingSoon = status.status === 'closing-soon';
+                         
+                         return (
                     <div className="mb-4">
-                      <div className="text-xs text-gray-500 mb-2">{language === 'en' ? 'Requirements' : 'Prérequis'}</div>
-                      <div className="flex flex-wrap gap-1">
-                        {program.requirements.slice(0, 2).map((req, index) => (
-                          <span key={index} className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-md">
-                            {req}
+                             <div className="text-xs text-gray-500 mb-2">
+                               {language === 'en' ? 'Next Application Period' : 'Prochaine période de candidature'}
+                               {isFromEstablishment && (
+                                 <span className="ml-1 text-blue-600">({language === 'en' ? 'From university' : 'De l\'université'})</span>
+                               )}
+                             </div>
+                             <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                               {/* Header with intake name and status */}
+                               <div className="flex justify-between items-center mb-3">
+                                 <div className="text-sm font-semibold text-gray-900">
+                                   {localizeIntakeName(nextIntake.name, language)}
+                                 </div>
+                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                   status.color === 'green' ? 'bg-green-100 text-green-800' :
+                                   status.color === 'red' ? 'bg-red-100 text-red-800' :
+                                   status.color === 'blue' ? 'bg-blue-100 text-blue-800' :
+                                   'bg-gray-100 text-gray-800'
+                                 }`}>
+                                   {status.text}
                           </span>
-                        ))}
-                        {program.requirements.length > 2 && (
-                          <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-md">
-                            +{program.requirements.length - 2}
+                               </div>
+                               
+                               {/* Dates with icons */}
+                               <div className="space-y-2">
+                                 <div className="flex items-center gap-2">
+                                   <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center">
+                                     <Calendar className="w-3 h-3 text-blue-600" />
+                                   </div>
+                                   <div className="text-xs text-gray-600">
+                                     <span className="font-medium">{language === 'en' ? 'Opens:' : 'Ouverture:'}</span>
+                                     <span className="ml-1">
+                                       {nextIntake.applicationOpens 
+                                         ? new Date(nextIntake.applicationOpens).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+                                             year: 'numeric',
+                                             month: 'short',
+                                             day: 'numeric'
+                                           })
+                                         : (language === 'en' ? 'Not specified' : 'Non spécifié')
+                                       }
                           </span>
-                        )}
+                                   </div>
+                                 </div>
+                                 
+                                 <div className="flex items-center gap-2">
+                                   <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center">
+                                     <Clock className="w-3 h-3 text-red-600" />
+                                   </div>
+                                   <div className="text-xs text-gray-600">
+                                     <span className="font-medium">{language === 'en' ? 'Closes:' : 'Fermeture:'}</span>
+                                     <span className="ml-1">
+                                       {nextIntake.applicationCloses 
+                                         ? new Date(nextIntake.applicationCloses).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+                                             year: 'numeric',
+                                             month: 'short',
+                                             day: 'numeric'
+                                           })
+                                         : (language === 'en' ? 'Not specified' : 'Non spécifié')
+                                       }
+                                     </span>
+                                   </div>
+                                 </div>
+                               </div>
+                               
+                               {/* Apply button */}
+                               <button 
+                                 className={`w-full mt-3 py-2 px-3 rounded-lg text-xs font-semibold transition-all duration-200 flex items-center justify-center gap-1 ${
+                                   isOpen 
+                                     ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                                     : isClosingSoon
+                                     ? 'bg-orange-500 text-white hover:bg-orange-600'
+                                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                 }`}
+                                 disabled={!isOpen && !isClosingSoon}
+                                 onClick={() => {
+                                   if (isOpen || isClosingSoon) {
+                                     // Handle application logic here
+                                   }
+                                 }}
+                               >
+                                 {isOpen ? (
+                                   <>
+                                     <ExternalLink className="w-3 h-3" />
+                                     {language === 'en' ? 'Apply Now' : 'Postuler maintenant'}
+                                   </>
+                                 ) : isClosingSoon ? (
+                                   <>
+                                     <Clock className="w-3 h-3" />
+                                     {language === 'en' ? 'Apply Quickly' : 'Postuler rapidement'}
+                                   </>
+                                 ) : (
+                                   <>
+                                     <Calendar className="w-3 h-3" />
+                                     {language === 'en' ? 'Not Available' : 'Non disponible'}
+                                   </>
+                                 )}
+                               </button>
                       </div>
                     </div>
-
-                    {/* University Type and Application Fees */}
-                    {(() => {
-                      const typeInfo = getUniversityTypeInfo({ universityType: program.universityType, countrySpecific: { type: program.university.includes('Sorbonne') ? 'france' : program.university.includes('Tsinghua') ? 'china' : 'standard' } });
-                      const serviceFee = getServiceFee({ universityType: program.universityType, countrySpecific: { type: program.university.includes('Sorbonne') ? 'france' : program.university.includes('Tsinghua') ? 'china' : 'standard' } });
-                      
-                      // Safety check
-                      if (!typeInfo || !serviceFee) {
-                        return null;
+                         );
+                      } else {
+                        return (
+                          <div className="mb-4">
+                            <div className="bg-gray-50 rounded-lg p-3">
+                              <div className="text-xs text-gray-500 mb-1">{language === 'en' ? 'Application Period' : 'Période de candidature'}</div>
+                              <div className="text-sm text-gray-500">{language === 'en' ? 'No dates available' : 'Aucune date disponible'}</div>
+                            </div>
+                          </div>
+                        );
                       }
+                    })()}
+                    
+
+                    {/* Requirements - Only show if at least one requirement is detected */}
+                    {(() => {
+                      const reqAnalysis = analyzeProgramRequirements(program);
+                      const hasAnyRequirement = reqAnalysis.hasEnglishTest || reqAnalysis.hasStandardizedTest || reqAnalysis.hasInterview || reqAnalysis.hasWrittenTest;
+                      
+                      // Only render the entire section if there's at least one requirement
+                      if (!hasAnyRequirement) return null;
+                      
+                      return (
+                    <div className="mb-4">
+                      <div className="text-xs text-gray-500 mb-2">{language === 'en' ? 'Requirements' : 'Prérequis'}</div>
+                          <div className="flex flex-wrap gap-2">
+                            {reqAnalysis.hasEnglishTest && (
+                              <div className="flex items-center gap-1 px-2 py-1 bg-orange-50 text-orange-700 text-xs rounded-md">
+                                <Languages className="w-3 h-3" />
+                                <span>{language === 'en' ? 'English Test' : 'Test d\'anglais'}</span>
+                              </div>
+                            )}
+                            {reqAnalysis.hasStandardizedTest && (
+                              <div className="flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 text-xs rounded-md">
+                                <FileText className="w-3 h-3" />
+                                <span>{language === 'en' ? 'Standardized Test' : 'Test standardisé'}</span>
+                      </div>
+                            )}
+                            {reqAnalysis.hasInterview && (
+                              <div className="flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 text-xs rounded-md">
+                                <Mic className="w-3 h-3" />
+                                <span>{language === 'en' ? 'Interview' : 'Entretien'}</span>
+                    </div>
+                            )}
+                            {reqAnalysis.hasWrittenTest && (
+                              <div className="flex items-center gap-1 px-2 py-1 bg-red-50 text-red-700 text-xs rounded-md">
+                                <PenTool className="w-3 h-3" />
+                                <span>{language === 'en' ? 'Written Test' : 'Test écrit'}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+
+
+                     {/* Program Type and Pricing */}
+                    {(() => {
+                       const typeInfo = getUniversityTypeInfo({ 
+                         universityType: program.programType || program.universityType, 
+                         servicePricing: program.servicePricing 
+                       });
+                      
+                      if (!typeInfo) return null;
                       
                       return (
                         <div className="mb-4">
@@ -1866,52 +4308,140 @@ const EstablishmentsListing = () => {
                             typeInfo.color === 'orange' ? 'bg-orange-100 text-orange-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
-                            <span className="text-lg">{typeInfo.icon}</span>
                             {typeInfo.type}
                           </div>
-                          <div className="text-xs text-gray-600 mb-2">{typeInfo.description}</div>
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-gray-500">
                               {typeInfo.freeApps > 0 
-                                ? `${typeInfo.freeApps} free applications`
-                                : 'Paid service'
+                                ? (language === 'fr' ? `${typeInfo.freeApps} candidatures gratuites` : `${typeInfo.freeApps} free applications`)
+                                : (language === 'fr' ? 'Service payant' : 'Paid service')
                               }
                             </span>
                             <div className="flex items-center gap-2">
-                              {serviceFee.showStrikethrough && serviceFee.originalAmount && (
-                                <span className="text-gray-400 line-through text-xs">
-                                  {serviceFee.originalAmount}
-                                </span>
+                              {/* Type A: Gratuit avec prix original barré */}
+                              {typeInfo.type === "Type A" && (
+                                <>
+                                  {typeInfo.originalPrice && (
+                                <ServicePriceDisplay 
+                                  price={typeInfo.originalPrice}
+                                  currency={typeInfo.currency}
+                                  className="text-gray-400 line-through text-xs"
+                                />
                               )}
-                              <span className={`font-semibold ${
-                                serviceFee.amount === 'Free' ? 'text-green-600' : 'text-blue-600'
-                              }`}>
-                                {serviceFee.amount}
+                                  <span className="font-semibold text-green-600">
+                                    {language === 'fr' ? 'Gratuit' : 'Free'}
+                                </span>
+                                </>
+                              )}
+                              
+                              {/* Type B: Prix normal ou promotion */}
+                              {typeInfo.type === "Type B" && (
+                                <>
+                                  {typeInfo.promotionPrice && typeInfo.originalPrice ? (
+                                    <div className="flex flex-col items-end gap-1">
+                                      <div className="flex items-center gap-2">
+                                        <ServicePriceDisplay 
+                                          price={typeInfo.originalPrice}
+                                          currency={typeInfo.currency}
+                                          className="text-gray-400 line-through text-xs"
+                                        />
+                                        <ServicePriceDisplay 
+                                          price={typeInfo.promotionPrice}
+                                          currency={typeInfo.currency}
+                                          isPromotion={true}
+                                          className="font-semibold text-red-600 text-sm"
+                                        />
+                            </div>
+                                      {typeInfo.promotionDeadline && typeInfo.promotionDeadline.trim() !== '' && (
+                                        <span className="text-red-500 text-xs bg-red-50 px-2 py-1 rounded">
+                                          {language === 'fr' ? 'Jusqu\'au' : 'Until'} {new Date(typeInfo.promotionDeadline).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+                                          year: 'numeric',
+                                          month: 'long',
+                                          day: 'numeric'
+                                        })}
                               </span>
+                                      )}
+                            </div>
+                                  ) : typeInfo.originalPrice ? (
+                                    <ServicePriceDisplay 
+                                      price={typeInfo.originalPrice}
+                                      currency={typeInfo.currency}
+                                      className="font-semibold text-blue-600"
+                                    />
+                                  ) : (
+                                    <span className="font-semibold text-blue-600">
+                                      {language === 'fr' ? 'Prix sur demande' : 'Price on request'}
+                                    </span>
+                                  )}
+                                </>
+                              )}
+                              
+                              {/* Type C: Prix normal ou promotion */}
+                              {typeInfo.type === "Type C" && (
+                                <>
+                                  {typeInfo.promotionPrice && typeInfo.originalPrice ? (
+                                    <div className="flex flex-col items-end gap-1">
+                                      <div className="flex items-center gap-2">
+                                        <ServicePriceDisplay 
+                                          price={typeInfo.originalPrice}
+                                          currency={typeInfo.currency}
+                                          className="text-gray-400 line-through text-xs"
+                                        />
+                                        <ServicePriceDisplay 
+                                          price={typeInfo.promotionPrice}
+                                          currency={typeInfo.currency}
+                                          isPromotion={true}
+                                          className="font-semibold text-red-600 text-sm"
+                                        />
+                                      </div>
+                                      {typeInfo.promotionDeadline && typeInfo.promotionDeadline.trim() !== '' && (
+                                        <span className="text-red-500 text-xs bg-red-50 px-2 py-1 rounded">
+                                          {language === 'fr' ? 'Jusqu\'au' : 'Until'} {new Date(typeInfo.promotionDeadline).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+                                          year: 'numeric',
+                                          month: 'long',
+                                          day: 'numeric'
+                                        })}
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : typeInfo.originalPrice ? (
+                                    <ServicePriceDisplay 
+                                      price={typeInfo.originalPrice}
+                                      currency={typeInfo.currency}
+                                      className="font-semibold text-purple-600"
+                                    />
+                                  ) : (
+                                    <span className="font-semibold text-purple-600">
+                                      {language === 'fr' ? 'Prix sur demande' : 'Price on request'}
+                                    </span>
+                                  )}
+                                </>
+                              )}
                             </div>
                           </div>
                         </div>
                       );
                     })()}
 
+
                     {/* Actions */}
                     <div className="space-y-3">
                       {/* Main Actions Row */}
                       <div className="flex gap-2">
-                        <div className="flex-1 bg-blue-800 text-white py-3 px-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2">
+                        <Link 
+                          to={`/${generateProgramSlug(program)}`}
+                          className="flex-1 bg-blue-800 text-white py-3 px-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-blue-900 transition-colors"
+                        >
                           <Eye className="w-4 h-4" />
                           {language === 'en' ? 'View Details' : 'Voir les détails'}
-                        </div>
-                        <div 
-                          className="px-4 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors text-sm font-semibold flex items-center justify-center cursor-pointer"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            // Handle favorite toggle
-                          }}
-                        >
-                          <Heart className="w-4 h-4" />
-                        </div>
+                        </Link>
+                        <HeartButton 
+                          type="program"
+                          id={program.id}
+                          isShortlisted={program.isShortlisted}
+                          className="px-4 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors text-sm font-semibold flex items-center justify-center"
+                          language={language}
+                        />
                       </div>
                       
                       {/* Secondary Actions Row */}
@@ -1950,10 +4480,76 @@ const EstablishmentsListing = () => {
                       </div>
                     </div>
                   </div>
-                </Link>
+                </div>
               ))
             )}
           </div>
+
+
+        {/* Pagination - Below the listing */}
+        {pagination.pages > 1 && (
+          <div className="mt-8">
+            {/* Pagination Info */}
+            <div className="text-center text-sm text-gray-600 mb-4">
+              {language === 'fr' 
+                ? `Page ${pagination.page} sur ${pagination.pages} (${pagination.total} résultats)`
+                : `Page ${pagination.page} of ${pagination.pages} (${pagination.total} results)`
+              }
+            </div>
+            
+            {/* Pagination Controls */}
+            <div className="flex items-center justify-center space-x-2">
+              <button
+                onClick={() => handlePageChange(pagination.page - 1)}
+                disabled={!pagination.hasPrev || loading}
+                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            
+            {(() => {
+              const totalPages = pagination.pages;
+              const currentPage = pagination.page;
+              const maxVisiblePages = 5;
+              
+              // Calculate the range of pages to show
+              let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+              let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+              
+              // Adjust start page if we're near the end
+              if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+              }
+              
+              const pages = [];
+              for (let i = startPage; i <= endPage; i++) {
+                pages.push(
+                  <button
+                    key={i}
+                    onClick={() => handlePageChange(i)}
+                    className={`px-3 py-2 text-sm font-medium rounded-md ${
+                      i === currentPage
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-500 bg-white border border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {i}
+                  </button>
+                );
+              }
+              return pages;
+            })()}
+            
+              <button
+                onClick={() => handlePageChange(pagination.page + 1)}
+                disabled={!pagination.hasNext || loading}
+                className="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
           {/* No Results */}
           {((activeTab === 'establishments' && filteredEstablishments.length === 0) || 
@@ -1975,8 +4571,11 @@ const EstablishmentsListing = () => {
             </div>
           )}
         </div>
+
+
       </div>
     </div>
+    </>
   );
 };
 

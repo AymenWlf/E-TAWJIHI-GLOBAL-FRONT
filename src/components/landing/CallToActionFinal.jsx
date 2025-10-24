@@ -69,10 +69,8 @@ const CallToActionFinal = ({ language }) => {
   const t = content[language];
 
   const scrollToSearch = () => {
-    const element = document.getElementById('search');
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
+    // Rediriger vers la page des établissements
+    window.location.href = '/establishments';
   };
 
   const scrollToEDVISOR = () => {

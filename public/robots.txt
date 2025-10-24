@@ -4,7 +4,10 @@ Allow: /
 # Sitemap
 Sitemap: https://e-tawjihi-global.com/sitemap.xml
 
-# Disallow admin and private areas
+# Crawl-delay for respectful crawling
+Crawl-delay: 1
+
+# Allow all search engines to access all content
 Disallow: /admin/
 Disallow: /api/
 Disallow: /private/
@@ -12,13 +15,41 @@ Disallow: /_next/
 Disallow: /static/
 
 # Allow important pages
-Allow: /
-Allow: /services
 Allow: /establishments
-Allow: /institution-registration
-Allow: /agent-registration
-Allow: /ambassador-registration
-Allow: /sponsor-registration
+Allow: /programs
+Allow: /about
+Allow: /contact
 
-# Crawl delay
-Crawl-delay: 1
+# Block duplicate content
+Disallow: /*?*
+Allow: /establishments?*
+Allow: /programs?*
+
+# Block admin and private areas
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /profile/
+Disallow: /settings/
+
+# Allow social media crawlers
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: WhatsApp
+Allow: /
+
+# Block bad bots
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /

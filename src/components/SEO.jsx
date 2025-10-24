@@ -17,7 +17,8 @@ const SEO = ({
   twitterImage,
   structuredData,
   language = 'en',
-  alternateLanguages = []
+  alternateLanguages = [],
+  additionalMeta = []
 }) => {
   const siteName = 'E-TAWJIHI Global';
   const siteUrl = 'https://e-tawjihi-global.com';
@@ -90,10 +91,12 @@ const SEO = ({
       
       {/* Favicon */}
       <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-      <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-      <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-      <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
       <link rel="manifest" href="/site.webmanifest" />
+      
+      {/* Additional Meta Tags */}
+      {additionalMeta.map((meta, index) => (
+        <meta key={index} name={meta.name} content={meta.content} />
+      ))}
       
       {/* Structured Data */}
       {structuredData && (

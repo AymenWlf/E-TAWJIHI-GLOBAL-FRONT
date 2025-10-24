@@ -1,15 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { Globe, Menu, X, User, Search, BookOpen, ChevronDown, Building2, Users, Award, GraduationCap, FileCheck, Home, Languages, CreditCard, ClipboardList, Brain, FileText, Calculator } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Globe, Menu, X, User, Search, BookOpen, ChevronDown, Building2, Users, Award, GraduationCap, FileCheck, Home, Languages, CreditCard, ClipboardList, Brain, FileText, Calculator, LogOut, UserCircle } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import CurrencySelector from '../CurrencySelector';
 
 const HeaderGlobal = ({ language, setLanguage }) => {
+  const { currentUser, logout } = useAuth();
+  const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showPartnerDropdown, setShowPartnerDropdown] = useState(false);
   const [showServicesDropdown, setShowServicesDropdown] = useState(false);
   const [showToolsDropdown, setShowToolsDropdown] = useState(false);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
 
   const toggleLanguage = () => {
     setLanguage(language === 'en' ? 'fr' : 'en');
+  };
+
+  const handleLoginClick = () => {
+    if (currentUser) {
+      // Si déjà connecté, rediriger vers les établissements
+      navigate('/establishments');
+    } else {
+      // Sinon, aller à la page de connexion
+      navigate('/login');
+    }
+  };
+
+  const handleLogout = () => {
+    logout();
+    setShowUserDropdown(false);
+    navigate('/');
   };
 
   const scrollToSection = (sectionId) => {
@@ -132,13 +153,16 @@ const HeaderGlobal = ({ language, setLanguage }) => {
       if (showToolsDropdown && !event.target.closest('.tools-dropdown')) {
         setShowToolsDropdown(false);
       }
+      if (showUserDropdown && !event.target.closest('.user-dropdown')) {
+        setShowUserDropdown(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [showPartnerDropdown, showServicesDropdown, showToolsDropdown]);
+  }, [showPartnerDropdown, showServicesDropdown, showToolsDropdown, showUserDropdown]);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100">
@@ -294,6 +318,11 @@ const HeaderGlobal = ({ language, setLanguage }) => {
 
           {/* Right side actions */}
           <div className="flex items-center space-x-4">
+            {/* Currency Selector */}
+            <div className="hidden sm:block">
+              <CurrencySelector size="sm" showLabel={false} />
+            </div>
+
             {/* Language Toggle */}
             <button
               onClick={toggleLanguage}
@@ -316,13 +345,75 @@ const HeaderGlobal = ({ language, setLanguage }) => {
               </span>
             </Link>
 
-            {/* Login Button */}
-            <button className="hidden sm:flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-              <User className="w-4 h-4 text-gray-600" />
-              <span className="font-medium text-gray-700">
-                {language === 'en' ? 'Login' : 'Connexion'}
-              </span>
-            </button>
+            {/* User Menu */}
+            {currentUser ? (
+              <div className="relative user-dropdown">
+                <button
+                  onClick={() => setShowUserDropdown(!showUserDropdown)}
+                  className="hidden sm:flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <UserCircle className="w-4 h-4 text-gray-600" />
+                  <span className="font-medium text-gray-700">
+                    {currentUser.firstName || currentUser.email.split('@')[0]}
+                  </span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showUserDropdown ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {showUserDropdown && (
+                  <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 z-50">
+                    <div className="p-2">
+                      <div className="px-3 py-2 border-b border-gray-100">
+                        <p className="text-sm font-medium text-gray-900">
+                          {currentUser.firstName && currentUser.lastName 
+                            ? `${currentUser.firstName} ${currentUser.lastName}`
+                            : currentUser.email.split('@')[0]
+                          }
+                        </p>
+                        <p className="text-xs text-gray-500">{currentUser.email}</p>
+                      </div>
+                      
+                      <div className="py-1">
+                        <Link
+                          to="/establishments"
+                          onClick={() => setShowUserDropdown(false)}
+                          className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                        >
+                          <Building2 className="w-4 h-4" />
+                          {language === 'en' ? 'Browse Programs' : 'Parcourir les Programmes'}
+                        </Link>
+                        
+                        <Link
+                          to="/profile"
+                          onClick={() => setShowUserDropdown(false)}
+                          className="flex items-center gap-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                        >
+                          <User className="w-4 h-4" />
+                          {language === 'en' ? 'My Profile' : 'Mon Profil'}
+                        </Link>
+                        
+                        <button
+                          onClick={handleLogout}
+                          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          {language === 'en' ? 'Logout' : 'Déconnexion'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <button 
+                onClick={handleLoginClick}
+                className="hidden sm:flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <User className="w-4 h-4 text-gray-600" />
+                <span className="font-medium text-gray-700">
+                  {language === 'en' ? 'Login' : 'Connexion'}
+                </span>
+              </button>
+            )}
 
             {/* Mobile menu button */}
             <button
@@ -395,6 +486,11 @@ const HeaderGlobal = ({ language, setLanguage }) => {
                 {language === 'en' ? 'About' : 'À propos'}
               </button>
               
+              {/* Mobile Currency Selector */}
+              <div className="pt-4 border-t border-gray-100">
+                <CurrencySelector size="md" showLabel={true} />
+              </div>
+
               {/* Mobile CTA Buttons */}
               <div className="pt-4 border-t border-gray-100 space-y-3">
                 <Link 
@@ -407,12 +503,65 @@ const HeaderGlobal = ({ language, setLanguage }) => {
                     {language === 'en' ? 'Search Programs' : 'Rechercher'}
                   </span>
                 </Link>
-                <button className="w-full flex items-center justify-center space-x-2 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                  <User className="w-4 h-4 text-gray-600" />
-                  <span className="font-medium text-gray-700">
-                    {language === 'en' ? 'Login' : 'Connexion'}
-                  </span>
-                </button>
+                
+                {currentUser ? (
+                  <div className="space-y-2">
+                    <div className="px-4 py-2 bg-gray-50 rounded-lg">
+                      <p className="text-sm font-medium text-gray-900">
+                        {currentUser.firstName && currentUser.lastName 
+                          ? `${currentUser.firstName} ${currentUser.lastName}`
+                          : currentUser.email.split('@')[0]
+                        }
+                      </p>
+                      <p className="text-xs text-gray-500">{currentUser.email}</p>
+                    </div>
+                    
+                    <Link
+                      to="/establishments"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="w-full flex items-center justify-center space-x-2 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <Building2 className="w-4 h-4 text-gray-600" />
+                      <span className="font-medium text-gray-700">
+                        {language === 'en' ? 'Browse Programs' : 'Parcourir les Programmes'}
+                      </span>
+                    </Link>
+                    
+                    <Link
+                      to="/profile"
+                      onClick={() => setIsMenuOpen(false)}
+                      className="w-full flex items-center justify-center space-x-2 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <User className="w-4 h-4 text-gray-600" />
+                      <span className="font-medium text-gray-700">
+                        {language === 'en' ? 'My Profile' : 'Mon Profil'}
+                      </span>
+                    </Link>
+                    
+                    <button 
+                      onClick={() => {
+                        handleLogout();
+                        setIsMenuOpen(false);
+                      }}
+                      className="w-full flex items-center justify-center space-x-2 px-4 py-3 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span className="font-medium">
+                        {language === 'en' ? 'Logout' : 'Déconnexion'}
+                      </span>
+                    </button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={handleLoginClick}
+                    className="w-full flex items-center justify-center space-x-2 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    <User className="w-4 h-4 text-gray-600" />
+                    <span className="font-medium text-gray-700">
+                      {language === 'en' ? 'Login' : 'Connexion'}
+                    </span>
+                  </button>
+                )}
               </div>
             </nav>
           </div>
