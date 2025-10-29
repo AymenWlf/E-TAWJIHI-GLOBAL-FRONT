@@ -3,7 +3,7 @@ import { X, Save, GraduationCap } from 'lucide-react';
 import CountrySelector from './CountrySelector';
 import { useAllParameters } from '../../hooks/useAllParameters';
 
-const AcademicQualificationModal = ({ isOpen, onClose, onSave, language, qualification = null }) => {
+const AcademicQualificationModal = ({ isOpen, onClose, onSave, language, degree = null }) => {
   const [formData, setFormData] = useState({
     title: '',
     institution: '',
@@ -14,26 +14,28 @@ const AcademicQualificationModal = ({ isOpen, onClose, onSave, language, qualifi
     englishScore: '',
     startDate: '',
     endDate: '',
-    description: ''
+    description: '',
+    degreeType: 'academic' // Nouveau champ pour le type de diplôme
   });
 
   // Pre-fill form data when editing
   React.useEffect(() => {
-    if (qualification && isOpen) {
+    if (degree && isOpen) {
       setFormData({
-        title: qualification.title || '',
-        institution: qualification.institution || '',
-        country: qualification.country || '',
-        board: qualification.board || '',
-        gradingScheme: qualification.gradingScheme || '',
-        score: qualification.score || '',
-        englishScore: qualification.englishScore || '',
-        startDate: qualification.startDate || '',
-        endDate: qualification.endDate || '',
-        description: qualification.description || ''
+        title: degree.title || '',
+        institution: degree.institution || '',
+        country: degree.country || '',
+        board: degree.board || '',
+        gradingScheme: degree.gradingScheme || '',
+        score: degree.score || '',
+        englishScore: degree.englishScore || '',
+        startDate: degree.startDate || '',
+        endDate: degree.endDate || '',
+        description: degree.description || '',
+        degreeType: degree.degreeType || 'academic'
       });
-    } else if (!qualification && isOpen) {
-      // Reset form for new qualification
+    } else if (!degree && isOpen) {
+      // Reset form for new degree
       setFormData({
         title: '',
         institution: '',
@@ -44,10 +46,11 @@ const AcademicQualificationModal = ({ isOpen, onClose, onSave, language, qualifi
         englishScore: '',
         startDate: '',
         endDate: '',
-        description: ''
+        description: '',
+        degreeType: 'academic'
       });
     }
-  }, [qualification, isOpen]);
+  }, [degree, isOpen]);
 
   const [gradingSchemes, setGradingSchemes] = useState([]);
   
@@ -100,8 +103,8 @@ const AcademicQualificationModal = ({ isOpen, onClose, onSave, language, qualifi
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    const qualificationData = {
-      ...(qualification && { id: qualification.id }), // Include ID for updates
+    const degreeData = {
+      ...(degree && { id: degree.id }), // Include ID for updates
       type: 'academic',
       title: formData.title,
       institution: formData.institution,
@@ -114,10 +117,11 @@ const AcademicQualificationModal = ({ isOpen, onClose, onSave, language, qualifi
       startDate: formData.startDate,
       endDate: formData.endDate,
       description: formData.description,
+      degreeType: formData.degreeType,
       status: 'valid'
     };
 
-    onSave(qualificationData);
+    onSave(degreeData);
     onClose();
     
     // Reset form
@@ -131,7 +135,8 @@ const AcademicQualificationModal = ({ isOpen, onClose, onSave, language, qualifi
       englishScore: '',
       startDate: '',
       endDate: '',
-      description: ''
+      description: '',
+      degreeType: 'academic'
     });
   };
 
@@ -148,15 +153,15 @@ const AcademicQualificationModal = ({ isOpen, onClose, onSave, language, qualifi
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">
-                {qualification
-                  ? (language === 'en' ? 'Edit Academic Qualification' : 'Modifier la Qualification Académique')
-                  : (language === 'en' ? 'Add Academic Qualification' : 'Ajouter une Qualification Académique')
+                {degree
+                  ? (language === 'en' ? 'Edit Academic Degree' : 'Modifier le Diplôme Académique')
+                  : (language === 'en' ? 'Add Academic Degree' : 'Ajouter un Diplôme Académique')
                 }
               </h2>
               <p className="text-sm text-gray-600">
-                {qualification
-                  ? (language === 'en' ? 'Update your academic qualification details here' : 'Mettez à jour les détails de votre qualification académique ici')
-                  : (language === 'en' ? 'Add your new academic qualification details here' : 'Ajoutez les détails de votre nouvelle qualification académique ici')
+                {degree
+                  ? (language === 'en' ? 'Update your academic degree details here' : 'Mettez à jour les détails de votre diplôme académique ici')
+                  : (language === 'en' ? 'Add your new academic degree details here' : 'Ajoutez les détails de votre nouveau diplôme académique ici')
                 }
               </p>
             </div>
@@ -171,19 +176,47 @@ const AcademicQualificationModal = ({ isOpen, onClose, onSave, language, qualifi
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Qualification Title */}
+          {/* Degree Type */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              {language === 'en' ? 'ACADEMIC QUALIFICATION' : 'QUALIFICATION ACADÉMIQUE'} *
+              {language === 'en' ? 'DEGREE TYPE' : 'TYPE DE DIPLÔME'} *
             </label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => handleInputChange('title', e.target.value)}
-              placeholder={language === 'en' ? 'e.g., Bachelor of Science in Computer Science' : 'ex: Licence en Informatique'}
+            <select
+              value={formData.degreeType}
+              onChange={(e) => handleInputChange('degreeType', e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
               required
-            />
+            >
+              <option value="academic">{language === 'en' ? 'Academic' : 'Académique'}</option>
+              <option value="professional">{language === 'en' ? 'Professional Certificate' : 'Certificat Professionnel'}</option>
+            </select>
+          </div>
+
+          {/* Degree Title */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              {language === 'en' ? 'ACADEMIC DEGREE' : 'DIPLÔMES ACADÉMIQUES'} *
+            </label>
+            <select
+              value={formData.title}
+              onChange={(e) => handleInputChange('title', e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              required
+            >
+              <option value="">{language === 'en' ? 'Select Degree Type' : 'Sélectionner le Type de Diplôme'}</option>
+              <option value="Baccalauréat">{language === 'en' ? 'Baccalaureate' : 'Baccalauréat'}</option>
+              <option value="Technicien Spécialisé">{language === 'en' ? 'Specialized Technician' : 'Technicien Spécialisé'}</option>
+              <option value="BTS">{language === 'en' ? 'BTS (Higher Technician Certificate)' : 'BTS (Brevet de Technicien Supérieur)'}</option>
+              <option value="Classe Préparatoire">{language === 'en' ? 'Preparatory Class' : 'Classe Préparatoire'}</option>
+              <option value="DUT">{language === 'en' ? 'DUT (University Technology Diploma)' : 'DUT (Diplôme Universitaire de Technologie)'}</option>
+              <option value="BUT">{language === 'en' ? 'BUT (Bachelor of Technology)' : 'BUT (Bachelor Universitaire de Technologie)'}</option>
+              <option value="DEUG">{language === 'en' ? 'DEUG (General University Studies Diploma)' : 'DEUG (Diplôme d\'Études Universitaires Générales)'}</option>
+              <option value="DEUST">{language === 'en' ? 'DEUST (University Studies Diploma in Science and Technology)' : 'DEUST (Diplôme d\'Études Universitaires Scientifiques et Techniques)'}</option>
+              <option value="Licence">{language === 'en' ? 'Bachelor\'s Degree' : 'Licence'}</option>
+              <option value="Master">{language === 'en' ? 'Master\'s Degree' : 'Master'}</option>
+              <option value="Doctorat">{language === 'en' ? 'Doctorate' : 'Doctorat'}</option>
+              <option value="Autre">{language === 'en' ? 'Other' : 'Autre'}</option>
+            </select>
           </div>
 
           {/* Institution */}
@@ -290,8 +323,8 @@ const AcademicQualificationModal = ({ isOpen, onClose, onSave, language, qualifi
               />
               <p className="text-xs text-gray-500 mt-1">
                 {language === 'en' 
-                  ? `English proficiency score from 0 to ${getSelectedGradingScheme().max}` 
-                  : `Score de maîtrise de l'anglais de 0 à ${getSelectedGradingScheme().max}`
+                  ? `Enter English proficiency score from 0 to ${getSelectedGradingScheme().max}` 
+                  : `Entrez le score de maîtrise de l'anglais de 0 à ${getSelectedGradingScheme().max}`
                 }
               </p>
             </div>
@@ -332,7 +365,7 @@ const AcademicQualificationModal = ({ isOpen, onClose, onSave, language, qualifi
             <textarea
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
-              placeholder={language === 'en' ? 'Additional details about your qualification...' : 'Détails supplémentaires sur votre qualification...'}
+              placeholder={language === 'en' ? 'Additional details about your degree...' : 'Détails supplémentaires sur votre diplôme...'}
               rows={3}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none"
             />
@@ -353,9 +386,9 @@ const AcademicQualificationModal = ({ isOpen, onClose, onSave, language, qualifi
             >
               <Save className="w-4 h-4" />
               <span className="font-medium">
-                {qualification
-                  ? (language === 'en' ? 'Update Qualification' : 'Mettre à jour')
-                  : (language === 'en' ? 'Save Qualification' : 'Enregistrer')
+                {degree
+                  ? (language === 'en' ? 'Update Degree' : 'Mettre à jour')
+                  : (language === 'en' ? 'Save Degree' : 'Enregistrer')
                 }
               </span>
             </button>

@@ -1,4 +1,5 @@
 import api from '../config/api';
+import { getAllDefaultQualifications, getDefaultQualificationsByType, getEssentialQualifications, getSimpleCommonQualifications, DefaultQualification } from './defaultQualificationsService';
 
 export interface UserProfile {
   id?: number;
@@ -41,11 +42,10 @@ export interface Qualification {
   field?: string;
   startDate?: string;
   endDate?: string;
+  expiryDate?: string;
   grade?: string;
   score?: string;
   scoreType?: string;
-  expiryDate?: string;
-  status?: string;
   description?: string;
   country?: string;
   board?: string;
@@ -176,136 +176,158 @@ class ProfileService {
     await api.delete(`/profile/qualifications/${id}`);
   }
 
-  // Documents management
-  async getDocuments(): Promise<Document[]> {
-    const response = await api.get('/profile/documents');
-    // Handle case where backend returns { userProfile: {...} } structure
-    if (response.data && response.data.userProfile) {
-      return response.data.userProfile.documents || [];
+  // Auto-add essential qualifications only (Baccalauréat and TCF)
+  async addDefaultQualifications(): Promise<void> {
+    try {
+      const existingQualifications = await this.getQualifications();
+      const existingTitles = existingQualifications.map(q => q.title.toLowerCase());
+      
+      // Get only essential qualifications that don't already exist
+      const essentialQuals = getEssentialQualifications().filter(defaultQual => 
+        !existingTitles.some(existingTitle => 
+          existingTitle.includes(defaultQual.title.toLowerCase()) ||
+          defaultQual.title.toLowerCase().includes(existingTitle)
+        )
+      );
+      
+      // Add each essential qualification
+      for (const defaultQual of essentialQuals) {
+        try {
+          await this.addQualification(defaultQual);
+          console.log(`Added essential qualification: ${defaultQual.title}`);
+        } catch (error) {
+          console.error(`Failed to add qualification ${defaultQual.title}:`, error);
+        }
+      }
+      
+      console.log(`Added ${essentialQuals.length} essential qualifications (Baccalauréat and TCF)`);
+    } catch (error) {
+      console.error('Error adding essential qualifications:', error);
     }
-    return response.data || [];
   }
 
-  async uploadDocument(file: File, documentData: Omit<Document, 'id' | 'filename' | 'originalFilename' | 'mimeType' | 'fileSize' | 'createdAt' | 'updatedAt'>): Promise<Document> {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('type', documentData.type);
-    formData.append('category', documentData.category);
-    formData.append('title', documentData.title);
-    if (documentData.description) {
-      formData.append('description', documentData.description);
+  // Add simple common qualifications (Baccalauréat and TCF only) and return updated list
+  async addSimpleCommonQualifications(): Promise<Qualification[]> {
+    try {
+      const existingQualifications = await this.getQualifications();
+      const existingTitles = existingQualifications.map(q => q.title.toLowerCase());
+      
+      // Get only simple common qualifications that don't already exist
+      const simpleQuals = getSimpleCommonQualifications().filter(defaultQual => 
+        !existingTitles.some(existingTitle => 
+          existingTitle.includes(defaultQual.title.toLowerCase()) ||
+          defaultQual.title.toLowerCase().includes(existingTitle)
+        )
+      );
+      
+      // Add each simple qualification
+      for (const defaultQual of simpleQuals) {
+        try {
+          await this.addQualification(defaultQual);
+          console.log(`Added simple qualification: ${defaultQual.title}`);
+        } catch (error) {
+          console.error(`Failed to add qualification ${defaultQual.title}:`, error);
+        }
+      }
+      
+      console.log(`Added ${simpleQuals.length} simple qualifications (Baccalauréat and TCF)`);
+      
+      // Return updated qualifications list
+      return await this.getQualifications();
+    } catch (error) {
+      console.error('Error adding simple qualifications:', error);
+      throw error;
     }
-    if (documentData.expiryDate) {
-      formData.append('expiryDate', documentData.expiryDate);
-    }
+  }
 
-    const response = await api.post('/profile/documents', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    
-    // Gérer la nouvelle structure de réponse
-    if (response.data.success) {
-      return response.data.data;
-    } else {
-      throw new Error(response.data.message || 'Upload failed');
+  // Add specific default qualifications by type
+  async addDefaultQualificationsByType(type: string): Promise<void> {
+    try {
+      const existingQualifications = await this.getQualifications();
+      const existingTitles = existingQualifications.map(q => q.title.toLowerCase());
+      
+      const defaultQuals = getDefaultQualificationsByType(type).filter(defaultQual => 
+        !existingTitles.some(existingTitle => 
+          existingTitle.includes(defaultQual.title.toLowerCase()) ||
+          defaultQual.title.toLowerCase().includes(existingTitle)
+        )
+      );
+      
+      for (const defaultQual of defaultQuals) {
+        try {
+          await this.addQualification(defaultQual);
+          console.log(`Added default ${type} qualification: ${defaultQual.title}`);
+        } catch (error) {
+          console.error(`Failed to add ${type} qualification ${defaultQual.title}:`, error);
+        }
+      }
+      
+      console.log(`Added ${defaultQuals.length} default ${type} qualifications`);
+    } catch (error) {
+      console.error(`Error adding default ${type} qualifications:`, error);
     }
+  }
+
+  // Documents management - Now handled through Application Process
+  async getDocuments(): Promise<Document[]> {
+    // Documents are now managed through the Application Process page
+    return [];
+  }
+
+  async uploadDocument(file: File, documentData: any): Promise<Document> {
+    // Documents are now managed through the Application Process page
+    throw new Error('Documents are now managed through the Application Process page');
   }
 
   async updateDocument(id: number, document: Partial<Document>): Promise<Document> {
-    const response = await api.put(`/profile/documents/${id}`, document);
-    return response.data;
+    // Documents are now managed through the Application Process page
+    throw new Error('Documents are now managed through the Application Process page');
   }
 
   async deleteDocument(id: number): Promise<void> {
-    await api.delete(`/profile/documents/${id}`);
+    // Documents are now managed through the Application Process page
+    throw new Error('Documents are now managed through the Application Process page');
   }
 
-  // Méthodes pour télécharger et visualiser les documents
   getDocumentDownloadUrl(id: number): string {
-    return `/profile/documents/${id}/download`;
+    // Documents are now managed through the Application Process page
+    return '#';
   }
 
   getDocumentViewUrl(id: number): string {
-    return `/profile/documents/${id}/view`;
+    // Documents are now managed through the Application Process page
+    return '#';
   }
 
   async downloadDocument(id: number): Promise<void> {
-    // Récupérer d'abord les informations du document pour obtenir le nom de fichier original
-    const documents = await this.getDocuments();
-    const docInfo = documents.find(doc => doc.id === id);
-    
-    if (!docInfo) {
-      throw new Error('Document not found');
-    }
-
-    const url = this.getDocumentDownloadUrl(id);
-    const response = await api.get(url, {
-      responseType: 'blob',
-    });
-    
-    // Créer un lien de téléchargement avec le nom de fichier original
-    const blob = new Blob([response.data]);
-    const downloadUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.download = docInfo.originalFilename || `document-${id}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(downloadUrl);
+    // Documents are now managed through the Application Process page
+    throw new Error('Documents are now managed through the Application Process page');
   }
 
   async viewDocument(id: number): Promise<void> {
-    // Récupérer d'abord les informations du document pour obtenir le type MIME
-    const documents = await this.getDocuments();
-    const docInfo = documents.find(doc => doc.id === id);
-    
-    if (!docInfo) {
-      throw new Error('Document not found');
-    }
-
-    const url = this.getDocumentViewUrl(id);
-    const response = await api.get(url, {
-      responseType: 'blob',
-    });
-    
-    // Créer un blob URL pour l'affichage avec le bon type MIME
-    const blob = new Blob([response.data], { 
-      type: docInfo.mimeType || 'application/octet-stream' 
-    });
-    const viewUrl = window.URL.createObjectURL(blob);
-    window.open(viewUrl, '_blank');
-    
-    // Nettoyer l'URL après un délai
-    setTimeout(() => {
-      window.URL.revokeObjectURL(viewUrl);
-    }, 1000);
+    // Documents are now managed through the Application Process page
+    throw new Error('Documents are now managed through the Application Process page');
   }
 
-  // Applications management
+  // Applications management - Now handled through Application Process
   async getApplications(): Promise<Application[]> {
-    const response = await api.get('/profile/applications');
-    // Handle case where backend returns { userProfile: {...} } structure
-    if (response.data && response.data.userProfile) {
-      return response.data.userProfile.applications || [];
-    }
-    return response.data || [];
+    // Applications are now managed through the Application Process page
+    return [];
   }
 
   async addApplication(application: Omit<Application, 'id' | 'createdAt' | 'updatedAt'>): Promise<Application> {
-    const response = await api.post('/profile/applications', application);
-    return response.data;
+    // Applications are now managed through the Application Process page
+    throw new Error('Applications are now managed through the Application Process page');
   }
 
   async updateApplication(id: number, application: Partial<Application>): Promise<Application> {
-    const response = await api.put(`/profile/applications/${id}`, application);
-    return response.data;
+    // Applications are now managed through the Application Process page
+    throw new Error('Applications are now managed through the Application Process page');
   }
 
   async deleteApplication(id: number): Promise<void> {
-    await api.delete(`/profile/applications/${id}`);
+    // Applications are now managed through the Application Process page
+    throw new Error('Applications are now managed through the Application Process page');
   }
 
   // Shortlist management
@@ -369,6 +391,85 @@ class ProfileService {
       'rejected_validation': 'Rejected by E-TAWJIHI',
     };
     return statusTexts[status] || status;
+  }
+
+  async validateStep3(): Promise<{
+    isValid: boolean;
+    missingDocuments: string[];
+    documentsStatus: Record<string, {
+      exists: boolean;
+      title: string;
+      originalLanguage?: string;
+      validationStatus?: string;
+    }>;
+  }> {
+    try {
+      const response = await api.get('/profile/validate-step3');
+      return response.data;
+    } catch (error) {
+      console.error('Error validating step 3:', error);
+      throw error;
+    }
+  }
+
+  async saveStep2Validation(isValidated: boolean): Promise<{ success: boolean; step2Validated: boolean }> {
+    try {
+      const response = await api.post('/profile/validate-step2', { isValidated });
+      return response.data;
+    } catch (error) {
+      console.error('Error saving step 2 validation:', error);
+      throw error;
+    }
+  }
+
+  async getStep2Validation(): Promise<{ step2Validated: boolean }> {
+    try {
+      const response = await api.get('/profile/get-step2-validation');
+      return response.data;
+    } catch (error) {
+      console.error('Error getting step 2 validation:', error);
+      throw error;
+    }
+  }
+
+  async saveStep4Validation(isValidated: boolean): Promise<{ success: boolean; step4Validated: boolean }> {
+    try {
+      const response = await api.post('/profile/validate-step4', { isValidated });
+      return response.data;
+    } catch (error) {
+      console.error('Error saving step 4 validation:', error);
+      throw error;
+    }
+  }
+
+  async getStep4Validation(): Promise<{ step4Validated: boolean }> {
+    try {
+      const response = await api.get('/profile/get-step4-validation');
+      return response.data;
+    } catch (error) {
+      console.error('Error getting step 4 validation:', error);
+      throw error;
+    }
+  }
+
+  async saveStep5Validation(isValidated: boolean): Promise<{ success: boolean; step5Validated: boolean }> {
+    try {
+      const response = await api.post('/profile/validate-step5', { isValidated });
+      return response.data;
+    } catch (error) {
+      console.error('Error saving step 5 validation:', error);
+      throw error;
+    }
+  }
+
+  async getStep5Validation(): Promise<{ step5Validated: boolean }> {
+    try {
+      const response = await api.get('/profile/get-step5-validation');
+      return response.data;
+    } catch (error) {
+      console.error('Error getting step 5 validation:', error);
+      throw error;
+    }
   }
 }
 

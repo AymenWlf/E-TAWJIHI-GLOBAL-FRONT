@@ -37,6 +37,11 @@ export interface Program {
   studyLevel?: string;
   languages?: string[];
   intakes?: string[];
+  multiIntakes?: Array<{
+    name: string;
+    applicationOpens: string;
+    applicationCloses: string;
+  }>;
   subjects?: string[];
   studyLevels?: string[];
   curriculum?: string;
@@ -116,6 +121,15 @@ class ProgramService {
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Erreur lors de la récupération des programmes');
+    }
+  }
+
+  async getProgramBySlug(establishmentSlug: string, programSlug: string, language: string = 'en'): Promise<ProgramResponse> {
+    try {
+      const response = await api.get<ProgramResponse>(`/programs/slug/${programSlug}?lang=${language}`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Erreur lors de la récupération du programme');
     }
   }
 

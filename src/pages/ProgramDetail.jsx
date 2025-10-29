@@ -443,7 +443,8 @@ const getRankingInfo = (rankingType, rankingValue, language) => {
 const ProgramDetail = () => {
   const { establishmentSlug, programSlug } = useParams();
   const navigate = useNavigate();
-  const [language, setLanguage] = useState('en');
+  const { user } = useAuth();
+  const [language, setLanguage] = useState(user?.preferredLanguage || 'en');
   const [program, setProgram] = useState(null);
   const [establishment, setEstablishment] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -606,6 +607,13 @@ const ProgramDetail = () => {
       type: scholarshipType
     };
   };
+
+  // Update language when user changes
+  useEffect(() => {
+    if (user?.preferredLanguage) {
+      setLanguage(user.preferredLanguage);
+    }
+  }, [user?.preferredLanguage]);
 
   // Use only the program slug for the API call
   const fullSlug = programSlug;

@@ -1,25 +1,49 @@
 import React, { useState } from 'react';
-import { Plus, GraduationCap, Globe, Award, Calendar } from 'lucide-react';
+import { Plus, GraduationCap, Globe, Award, Calendar, Download } from 'lucide-react';
 import QualificationModal from './QualificationModal';
 import EnglishTestModal from './EnglishTestModal';
 import StandardizedTestModal from './StandardizedTestModal';
+import { useAllParameters } from '../../hooks/useAllParameters';
+import profileService from '../../services/profileService';
 
-const QualificationsTabs = ({ qualifications, onAddQualification, onDeleteQualification, language, activeSubsection, onSubsectionChange }) => {
+const QualificationsTabs = ({ degrees, onAddDegree, onDeleteDegree, onRefreshQualifications, language, activeSubsection, onSubsectionChange }) => {
   const [activeTab, setActiveTab] = useState(activeSubsection || 'academic');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState('academic');
-  const [editingQualification, setEditingQualification] = useState(null);
+  const [editingDegree, setEditingDegree] = useState(null);
+
+  // Load parameters for translations
+  const { parameters: allParams } = useAllParameters();
+
+  // Helper functions to get translations
+  const getFieldTranslation = (fieldCode) => {
+    if (!allParams?.fields) return fieldCode;
+    const field = allParams.fields.find(f => f.code === fieldCode);
+    return field ? (language === 'en' ? field.labelEn : field.labelFr) : fieldCode;
+  };
+
+  const getAcademicDegreeTranslation = (degreeCode) => {
+    if (!allParams?.degrees) return degreeCode;
+    const degree = allParams.degrees.find(d => d.code === degreeCode);
+    return degree ? (language === 'en' ? degree.labelEn : degree.labelFr) : degreeCode;
+  };
+
+  const getScoreTypeTranslation = (scoreTypeCode) => {
+    if (!allParams?.gradeSystems) return scoreTypeCode;
+    const scoreType = allParams.gradeSystems.find(gs => gs.code === scoreTypeCode);
+    return scoreType ? (language === 'en' ? scoreType.labelEn : scoreType.labelFr) : scoreTypeCode;
+  };
 
   const tabs = [
     {
       id: 'academic',
-      label: language === 'en' ? 'Academic Qualifications' : 'Qualifications Académiques',
+      label: language === 'en' ? 'Academic Degrees' : 'Diplômes Académiques',
       icon: GraduationCap,
       color: 'blue'
     },
     {
       id: 'english',
-      label: language === 'en' ? 'English Language Tests' : 'Tests de Langue Anglaise',
+      label: language === 'en' ? 'Language Tests' : 'Tests de Langue',
       icon: Globe,
       color: 'emerald'
     },
@@ -38,12 +62,13 @@ const QualificationsTabs = ({ qualifications, onAddQualification, onDeleteQualif
     }
   }, [activeSubsection]);
 
-  const filteredQualifications = qualifications.filter(q => {
+  const filteredDegrees = (degrees || []).filter(q => {
     if (activeTab === 'academic') return q.type === 'academic';
     if (activeTab === 'english') {
-      // Filter for English language tests - check type and field
+      // Filter for language tests (English and French) - check type and field
       return q.type === 'language' && (
         q.field?.toLowerCase().includes('english') || 
+        q.field?.toLowerCase().includes('french') ||
         q.title?.toLowerCase().includes('ielts') ||
         q.title?.toLowerCase().includes('toefl') ||
         q.title?.toLowerCase().includes('pte') ||
@@ -53,36 +78,54 @@ const QualificationsTabs = ({ qualifications, onAddQualification, onDeleteQualif
         q.title?.toLowerCase().includes('cael') ||
         q.title?.toLowerCase().includes('languagecert') ||
         q.title?.toLowerCase().includes('goethe') ||
-        q.title?.toLowerCase().includes('testdaf')
+        q.title?.toLowerCase().includes('testdaf') ||
+        q.title?.toLowerCase().includes('tcf') ||
+        q.title?.toLowerCase().includes('delf') ||
+        q.title?.toLowerCase().includes('dalf')
       );
     }
     if (activeTab === 'standardized') {
-      // Filter for standardized tests
+      // Filter for standardized tests using dynamic parameters
+      const standardizedTestCodes = allParams?.standardizedTests?.map(test => test.code.toLowerCase()) || [];
       return q.type === 'professional' || 
-        q.title?.toLowerCase().includes('gmat') ||
-        q.title?.toLowerCase().includes('gre') ||
-        q.title?.toLowerCase().includes('sat') ||
-        q.title?.toLowerCase().includes('act') ||
-        q.title?.toLowerCase().includes('lsat');
+        standardizedTestCodes.some(code => 
+          q.title?.toLowerCase().includes(code) ||
+          q.scoreType?.toLowerCase().includes(code)
+        );
     }
     return false;
   });
 
-  const handleAddQualification = (type) => {
+  const handleAddDegree = (type) => {
     setModalType(type);
-    setEditingQualification(null); // Reset editing qualification
+    setEditingDegree(null); // Reset editing degree
     setIsModalOpen(true);
   };
 
-  const handleEditQualification = (qualification) => {
+  const handleEditDegree = (degree) => {
+    console.log('handleEditDegree called with:', degree);
     setModalType(activeTab);
-    setEditingQualification(qualification);
+    setEditingDegree(degree);
     setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
+    console.log('handleCloseModal called');
     setIsModalOpen(false);
-    setEditingQualification(null);
+    setEditingDegree(null);
+  };
+
+  const handleAddDefaultQualifications = async () => {
+    try {
+      const updatedQualifications = await profileService.addSimpleCommonQualifications();
+      // Call the refresh function passed as prop to update qualifications without page reload
+      if (onRefreshQualifications) {
+        onRefreshQualifications(updatedQualifications);
+      }
+      console.log('Simple qualifications added successfully');
+    } catch (error) {
+      console.error('Error adding simple qualifications:', error);
+    }
   };
 
   const getTabColor = (color) => {
@@ -147,12 +190,12 @@ const QualificationsTabs = ({ qualifications, onAddQualification, onDeleteQualif
             </h3>
             <p className="text-sm text-gray-600 mt-1">
               {language === 'en' 
-                ? 'Manage your qualifications and test scores' 
-                : 'Gérez vos qualifications et scores de tests'}
+                ? 'Manage your degrees and test scores' 
+                : 'Gérez vos diplômes et scores de tests'}
             </p>
           </div>
           <button
-            onClick={() => handleAddQualification(activeTab)}
+            onClick={() => handleAddDegree(activeTab)}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl ${
               activeTab === 'academic' 
                 ? 'bg-blue-600 text-white hover:bg-blue-700'
@@ -164,11 +207,24 @@ const QualificationsTabs = ({ qualifications, onAddQualification, onDeleteQualif
             <Plus className="w-4 h-4" />
             <span>
               {activeTab === 'academic' 
-                ? (language === 'en' ? 'Add Qualification' : 'Ajouter une Qualification')
+                ? (language === 'en' ? 'Add Degree' : 'Ajouter un Diplôme')
                 : activeTab === 'english'
-                ? (language === 'en' ? 'Add English Test' : 'Ajouter un Test d\'Anglais')
+                ? (language === 'en' ? 'Add Language Test' : 'Ajouter un Test de Langue')
                 : (language === 'en' ? 'Add Standard Test' : 'Ajouter un Test Standard')
               }
+            </span>
+          </button>
+        </div>
+
+        {/* Add Default Qualifications Button */}
+        <div className="mt-4 flex justify-center">
+          <button
+            onClick={handleAddDefaultQualifications}
+            className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-emerald-600 text-white rounded-lg hover:from-blue-700 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+          >
+            <Download className="w-4 h-4" />
+            <span>
+              {language === 'en' ? 'Add Baccalauréat & TCF' : 'Ajouter Baccalauréat & TCF'}
             </span>
           </button>
         </div>
@@ -212,10 +268,10 @@ const QualificationsTabs = ({ qualifications, onAddQualification, onDeleteQualif
           </div>
         </div>
 
-        {/* Qualifications List */}
+        {/* Degrees List */}
         <div className="space-y-4">
-          {filteredQualifications.map((qualification) => (
-            <div key={qualification.id} className="bg-gradient-to-r from-white to-gray-50 border border-gray-200 rounded-2xl p-4 sm:p-6 hover:shadow-lg transition-all duration-200">
+          {filteredDegrees.map((degree) => (
+            <div key={degree.id} className="bg-gradient-to-r from-white to-gray-50 border border-gray-200 rounded-2xl p-4 sm:p-6 hover:shadow-lg transition-all duration-200">
               <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 mb-3">
@@ -224,77 +280,66 @@ const QualificationsTabs = ({ qualifications, onAddQualification, onDeleteQualif
                     </div>
                     <div className="flex-1">
                       <h4 className="text-lg font-bold text-gray-900">
-                        {qualification.title}
+                        {degree.title}
                       </h4>
-                      <p className="text-gray-600 text-sm">{qualification.institution}</p>
+                      <p className="text-gray-600 text-sm">{degree.institution}</p>
                       
-                      {/* Academic Qualification Details */}
+                      {/* Academic Degree Details */}
                       {activeTab === 'academic' && (
                         <div className="mt-2 space-y-1">
-                          {qualification.academicQualification && (
+                          {degree.academicQualification && (
                             <p className="text-sm text-gray-700">
-                              <span className="font-medium">{language === 'en' ? 'Qualification:' : 'Qualification:'}</span> {qualification.academicQualification}
+                              <span className="font-medium">{language === 'en' ? 'Degree:' : 'Diplôme:'}</span> {getAcademicDegreeTranslation(degree.academicQualification)}
                             </p>
                           )}
-                          {qualification.exactQualificationName && (
+                          {degree.exactQualificationName && (
                             <p className="text-sm text-gray-700">
-                              <span className="font-medium">{language === 'en' ? 'Exact Name:' : 'Nom Exact:'}</span> {qualification.exactQualificationName}
+                              <span className="font-medium">{language === 'en' ? 'Exact Name:' : 'Nom Exact:'}</span> {degree.exactQualificationName}
                             </p>
                           )}
-                          {qualification.field && (
+                          {degree.field && (
                             <p className="text-sm text-gray-700">
-                              <span className="font-medium">{language === 'en' ? 'Field of Study:' : 'Domaine d\'Études:'}</span> {qualification.field}
+                              <span className="font-medium">{language === 'en' ? 'Field of Study:' : 'Domaine d\'Études:'}</span> {getFieldTranslation(degree.field)}
                             </p>
                           )}
                         </div>
                       )}
                     </div>
-                    <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                      qualification.status === 'valid' 
-                        ? 'bg-green-100 text-green-700'
-                        : qualification.status === 'expired'
-                        ? 'bg-red-100 text-red-700'
-                        : 'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {qualification.status === 'valid' 
-                        ? (language === 'en' ? 'Valid' : 'Valide')
-                        : qualification.status === 'expired'
-                        ? (language === 'en' ? 'Expired' : 'Expiré')
-                        : (language === 'en' ? 'Pending' : 'En attente')
-                      }
+                    <span className="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700">
+                      {language === 'en' ? 'Valid' : 'Valide'}
                     </span>
                   </div>
                   
                   {/* Score Details */}
-                  {qualification.score && (
+                  {degree.score && (
                     <div className="space-y-3">
                       <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-sm">
                         <span className="flex items-center space-x-1 bg-blue-100 text-blue-700 px-2 sm:px-3 py-1 rounded-lg">
                           <Award className="w-4 h-4" />
                           <span className="text-xs sm:text-sm">
-                            {qualification.score} {qualification.scoreType && (
+                            {degree.score} {degree.scoreType && (
                               <span className="text-blue-600 font-medium">
-                                ({qualification.scoreType})
+                                ({getScoreTypeTranslation(degree.scoreType)})
                               </span>
                             )}
                           </span>
                         </span>
-                        {qualification.grade && (
+                        {degree.grade && (
                           <span className="flex items-center space-x-1 bg-emerald-100 text-emerald-700 px-2 sm:px-3 py-1 rounded-lg">
                             <GraduationCap className="w-4 h-4" />
-                            <span className="text-xs sm:text-sm">{qualification.grade}</span>
+                            <span className="text-xs sm:text-sm">{degree.grade}</span>
                           </span>
                         )}
                       </div>
                       
-                      {/* Detailed Scores for English Language Tests */}
-                      {activeTab === 'english' && qualification.detailedScores && (
+                      {/* Detailed Scores for Language Tests */}
+                      {activeTab === 'english' && degree.detailedScores && (
                         <div className="bg-gray-50 rounded-lg p-4">
                           <h5 className="text-sm font-semibold text-gray-700 mb-3">
                             {language === 'en' ? 'Detailed Scores' : 'Scores Détaillés'}
                           </h5>
                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-                            {Object.entries(qualification.detailedScores).map(([key, value]) => {
+                            {Object.entries(degree.detailedScores).map(([key, value]) => {
                               if (!value) return null;
                               const scoreLabels = {
                                 overall: language === 'en' ? 'Overall' : 'Global',
@@ -326,28 +371,21 @@ const QualificationsTabs = ({ qualifications, onAddQualification, onDeleteQualif
                   )}
                   
                   {/* Date Information */}
-                  {(qualification.startDate || qualification.endDate || qualification.expiryDate) && (
+                  {(degree.startDate || degree.endDate) && (
                     <div className="mt-4 pt-3 border-t border-gray-200">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-sm">
-                        {qualification.startDate && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                        {degree.startDate && (
                           <div className="flex items-center space-x-2 text-gray-600">
                             <Calendar className="w-4 h-4 text-gray-400" />
-                            <span className="font-medium">{language === 'en' ? 'Start:' : 'Début:'}</span>
-                            <span>{new Date(qualification.startDate).toLocaleDateString()}</span>
+                            <span className="font-medium">{language === 'en' ? 'Start Year:' : 'Année de Début:'}</span>
+                            <span>{new Date(degree.startDate).getFullYear()}</span>
                           </div>
                         )}
-                        {qualification.endDate && (
+                        {degree.endDate && (
                           <div className="flex items-center space-x-2 text-gray-600">
                             <Calendar className="w-4 h-4 text-gray-400" />
-                            <span className="font-medium">{language === 'en' ? 'End:' : 'Fin:'}</span>
-                            <span>{new Date(qualification.endDate).toLocaleDateString()}</span>
-                          </div>
-                        )}
-                        {qualification.expiryDate && (
-                          <div className="flex items-center space-x-2 text-gray-600">
-                            <Calendar className="w-4 h-4 text-gray-400" />
-                            <span className="font-medium">{language === 'en' ? 'Expires:' : 'Expire:'}</span>
-                            <span>{new Date(qualification.expiryDate).toLocaleDateString()}</span>
+                            <span className="font-medium">{language === 'en' ? 'End Year:' : 'Année de Fin:'}</span>
+                            <span>{new Date(degree.endDate).getFullYear()}</span>
                           </div>
                         )}
                       </div>
@@ -355,10 +393,10 @@ const QualificationsTabs = ({ qualifications, onAddQualification, onDeleteQualif
                   )}
                   
                   {/* Description */}
-                  {qualification.description && (
+                  {degree.description && (
                     <div className="mt-4 pt-3 border-t border-gray-200">
                       <p className="text-sm text-gray-600 leading-relaxed">
-                        {qualification.description}
+                        {degree.description}
                       </p>
                     </div>
                   )}
@@ -366,18 +404,18 @@ const QualificationsTabs = ({ qualifications, onAddQualification, onDeleteQualif
                 
                 <div className="flex items-center justify-end lg:justify-start space-x-2 lg:ml-4">
                   <button
-                    onClick={() => handleEditQualification(qualification)}
+                    onClick={() => handleEditDegree(degree)}
                     className="p-2 sm:p-2.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
-                    title={language === 'en' ? 'Edit qualification' : 'Modifier la qualification'}
+                    title={language === 'en' ? 'Edit degree' : 'Modifier le diplôme'}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                   </button>
                   <button
-                    onClick={() => onDeleteQualification(qualification.id)}
+                    onClick={() => onDeleteDegree(degree.id)}
                     className="p-2 sm:p-2.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
-                    title={language === 'en' ? 'Delete qualification' : 'Supprimer la qualification'}
+                    title={language === 'en' ? 'Delete degree' : 'Supprimer le diplôme'}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -388,7 +426,7 @@ const QualificationsTabs = ({ qualifications, onAddQualification, onDeleteQualif
             </div>
           ))}
 
-          {filteredQualifications.length === 0 && (
+          {filteredDegrees.length === 0 && (
             <div className="text-center py-12">
               <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
                 activeTab === 'academic' 
@@ -408,15 +446,15 @@ const QualificationsTabs = ({ qualifications, onAddQualification, onDeleteQualif
                 })}
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {language === 'en' ? 'No qualifications yet' : 'Aucune qualification pour le moment'}
+                {language === 'en' ? 'No degrees yet' : 'Aucun diplôme pour le moment'}
               </h3>
               <p className="text-gray-600 mb-4">
                 {language === 'en' 
-                  ? 'Add your first qualification to get started' 
-                  : 'Ajoutez votre première qualification pour commencer'}
+                  ? 'Add your first degree to get started' 
+                  : 'Ajoutez votre premier diplôme pour commencer'}
               </p>
               <button
-                onClick={() => handleAddQualification(activeTab)}
+                onClick={() => handleAddDegree(activeTab)}
                 className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl ${
                   activeTab === 'academic' 
                     ? 'bg-blue-600 text-white hover:bg-blue-700'
@@ -426,9 +464,9 @@ const QualificationsTabs = ({ qualifications, onAddQualification, onDeleteQualif
                 }`}
               >
                 {activeTab === 'academic' 
-                  ? (language === 'en' ? 'Add Your First Qualification' : 'Ajouter votre Première Qualification')
+                  ? (language === 'en' ? 'Add Your First Degree' : 'Ajouter votre Premier Diplôme')
                   : activeTab === 'english'
-                  ? (language === 'en' ? 'Add Your First English Test' : 'Ajouter votre Premier Test d\'Anglais')
+                  ? (language === 'en' ? 'Add Your First Language Test' : 'Ajouter votre Premier Test de Langue')
                   : (language === 'en' ? 'Add Your First Standard Test' : 'Ajouter votre Premier Test Standard')
                 }
               </button>
@@ -442,9 +480,9 @@ const QualificationsTabs = ({ qualifications, onAddQualification, onDeleteQualif
         <QualificationModal
           isOpen={isModalOpen}
           onClose={handleCloseModal}
-          onSave={onAddQualification}
+          onSave={editingDegree ? onAddDegree : onAddDegree}
           language={language}
-          qualification={editingQualification}
+          qualification={editingDegree}
         />
       )}
       
@@ -452,9 +490,9 @@ const QualificationsTabs = ({ qualifications, onAddQualification, onDeleteQualif
         <EnglishTestModal
           isOpen={isModalOpen}
           onClose={handleCloseModal}
-          onSave={onAddQualification}
+          onSave={onAddDegree}
           language={language}
-          qualification={editingQualification}
+          qualification={editingDegree}
         />
       )}
       
@@ -462,9 +500,9 @@ const QualificationsTabs = ({ qualifications, onAddQualification, onDeleteQualif
         <StandardizedTestModal
           isOpen={isModalOpen}
           onClose={handleCloseModal}
-          onSave={onAddQualification}
+          onSave={onAddDegree}
           language={language}
-          qualification={editingQualification}
+          qualification={editingDegree}
         />
       )}
     </div>

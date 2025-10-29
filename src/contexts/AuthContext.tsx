@@ -160,7 +160,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const value: AuthContextType = {
     currentUser,
+    user: currentUser, // Alias pour compatibilité
     token,
+    isAuthenticated: !!currentUser && !!token,
     login,
     register,
     logout,

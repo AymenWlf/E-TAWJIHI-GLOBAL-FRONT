@@ -6,22 +6,22 @@ let globalCache: AllParameters | null = null;
 let globalLoading = false;
 let globalError: string | null = null;
 
-export const useAllParameters = () => {
-  const [parameters, setParameters] = useState<AllParameters | null>(globalCache);
-  const [loading, setLoading] = useState(globalLoading);
+export const useAllParameters = (forceReload = false) => {
+  const [parameters, setParameters] = useState<AllParameters | null>(forceReload ? null : globalCache);
+  const [loading, setLoading] = useState(forceReload ? true : globalLoading);
   const [error, setError] = useState<string | null>(globalError);
 
   useEffect(() => {
-    // If we already have cached data, use it
-    if (globalCache) {
+    // If we already have cached data and not forcing reload, use it
+    if (globalCache && !forceReload) {
       setParameters(globalCache);
       setLoading(false);
       setError(null);
       return;
     }
 
-    // If already loading, don't start another request
-    if (globalLoading) {
+    // If already loading and not forcing reload, don't start another request
+    if (globalLoading && !forceReload) {
       setLoading(true);
       return;
     }

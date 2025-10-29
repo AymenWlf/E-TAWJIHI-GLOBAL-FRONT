@@ -103,7 +103,23 @@ const AdminProgramEdit = () => {
 
   const [establishments, setEstablishments] = useState([]);
   const { supportedCurrencies } = useCurrency();
-  const [params, setParams] = useState({ languages: [], studyLevels: [], degrees: [], studyTypes: [], currencies: [], standardizedTests: [], englishTests: [], universityTypes: [], gradeSystems: [] });
+  const [params, setParams] = useState({ 
+    languages: [], 
+    studyLevels: [], 
+    degrees: [], 
+    studyTypes: [], 
+    currencies: [], 
+    standardizedTests: [], 
+    englishTests: [], 
+    universityTypes: [], 
+    gradeSystems: [],
+    countries: [],
+    cities: [],
+    schoolTypes: [],
+    procedureTypes: [],
+    fieldCategories: [],
+    fields: []
+  });
 
   // Derived options
   const establishmentOptions = establishments.map((e) => ({ value: String(e.id), label: e.name }));
@@ -177,7 +193,8 @@ const AdminProgramEdit = () => {
   }, [id]);
 
   // Load all parameters using centralized service
-  const { parameters: allParams, loading: paramsLoading } = useAllParameters();
+  const [forceReload, setForceReload] = useState(false);
+  const { parameters: allParams, loading: paramsLoading } = useAllParameters(forceReload);
 
   useEffect(() => {
     if (allParams && !paramsLoading) {
@@ -221,12 +238,44 @@ const AdminProgramEdit = () => {
         gradeSystems: (allParams.gradeSystems || []).map(i => ({ 
           value: i.code, 
           label: language === 'fr' ? i.labelFr : i.labelEn 
+        })),
+        countries: (allParams.countries || []).map(i => ({ 
+          value: i.code, 
+          label: language === 'fr' ? i.labelFr : i.labelEn 
+        })),
+        cities: (allParams.cities || []).map(i => ({ 
+          value: i.code, 
+          label: language === 'fr' ? i.labelFr : i.labelEn 
+        })),
+        schoolTypes: (allParams.schoolTypes || []).map(i => ({ 
+          value: i.code, 
+          label: language === 'fr' ? i.labelFr : i.labelEn 
+        })),
+        procedureTypes: (allParams.procedureTypes || []).map(i => ({ 
+          value: i.code, 
+          label: language === 'fr' ? i.labelFr : i.labelEn 
+        })),
+        fieldCategories: (allParams.fieldCategories || []).map(i => ({ 
+          value: i.code, 
+          label: language === 'fr' ? i.labelFr : i.labelEn 
+        })),
+        fields: (allParams.fields || []).map(i => ({ 
+          value: i.code, 
+          label: language === 'fr' ? i.labelFr : i.labelEn 
         }))
       };
       
       setParams(mappedParams);
     }
   }, [allParams, language, paramsLoading]);
+
+  // Force reload parameters if they're empty after loading
+  useEffect(() => {
+    if (!paramsLoading && allParams && Object.keys(allParams).length === 0) {
+      console.log('Parameters are empty, forcing reload...');
+      setForceReload(true);
+    }
+  }, [allParams, paramsLoading]);
 
   const loadEstablishmentsOptions = async () => {
     try {

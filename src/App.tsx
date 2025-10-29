@@ -63,7 +63,9 @@ function AppContent() {
               <Route path="/establishments/:slug" element={<EstablishmentDetail />} />
               <Route path="/programs/:establishmentSlug/:programSlug" element={<ProgramDetail />} />
               <Route path="/apply/:programId" element={<ApplicationWizard />} />
-              <Route path="/application/:establishmentSlug/:programSlug" element={<ApplicationProcess />} />
+              <Route path="/application-process" element={<Navigate to="/" replace />} />
+              <Route path="/application/process" element={<Navigate to="/" replace />} />
+              <Route path="/application/:establishmentId/:programId" element={<ApplicationProcess />} />
               <Route path="/institution-registration" element={<InstitutionRegistration />} />
               <Route path="/agent-registration" element={<EducationAgentRegistration />} />
               <Route path="/ambassador-registration" element={<StudentAmbassadorRegistration />} />

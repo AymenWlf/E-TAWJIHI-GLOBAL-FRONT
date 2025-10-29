@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   ArrowLeft, 
   Save, 
@@ -36,6 +36,10 @@ import { useAllParameters } from '../hooks/useAllParameters';
 const AdminEstablishmentEdit = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Determine if this is a new establishment (either id is 'new' or id is undefined and pathname includes '/new')
+  const isNewEstablishment = !id || id === 'new' || location.pathname.includes('/new');
   const [language, setLanguage] = useState('en');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -355,8 +359,23 @@ const AdminEstablishmentEdit = () => {
 
       const sanitizedData = sanitizeEstablishmentData(establishment);
       
-      const response = await fetch(`/api/admin/establishments/${id}`, {
-        method: 'PUT',
+      // Determine if this is a new establishment or an update
+      const isNew = isNewEstablishment;
+      
+      // Validate: if updating, id must be present and valid
+      if (!isNew && (!id || id === 'undefined' || id === 'new')) {
+        setError('Invalid establishment ID for update. Please try creating a new establishment.');
+        setSaving(false);
+        return;
+      }
+      
+      const url = isNew 
+        ? '/api/admin/establishments'
+        : `/api/admin/establishments/${id}`;
+      const method = isNew ? 'POST' : 'PUT';
+      
+      const response = await fetch(url, {
+        method: method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -373,11 +392,20 @@ const AdminEstablishmentEdit = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `Failed to update establishment (${response.status})`);
+        throw new Error(errorData.message || `Failed to ${isNew ? 'create' : 'update'} establishment (${response.status})`);
       }
 
-      setSuccess('Establishment updated successfully!');
-      setTimeout(() => setSuccess(null), 3000);
+      const responseData = await response.json();
+      setSuccess(isNew ? 'Establishment created successfully!' : 'Establishment updated successfully!');
+      
+      // If creating a new establishment, redirect to edit page with the new ID
+      if (isNew && responseData.data && responseData.data.id) {
+        setTimeout(() => {
+          navigate(`/admin/establishments/${responseData.data.id}/edit`);
+        }, 1000);
+      } else {
+        setTimeout(() => setSuccess(null), 3000);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -491,10 +519,31 @@ const AdminEstablishmentEdit = () => {
     }));
   };
 
+  // Handle campus photo management
+  const handleUpdatePhoto = (index, field, value) => {
+    setEstablishment(prev => ({
+      ...prev,
+      campusPhotos: prev.campusPhotos.map((photo, i) => 
+        i === index ? { ...photo, [field]: value } : photo
+      )
+    }));
+  };
+
+  const handleRemoveCampusPhoto = (index) => {
+    setEstablishment(prev => ({
+      ...prev,
+      campusPhotos: prev.campusPhotos.filter((_, i) => i !== index)
+    }));
+  };
+
   // Load establishment data
   useEffect(() => {
     const loadEstablishment = async () => {
-      if (!id) return;
+      // Don't load data if creating a new establishment
+      if (isNewEstablishment) return;
+      
+      // Validate id exists and is not undefined
+      if (!id || id === 'undefined' || id === 'new') return;
       
       setLoading(true);
       try {
@@ -640,7 +689,7 @@ const AdminEstablishmentEdit = () => {
     };
 
     loadEstablishment();
-  }, [id, navigate]);
+  }, [id, navigate, isNewEstablishment]);
 
   // Debug: Log establishment state changes
   useEffect(() => {
@@ -692,7 +741,10 @@ const AdminEstablishmentEdit = () => {
                 disabled={saving}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
               >
-                {saving ? 'Saving...' : 'Save Changes'}
+                {saving 
+                  ? (isNewEstablishment ? 'Creating...' : 'Saving...') 
+                  : (isNewEstablishment ? 'Create Establishment' : 'Save Changes')
+                }
               </button>
             </div>
           </div>
@@ -1136,7 +1188,7 @@ const AdminEstablishmentEdit = () => {
                         <input
                           type="text"
                           value={video.title}
-                          onChange={(e) => handleUpdateYoutubeVideo(index, 'title', e.target.value)}
+                          onChange={(e) => handleYoutubeVideoChange(index, 'title', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           placeholder="Video title"
                         />
@@ -1146,7 +1198,7 @@ const AdminEstablishmentEdit = () => {
                         <input
                           type="url"
                           value={video.url}
-                          onChange={(e) => handleUpdateYoutubeVideo(index, 'url', e.target.value)}
+                          onChange={(e) => handleYoutubeVideoChange(index, 'url', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           placeholder="https://www.youtube.com/watch?v=..."
                         />
@@ -1156,7 +1208,7 @@ const AdminEstablishmentEdit = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                       <textarea
                         value={video.description}
-                        onChange={(e) => handleUpdateYoutubeVideo(index, 'description', e.target.value)}
+                        onChange={(e) => handleYoutubeVideoChange(index, 'description', e.target.value)}
                         rows={2}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="Video description"
@@ -1209,7 +1261,7 @@ const AdminEstablishmentEdit = () => {
                         <input
                           type="text"
                           value={brochure.name}
-                          onChange={(e) => handleUpdateBrochure(index, 'name', e.target.value)}
+                          onChange={(e) => handleBrochureChange(index, 'name', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           placeholder="Nom de la brochure en anglais"
                         />
@@ -1219,7 +1271,7 @@ const AdminEstablishmentEdit = () => {
                         <input
                           type="text"
                           value={brochure.nameFr}
-                          onChange={(e) => handleUpdateBrochure(index, 'nameFr', e.target.value)}
+                          onChange={(e) => handleBrochureChange(index, 'nameFr', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                           placeholder="Nom de la brochure en français"
                         />
@@ -1229,7 +1281,7 @@ const AdminEstablishmentEdit = () => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Fichier</label>
                       <FileUpload
                         files={brochure.file ? [{ id: 1, name: brochure.file.name, type: brochure.file.type, url: brochure.file.url }] : []}
-                        onChange={(files) => handleUpdateBrochure(index, 'file', files[0] || null)}
+                        onChange={(files) => handleBrochureChange(index, 'file', files[0] || null)}
                         accept=".pdf,.doc,.docx"
                         multiple={false}
                         maxSize={10 * 1024 * 1024} // 10MB

@@ -15,6 +15,8 @@ const StandardizedTestModal = ({ isOpen, onClose, onSave, language, qualificatio
     mathematics: '',
     science: '',
     integratedReasoning: '',
+    chineseLanguage: '', // Champ pour CSCA
+    socialStudies: '', // Champ pour CSCA
     testDate: '',
     expiryDate: '',
     description: ''
@@ -86,6 +88,15 @@ const StandardizedTestModal = ({ isOpen, onClose, onSave, language, qualificatio
           { name: 'readingComprehension', label: 'Reading Comprehension (1-50)', min: 1, max: 50, step: 1 },
           { name: 'writingSample', label: 'Writing Sample (1-6)', min: 1, max: 6, step: 0.5 }
         ]
+      },
+      'csca': {
+        fields: [
+          { name: 'totalScore', label: 'Total Score (0-100)', min: 0, max: 100, step: 1 },
+          { name: 'chineseLanguage', label: 'Chinese Language (0-100)', min: 0, max: 100, step: 1 },
+          { name: 'mathematics', label: 'Mathematics (0-100)', min: 0, max: 100, step: 1 },
+          { name: 'science', label: 'Science (0-100)', min: 0, max: 100, step: 1 },
+          { name: 'socialStudies', label: 'Social Studies (0-100)', min: 0, max: 100, step: 1 }
+        ]
       }
     };
     return configs[testCode] || configs['gmat'];
@@ -109,6 +120,8 @@ const StandardizedTestModal = ({ isOpen, onClose, onSave, language, qualificatio
 
   // Pre-fill form data when editing
   useEffect(() => {
+    console.log('StandardizedTestModal useEffect - qualification:', qualification, 'isOpen:', isOpen);
+    
     if (qualification && isOpen) {
       // Determine test type from title or scoreType
       let testType = '';
@@ -122,6 +135,8 @@ const StandardizedTestModal = ({ isOpen, onClose, onSave, language, qualificatio
         testType = 'act';
       } else if (qualification.title?.toLowerCase().includes('lsat') || qualification.scoreType?.toLowerCase().includes('lsat')) {
         testType = 'lsat';
+      } else if (qualification.title?.toLowerCase().includes('csca') || qualification.scoreType?.toLowerCase().includes('csca')) {
+        testType = 'csca';
       }
 
       setFormData({
@@ -136,6 +151,8 @@ const StandardizedTestModal = ({ isOpen, onClose, onSave, language, qualificatio
         mathematics: qualification.detailedScores?.mathematics || '',
         science: qualification.detailedScores?.science || '',
         integratedReasoning: qualification.detailedScores?.integratedReasoning || '',
+        chineseLanguage: qualification.detailedScores?.chineseLanguage || '',
+        socialStudies: qualification.detailedScores?.socialStudies || '',
         testDate: qualification.startDate || '',
         expiryDate: qualification.expiryDate || '',
         description: qualification.description || ''
@@ -154,6 +171,8 @@ const StandardizedTestModal = ({ isOpen, onClose, onSave, language, qualificatio
         mathematics: '',
         science: '',
         integratedReasoning: '',
+        chineseLanguage: '', // Champ pour CSCA
+        socialStudies: '', // Champ pour CSCA
         testDate: '',
         expiryDate: '',
         description: ''
@@ -203,6 +222,8 @@ const StandardizedTestModal = ({ isOpen, onClose, onSave, language, qualificatio
         logicalReasoning: formData.logicalReasoning,
         analyticalReasoning: formData.analyticalReasoning,
         readingComprehension: formData.readingComprehension,
+        chineseLanguage: formData.chineseLanguage, // Champ pour CSCA
+        socialStudies: formData.socialStudies, // Champ pour CSCA
         writingSample: formData.writingSample
       }
     };
@@ -223,6 +244,8 @@ const StandardizedTestModal = ({ isOpen, onClose, onSave, language, qualificatio
       mathematics: '',
       science: '',
       integratedReasoning: '',
+      chineseLanguage: '', // Champ pour CSCA
+      socialStudies: '', // Champ pour CSCA
       testDate: '',
       expiryDate: '',
       description: ''
@@ -268,13 +291,12 @@ const StandardizedTestModal = ({ isOpen, onClose, onSave, language, qualificatio
           {/* Test Type */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              {language === 'en' ? 'Test Type' : 'Type de Test'} *
+              {language === 'en' ? 'Test Type' : 'Type de Test'}
             </label>
             <select
               value={formData.testType}
               onChange={(e) => handleInputChange('testType', e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-              required
             >
               <option value="">{language === 'en' ? 'Select Test Type' : 'Sélectionner le Type de Test'}</option>
               {testTypes.map(test => (
@@ -300,7 +322,7 @@ const StandardizedTestModal = ({ isOpen, onClose, onSave, language, qualificatio
                 {selectedTest.fields.map(field => (
                   <div key={field.name}>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      {field.label} *
+                      {field.label}
                     </label>
                     <input
                       type="number"
@@ -311,7 +333,6 @@ const StandardizedTestModal = ({ isOpen, onClose, onSave, language, qualificatio
                       onChange={(e) => handleInputChange(field.name, e.target.value)}
                       placeholder={`${field.min}-${field.max}`}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                      required
                     />
                   </div>
                 ))}

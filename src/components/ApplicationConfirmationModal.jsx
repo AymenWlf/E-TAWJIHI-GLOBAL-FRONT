@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Clock, Users, FileText, CheckCircle, AlertCircle, Calendar, Globe } from 'lucide-react';
+import { X, Clock, Users, FileText, CheckCircle, AlertCircle, Calendar, Globe, Edit3 } from 'lucide-react';
+import applicationService from '../services/applicationService';
+import { useAuth } from '../contexts/AuthContext';
 
 const ApplicationConfirmationModal = ({ 
   isOpen, 
@@ -10,12 +12,85 @@ const ApplicationConfirmationModal = ({
   language = 'en' 
 }) => {
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+  const [hasActiveApplication, setHasActiveApplication] = useState(false);
+  const [existingApplication, setExistingApplication] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleStartApplication = () => {
-    if (program) {
-      const establishmentSlug = program.establishment?.slug || 'establishment';
-      const programSlug = program.slug || 'program';
-      navigate(`/application/${establishmentSlug}/${programSlug}`);
+  useEffect(() => {
+    if (isOpen && program?.id && isAuthenticated) {
+      checkExistingApplication();
+    }
+  }, [isOpen, program?.id, isAuthenticated]);
+
+  const checkExistingApplication = async () => {
+    if (!program?.id || !isAuthenticated) return;
+    
+    try {
+      setLoading(true);
+      const response = await applicationService.checkApplication(program.id);
+      setHasActiveApplication(response.hasActiveApplication);
+      setExistingApplication(response.application);
+    } catch (error) {
+      console.error('Error checking application:', error);
+      // Si l'erreur est 401, l'utilisateur n'est pas connecté
+      if (error.response?.status === 401) {
+        console.log('User not authenticated, skipping application check');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStartApplication = async () => {
+    if (!program) return;
+
+    // Vérifier si l'utilisateur est connecté
+    if (!isAuthenticated) {
+      navigate('/login');
+      onClose();
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await applicationService.createOrGetApplication(program.id, language);
+      
+      // Récupérer l'ID de l'application depuis la réponse
+      const applicationId = response.data?.id || response.id;
+      
+      const establishmentId = program.establishment?.id || 1;
+      const programId = program.id || 1;
+      
+      // Rediriger vers la page ApplicationProcess avec l'ID de l'application
+      navigate(`/application/${establishmentId}/${programId}?applicationId=${applicationId}`);
+    } catch (error) {
+      console.error('Error creating/getting application:', error);
+      // Si l'erreur est 401, rediriger vers la connexion
+      if (error.response?.status === 401) {
+        navigate('/login');
+      }
+    } finally {
+      setLoading(false);
+      onClose();
+    }
+  };
+
+  const handleContinueApplication = () => {
+    // Vérifier si l'utilisateur est connecté
+    if (!isAuthenticated) {
+      navigate('/login');
+      onClose();
+      return;
+    }
+
+    if (program && existingApplication) {
+      const establishmentId = program.establishment?.id || 1;
+      const programId = program.id || 1;
+      const applicationId = existingApplication.id;
+      
+      // Rediriger vers la page ApplicationProcess avec l'ID de l'application existante
+      navigate(`/application/${establishmentId}/${programId}?applicationId=${applicationId}`);
     }
     onClose();
   };
@@ -279,12 +354,30 @@ const ApplicationConfirmationModal = ({
           >
             {t.buttons.cancel}
           </button>
-          <button
-            onClick={handleStartApplication}
-            className="px-8 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-          >
-            {t.buttons.confirm}
-          </button>
+          
+          {loading ? (
+            <button
+              disabled
+              className="px-8 py-2 bg-gray-400 text-white rounded-lg font-medium cursor-not-allowed"
+            >
+              {language === 'en' ? 'Loading...' : 'Chargement...'}
+            </button>
+          ) : hasActiveApplication ? (
+            <button
+              onClick={handleContinueApplication}
+              className="px-8 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center gap-2"
+            >
+              <Edit3 className="w-4 h-4" />
+              {language === 'en' ? 'Continue My Application' : 'Continuer Ma Candidature'}
+            </button>
+          ) : (
+            <button
+              onClick={handleStartApplication}
+              className="px-8 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+            >
+              {t.buttons.confirm}
+            </button>
+          )}
         </div>
       </div>
     </div>

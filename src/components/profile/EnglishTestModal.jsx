@@ -99,6 +99,33 @@ const EnglishTestModal = ({ isOpen, onClose, onSave, language, qualification = n
           { name: 'useOfEnglish', label: 'Use of English (0-210)', min: 0, max: 210, step: 1 }
         ]
       },
+      'tcf': {
+        fields: [
+          { name: 'overallScore', label: 'Overall Score (100-699)', min: 100, max: 699, step: 1 },
+          { name: 'listening', label: 'Listening (100-699)', min: 100, max: 699, step: 1 },
+          { name: 'reading', label: 'Reading (100-699)', min: 100, max: 699, step: 1 },
+          { name: 'writing', label: 'Writing (100-699)', min: 100, max: 699, step: 1 },
+          { name: 'speaking', label: 'Speaking (100-699)', min: 100, max: 699, step: 1 }
+        ]
+      },
+      'delf': {
+        fields: [
+          { name: 'overallScore', label: 'Overall Score (0-100)', min: 0, max: 100, step: 1 },
+          { name: 'listening', label: 'Listening (0-25)', min: 0, max: 25, step: 1 },
+          { name: 'reading', label: 'Reading (0-25)', min: 0, max: 25, step: 1 },
+          { name: 'writing', label: 'Writing (0-25)', min: 0, max: 25, step: 1 },
+          { name: 'speaking', label: 'Speaking (0-25)', min: 0, max: 25, step: 1 }
+        ]
+      },
+      'dalf': {
+        fields: [
+          { name: 'overallScore', label: 'Overall Score (0-100)', min: 0, max: 100, step: 1 },
+          { name: 'listening', label: 'Listening (0-25)', min: 0, max: 25, step: 1 },
+          { name: 'reading', label: 'Reading (0-25)', min: 0, max: 25, step: 1 },
+          { name: 'writing', label: 'Writing (0-25)', min: 0, max: 25, step: 1 },
+          { name: 'speaking', label: 'Speaking (0-25)', min: 0, max: 25, step: 1 }
+        ]
+      },
       'cael': {
         fields: [
           { name: 'overallScore', label: 'Overall Score (0-90)', min: 0, max: 90, step: 1 },
@@ -157,6 +184,8 @@ const EnglishTestModal = ({ isOpen, onClose, onSave, language, qualification = n
 
   // Pre-fill form data when editing
   useEffect(() => {
+    console.log('EnglishTestModal useEffect - qualification:', qualification, 'isOpen:', isOpen);
+    
     if (qualification && isOpen) {
       // Determine test type from title or scoreType
       let testType = '';
@@ -180,20 +209,56 @@ const EnglishTestModal = ({ isOpen, onClose, onSave, language, qualification = n
         testType = 'goethe';
       } else if (qualification.title?.toLowerCase().includes('testdaf') || qualification.scoreType?.toLowerCase().includes('testdaf')) {
         testType = 'testdaf';
+      } else if (qualification.title?.toLowerCase().includes('tcf') || qualification.scoreType?.toLowerCase().includes('tcf')) {
+        testType = 'tcf';
+      } else if (qualification.title?.toLowerCase().includes('delf') || qualification.scoreType?.toLowerCase().includes('delf')) {
+        testType = 'delf';
+      } else if (qualification.title?.toLowerCase().includes('dalf') || qualification.scoreType?.toLowerCase().includes('dalf')) {
+        testType = 'dalf';
       }
+
+      // Helper function to format score values
+      const formatScore = (score) => {
+        if (!score) return '';
+        const numScore = parseFloat(score);
+        if (isNaN(numScore)) return score;
+        // For IELTS (1-9 range), keep one decimal place if needed, otherwise integer
+        if (testType === 'ielts' && numScore >= 1 && numScore <= 9) {
+          return numScore % 1 === 0 ? numScore.toString() : numScore.toFixed(1);
+        }
+        // For other tests, return as integer if it's a whole number
+        return numScore % 1 === 0 ? numScore.toString() : numScore.toString();
+      };
 
       setFormData({
         testType: testType,
-        overallScore: qualification.detailedScores?.overall || qualification.score || '',
-        listening: qualification.detailedScores?.listening || '',
-        reading: qualification.detailedScores?.reading || '',
-        writing: qualification.detailedScores?.writing || '',
-        speaking: qualification.detailedScores?.speaking || '',
-        production: qualification.detailedScores?.production || '',
-        comprehension: qualification.detailedScores?.comprehension || '',
-        conversation: qualification.detailedScores?.conversation || '',
-        literacy: qualification.detailedScores?.literacy || '',
-        useOfEnglish: qualification.detailedScores?.useOfEnglish || '',
+        overallScore: formatScore(qualification.detailedScores?.overall || qualification.score),
+        listening: formatScore(qualification.detailedScores?.listening),
+        reading: formatScore(qualification.detailedScores?.reading),
+        writing: formatScore(qualification.detailedScores?.writing),
+        speaking: formatScore(qualification.detailedScores?.speaking),
+        production: formatScore(qualification.detailedScores?.production),
+        comprehension: formatScore(qualification.detailedScores?.comprehension),
+        conversation: formatScore(qualification.detailedScores?.conversation),
+        literacy: formatScore(qualification.detailedScores?.literacy),
+        useOfEnglish: formatScore(qualification.detailedScores?.useOfEnglish),
+        testDate: qualification.startDate || '',
+        expiryDate: qualification.expiryDate || '',
+        description: qualification.description || ''
+      });
+      
+      console.log('EnglishTestModal formData set:', {
+        testType: testType,
+        overallScore: formatScore(qualification.detailedScores?.overall || qualification.score),
+        listening: formatScore(qualification.detailedScores?.listening),
+        reading: formatScore(qualification.detailedScores?.reading),
+        writing: formatScore(qualification.detailedScores?.writing),
+        speaking: formatScore(qualification.detailedScores?.speaking),
+        production: formatScore(qualification.detailedScores?.production),
+        comprehension: formatScore(qualification.detailedScores?.comprehension),
+        conversation: formatScore(qualification.detailedScores?.conversation),
+        literacy: formatScore(qualification.detailedScores?.literacy),
+        useOfEnglish: formatScore(qualification.detailedScores?.useOfEnglish),
         testDate: qualification.startDate || '',
         expiryDate: qualification.expiryDate || '',
         description: qualification.description || ''
@@ -316,13 +381,12 @@ const EnglishTestModal = ({ isOpen, onClose, onSave, language, qualification = n
           {/* Test Type */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              {language === 'en' ? 'Test Type' : 'Type de Test'} *
+              {language === 'en' ? 'Test Type' : 'Type de Test'}
             </label>
             <select
               value={formData.testType}
               onChange={(e) => handleInputChange('testType', e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
-              required
             >
               <option value="">{language === 'en' ? 'Select Test Type' : 'Sélectionner le Type de Test'}</option>
               {testTypes.map(test => (
@@ -348,7 +412,7 @@ const EnglishTestModal = ({ isOpen, onClose, onSave, language, qualification = n
                 {selectedTest.fields.map(field => (
                   <div key={field.name}>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      {field.label} *
+                      {field.label}
                     </label>
                     <input
                       type="number"
@@ -359,7 +423,6 @@ const EnglishTestModal = ({ isOpen, onClose, onSave, language, qualification = n
                       onChange={(e) => handleInputChange(field.name, e.target.value)}
                       placeholder={`${field.min}-${field.max}`}
                       className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
-                      required
                     />
                     {field.name === 'overallScore' && formData[field.name] && (
                       <p className="text-xs text-gray-500 mt-1">

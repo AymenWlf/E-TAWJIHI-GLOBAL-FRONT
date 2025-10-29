@@ -408,11 +408,11 @@ const HeaderGlobal = ({ language, setLanguage }) => {
                 onClick={handleLoginClick}
                 className="hidden sm:flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                <User className="w-4 h-4 text-gray-600" />
-                <span className="font-medium text-gray-700">
-                  {language === 'en' ? 'Login' : 'Connexion'}
-                </span>
-              </button>
+              <User className="w-4 h-4 text-gray-600" />
+              <span className="font-medium text-gray-700">
+                {language === 'en' ? 'Login' : 'Connexion'}
+              </span>
+            </button>
             )}
 
             {/* Mobile menu button */}
@@ -490,7 +490,7 @@ const HeaderGlobal = ({ language, setLanguage }) => {
               <div className="pt-4 border-t border-gray-100">
                 <CurrencySelector size="md" showLabel={true} />
               </div>
-
+              
               {/* Mobile CTA Buttons */}
               <div className="pt-4 border-t border-gray-100 space-y-3">
                 <Link 
@@ -556,11 +556,11 @@ const HeaderGlobal = ({ language, setLanguage }) => {
                     onClick={handleLoginClick}
                     className="w-full flex items-center justify-center space-x-2 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                   >
-                    <User className="w-4 h-4 text-gray-600" />
-                    <span className="font-medium text-gray-700">
-                      {language === 'en' ? 'Login' : 'Connexion'}
-                    </span>
-                  </button>
+                  <User className="w-4 h-4 text-gray-600" />
+                  <span className="font-medium text-gray-700">
+                    {language === 'en' ? 'Login' : 'Connexion'}
+                  </span>
+                </button>
                 )}
               </div>
             </nav>

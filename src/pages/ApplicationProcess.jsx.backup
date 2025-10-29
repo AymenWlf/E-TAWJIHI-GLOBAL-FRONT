@@ -25,8 +25,7 @@ import {
   Flag,
   Download,
   ChevronRight,
-  ChevronLeft,
-  Info
+  ChevronLeft
 } from 'lucide-react';
 import QualificationsTabs from '../components/profile/QualificationsTabs';
 import ApplicationDocumentsSection from '../components/profile/ApplicationDocumentsSection';
@@ -36,7 +35,6 @@ import applicationService from '../services/applicationService';
 import programService from '../services/programService';
 import profileService from '../services/profileService';
 import finalStepService from '../services/finalStepService';
-import modificationRequestService from '../services/modificationRequestService';
 import MultiSelect from '../components/ui/MultiSelect';
 import SingleSelect from '../components/ui/SingleSelect';
 import PhoneInput from '../components/ui/PhoneInput';
@@ -158,14 +156,6 @@ const ApplicationProcess = () => {
   const [finalSteps, setFinalSteps] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
-  const [modificationRequest, setModificationRequest] = useState(null);
-  const [modificationAllowed, setModificationAllowed] = useState(false);
-  const [showModificationModal, setShowModificationModal] = useState(false);
-  const [modificationReason, setModificationReason] = useState('');
-  
-  // Check if application is submitted (read-only mode)
-  // Allow modification if request is approved and still valid
-  const isReadOnly = (application?.status === 'submitted' || !!application?.submittedAt) && !modificationAllowed;
 
   // Récupérer l'ID de l'application depuis l'URL
   const applicationId = searchParams.get('applicationId');
@@ -527,62 +517,27 @@ const ApplicationProcess = () => {
         console.log('Program data loaded:', programData.data);
         console.log('Program intakes:', programData.data?.intakes);
         
-        // Pre-fill personal information from user profile (only fill empty fields)
+        // Pre-fill personal information from user profile
         if (userProfileData) {
           setFormData(prev => ({
             ...prev,
             personalInfo: {
               ...prev.personalInfo,
-              // Only fill if the field is empty
-              firstName: prev.personalInfo.firstName || userProfileData.firstName || '',
-              lastName: prev.personalInfo.lastName || userProfileData.lastName || '',
-              email: prev.personalInfo.email || user.email || userProfileData.email || '',
-              phone: prev.personalInfo.phone || userProfileData.phone || '',
-              whatsapp: prev.personalInfo.whatsapp || userProfileData.whatsapp || '',
-              phoneCountry: prev.personalInfo.phoneCountry || userProfileData.phoneCountry || '',
-              whatsappCountry: prev.personalInfo.whatsappCountry || userProfileData.whatsappCountry || '',
-              dateOfBirth: prev.personalInfo.dateOfBirth || userProfileData.dateOfBirth || '',
-              gender: prev.personalInfo.gender || userProfileData.gender || '',
-              maritalStatus: prev.personalInfo.maritalStatus || userProfileData.maritalStatus || '',
-              countryOfBirth: prev.personalInfo.countryOfBirth || userProfileData.countryOfBirth || '',
-              cityOfBirth: prev.personalInfo.cityOfBirth || userProfileData.cityOfBirth || '',
-              nationality: (prev.personalInfo.nationality && prev.personalInfo.nationality.length > 0) 
-                ? prev.personalInfo.nationality 
-                : (Array.isArray(userProfileData.nationality) ? userProfileData.nationality : (userProfileData.nationality ? [userProfileData.nationality] : [])),
-              address: prev.personalInfo.address || userProfileData.address || '',
-              city: prev.personalInfo.city || userProfileData.city || '',
-              country: prev.personalInfo.country || (Array.isArray(userProfileData.country) ? userProfileData.country[0] || '' : (userProfileData.country || '')),
-              postalCode: prev.personalInfo.postalCode || userProfileData.postalCode || '',
-              passportNumber: prev.personalInfo.passportNumber || userProfileData.passportNumber || '',
-              passportAvailable: prev.personalInfo.passportAvailable !== undefined ? prev.personalInfo.passportAvailable : !!userProfileData.passportNumber,
-              passportExpirationDate: prev.personalInfo.passportExpirationDate || userProfileData.passportExpirationDate || '',
-              cinNumber: prev.personalInfo.cinNumber || userProfileData.cinNumber || '',
-              alternateEmail: prev.personalInfo.alternateEmail || userProfileData.alternateEmail || '',
-              religion: prev.personalInfo.religion || userProfileData.religion || '',
-              nativeLanguage: prev.personalInfo.nativeLanguage || userProfileData.nativeLanguage || '',
-              chineseName: prev.personalInfo.chineseName || userProfileData.chineseName || '',
-              wechatId: prev.personalInfo.wechatId || userProfileData.wechatId || '',
-              skypeNo: prev.personalInfo.skypeNo || userProfileData.skypeNo || '',
-              emergencyContactName: prev.personalInfo.emergencyContactName || userProfileData.emergencyContactName || '',
-              emergencyContactGender: prev.personalInfo.emergencyContactGender || userProfileData.emergencyContactGender || '',
-              emergencyContactRelationship: prev.personalInfo.emergencyContactRelationship || userProfileData.emergencyContactRelationship || '',
-              emergencyContactPhone: prev.personalInfo.emergencyContactPhone || userProfileData.emergencyContactPhone || '',
-              emergencyContactEmail: prev.personalInfo.emergencyContactEmail || userProfileData.emergencyContactEmail || '',
-              emergencyContactAddress: prev.personalInfo.emergencyContactAddress || userProfileData.emergencyContactAddress || '',
-              // Determine hasWorkExperience: prioritize application data, then check if profile has work data
-              // Check if this is initial state (form not yet loaded with data) by checking if firstName is empty
-              hasWorkExperience: (!prev.personalInfo.firstName && userProfileData.hasWorkExperience !== undefined)
-                ? userProfileData.hasWorkExperience
-                : (prev.personalInfo.hasWorkExperience !== undefined 
-                  ? prev.personalInfo.hasWorkExperience 
-                  : (userProfileData.hasWorkExperience !== undefined 
-                    ? userProfileData.hasWorkExperience 
-                    : (userProfileData.workCompany || userProfileData.workPosition || userProfileData.workStartDate || userProfileData.workEndDate || userProfileData.workDescription ? true : false))),
-              workCompany: prev.personalInfo.workCompany || userProfileData.workCompany || '',
-              workPosition: prev.personalInfo.workPosition || userProfileData.workPosition || '',
-              workStartDate: prev.personalInfo.workStartDate || userProfileData.workStartDate || '',
-              workEndDate: prev.personalInfo.workEndDate || userProfileData.workEndDate || '',
-              workDescription: prev.personalInfo.workDescription || userProfileData.workDescription || ''
+              firstName: userProfileData.firstName || '',
+              lastName: userProfileData.lastName || '',
+              email: user.email || '',
+              phone: userProfileData.phone || '',
+              whatsapp: userProfileData.whatsapp || '',
+              phoneCountry: userProfileData.phoneCountry || '',
+              whatsappCountry: userProfileData.whatsappCountry || '',
+              dateOfBirth: userProfileData.dateOfBirth || '',
+              nationality: Array.isArray(userProfileData.nationality) ? userProfileData.nationality : (userProfileData.nationality ? [userProfileData.nationality] : []),
+              address: userProfileData.address || '',
+              city: userProfileData.city || '',
+              country: Array.isArray(userProfileData.country) ? userProfileData.country[0] || '' : (userProfileData.country || ''),
+              postalCode: userProfileData.postalCode || '',
+              passportNumber: userProfileData.passportNumber || '',
+              passportAvailable: !!userProfileData.passportNumber
             }
           }));
         }
@@ -591,28 +546,25 @@ const ApplicationProcess = () => {
         if (userQualifications && Array.isArray(userQualifications)) {
           setUserQualifications(userQualifications);
           
-          // Note: Auto-adding default qualifications is disabled
-          // Users can manually add qualifications using the "Ajouter Baccalauréat & TCF" button
+          // Auto-add default qualifications if user has no qualifications yet
+          if (userQualifications.length === 0) {
+            console.log('No qualifications found, adding default qualifications...');
+            try {
+              await profileService.addDefaultQualifications();
+              // Reload qualifications after adding defaults
+              const updatedQualifications = await profileService.getQualifications();
+              setUserQualifications(updatedQualifications);
+              console.log('Default qualifications added successfully');
+            } catch (error) {
+              console.error('Error adding default qualifications:', error);
+            }
+          }
         }
         
         // Si on a un applicationId dans l'URL, charger cette application spécifique
         if (applicationId) {
           const specificApplication = await applicationService.getApplication(applicationId);
           setApplication(specificApplication);
-          
-          // Reload program from application to ensure we have the latest data including multiIntakes
-          if (specificApplication.program?.id) {
-            try {
-              const appProgramData = await programService.getProgram(specificApplication.program.id);
-              if (appProgramData.data) {
-                setProgram(appProgramData.data);
-                console.log('Program reloaded from application:', appProgramData.data);
-                console.log('Program multiIntakes:', appProgramData.data?.multiIntakes);
-              }
-            } catch (error) {
-              console.error('Error reloading program from application:', error);
-            }
-          }
           
           // Load existing form data from the specific application
           if (specificApplication.applicationData) {
@@ -621,57 +573,8 @@ const ApplicationProcess = () => {
               setFormData(prev => ({
                 ...prev,
                 personalInfo: {
-                  // Pre-fill from profile first, then override with saved application data
-                  firstName: appData.personalInfo.firstName || prev.personalInfo.firstName || userProfileData?.firstName || '',
-                  lastName: appData.personalInfo.lastName || prev.personalInfo.lastName || userProfileData?.lastName || '',
-                  email: appData.personalInfo.email || prev.personalInfo.email || user.email || userProfileData?.email || '',
-                  phone: appData.personalInfo.phone || prev.personalInfo.phone || userProfileData?.phone || '',
-                  whatsapp: appData.personalInfo.whatsapp || prev.personalInfo.whatsapp || userProfileData?.whatsapp || '',
-                  phoneCountry: appData.personalInfo.phoneCountry || prev.personalInfo.phoneCountry || userProfileData?.phoneCountry || '',
-                  whatsappCountry: appData.personalInfo.whatsappCountry || prev.personalInfo.whatsappCountry || userProfileData?.whatsappCountry || '',
-                  dateOfBirth: appData.personalInfo.dateOfBirth || prev.personalInfo.dateOfBirth || userProfileData?.dateOfBirth || '',
-                  gender: appData.personalInfo.gender || prev.personalInfo.gender || userProfileData?.gender || '',
-                  maritalStatus: appData.personalInfo.maritalStatus || prev.personalInfo.maritalStatus || userProfileData?.maritalStatus || '',
-                  countryOfBirth: appData.personalInfo.countryOfBirth || prev.personalInfo.countryOfBirth || userProfileData?.countryOfBirth || '',
-                  cityOfBirth: appData.personalInfo.cityOfBirth || prev.personalInfo.cityOfBirth || userProfileData?.cityOfBirth || '',
-                  nationality: (appData.personalInfo.nationality && appData.personalInfo.nationality.length > 0) 
-                    ? appData.personalInfo.nationality 
-                    : (prev.personalInfo.nationality && prev.personalInfo.nationality.length > 0 
-                      ? prev.personalInfo.nationality 
-                      : (Array.isArray(userProfileData?.nationality) ? userProfileData.nationality : (userProfileData?.nationality ? [userProfileData.nationality] : []))),
-                  address: appData.personalInfo.address || prev.personalInfo.address || userProfileData?.address || '',
-                  city: appData.personalInfo.city || prev.personalInfo.city || userProfileData?.city || '',
-                  country: appData.personalInfo.country || prev.personalInfo.country || (Array.isArray(userProfileData?.country) ? userProfileData.country[0] || '' : (userProfileData?.country || '')),
-                  postalCode: appData.personalInfo.postalCode || prev.personalInfo.postalCode || userProfileData?.postalCode || '',
-                  passportNumber: appData.personalInfo.passportNumber || prev.personalInfo.passportNumber || userProfileData?.passportNumber || '',
-                  passportAvailable: appData.personalInfo.passportAvailable !== undefined ? appData.personalInfo.passportAvailable : (prev.personalInfo.passportAvailable !== undefined ? prev.personalInfo.passportAvailable : !!userProfileData?.passportNumber),
-                  passportExpirationDate: appData.personalInfo.passportExpirationDate || prev.personalInfo.passportExpirationDate || userProfileData?.passportExpirationDate || '',
-                  cinNumber: appData.personalInfo.cinNumber || prev.personalInfo.cinNumber || userProfileData?.cinNumber || '',
-                  alternateEmail: appData.personalInfo.alternateEmail || prev.personalInfo.alternateEmail || userProfileData?.alternateEmail || '',
-                  religion: appData.personalInfo.religion || prev.personalInfo.religion || userProfileData?.religion || '',
-                  nativeLanguage: appData.personalInfo.nativeLanguage || prev.personalInfo.nativeLanguage || userProfileData?.nativeLanguage || '',
-                  chineseName: appData.personalInfo.chineseName || prev.personalInfo.chineseName || userProfileData?.chineseName || '',
-                  wechatId: appData.personalInfo.wechatId || prev.personalInfo.wechatId || userProfileData?.wechatId || '',
-                  skypeNo: appData.personalInfo.skypeNo || prev.personalInfo.skypeNo || userProfileData?.skypeNo || '',
-                  emergencyContactName: appData.personalInfo.emergencyContactName || prev.personalInfo.emergencyContactName || userProfileData?.emergencyContactName || '',
-                  emergencyContactGender: appData.personalInfo.emergencyContactGender || prev.personalInfo.emergencyContactGender || userProfileData?.emergencyContactGender || '',
-                  emergencyContactRelationship: appData.personalInfo.emergencyContactRelationship || prev.personalInfo.emergencyContactRelationship || userProfileData?.emergencyContactRelationship || '',
-                  emergencyContactPhone: appData.personalInfo.emergencyContactPhone || prev.personalInfo.emergencyContactPhone || userProfileData?.emergencyContactPhone || '',
-                  emergencyContactEmail: appData.personalInfo.emergencyContactEmail || prev.personalInfo.emergencyContactEmail || userProfileData?.emergencyContactEmail || '',
-                  emergencyContactAddress: appData.personalInfo.emergencyContactAddress || prev.personalInfo.emergencyContactAddress || userProfileData?.emergencyContactAddress || '',
-                  // Determine hasWorkExperience: prioritize application data, then check if profile has work data
-                  hasWorkExperience: appData.personalInfo.hasWorkExperience !== undefined 
-                    ? appData.personalInfo.hasWorkExperience 
-                    : (prev.personalInfo.hasWorkExperience !== undefined && prev.personalInfo.firstName)
-                      ? prev.personalInfo.hasWorkExperience
-                      : (userProfileData?.hasWorkExperience !== undefined 
-                        ? userProfileData.hasWorkExperience 
-                        : (userProfileData?.workCompany || userProfileData?.workPosition || userProfileData?.workStartDate || userProfileData?.workEndDate || userProfileData?.workDescription ? true : false)),
-                  workCompany: appData.personalInfo.workCompany || prev.personalInfo.workCompany || userProfileData?.workCompany || '',
-                  workPosition: appData.personalInfo.workPosition || prev.personalInfo.workPosition || userProfileData?.workPosition || '',
-                  workStartDate: appData.personalInfo.workStartDate || prev.personalInfo.workStartDate || userProfileData?.workStartDate || '',
-                  workEndDate: appData.personalInfo.workEndDate || prev.personalInfo.workEndDate || userProfileData?.workEndDate || '',
-                  workDescription: appData.personalInfo.workDescription || prev.personalInfo.workDescription || userProfileData?.workDescription || ''
+                  ...prev.personalInfo, // Keep pre-filled profile data
+                  ...appData.personalInfo // Override with saved application data
                 }
               }));
             }
@@ -699,17 +602,6 @@ const ApplicationProcess = () => {
           if (specificApplication.currentStep) {
             setCurrentStep(specificApplication.currentStep);
           }
-          
-          // Load modification request status if application is submitted
-          if (specificApplication.status === 'submitted' || specificApplication.submittedAt) {
-            try {
-              const modificationStatus = await modificationRequestService.getModificationRequestStatus(specificApplication.id);
-              setModificationRequest(modificationStatus.data);
-              setModificationAllowed(modificationStatus.modificationAllowed);
-            } catch (error) {
-              console.error('Error loading modification request status:', error);
-            }
-          }
         } else {
           // Check for existing application
           const existingApplication = await applicationService.checkApplication(programData.id);
@@ -723,57 +615,8 @@ const ApplicationProcess = () => {
                 setFormData(prev => ({
                   ...prev,
                   personalInfo: {
-                    // Pre-fill from profile first, then override with saved application data
-                    firstName: appData.personalInfo.firstName || prev.personalInfo.firstName || userProfileData?.firstName || '',
-                    lastName: appData.personalInfo.lastName || prev.personalInfo.lastName || userProfileData?.lastName || '',
-                    email: appData.personalInfo.email || prev.personalInfo.email || user.email || userProfileData?.email || '',
-                    phone: appData.personalInfo.phone || prev.personalInfo.phone || userProfileData?.phone || '',
-                    whatsapp: appData.personalInfo.whatsapp || prev.personalInfo.whatsapp || userProfileData?.whatsapp || '',
-                    phoneCountry: appData.personalInfo.phoneCountry || prev.personalInfo.phoneCountry || userProfileData?.phoneCountry || '',
-                    whatsappCountry: appData.personalInfo.whatsappCountry || prev.personalInfo.whatsappCountry || userProfileData?.whatsappCountry || '',
-                    dateOfBirth: appData.personalInfo.dateOfBirth || prev.personalInfo.dateOfBirth || userProfileData?.dateOfBirth || '',
-                    gender: appData.personalInfo.gender || prev.personalInfo.gender || userProfileData?.gender || '',
-                    maritalStatus: appData.personalInfo.maritalStatus || prev.personalInfo.maritalStatus || userProfileData?.maritalStatus || '',
-                    countryOfBirth: appData.personalInfo.countryOfBirth || prev.personalInfo.countryOfBirth || userProfileData?.countryOfBirth || '',
-                    cityOfBirth: appData.personalInfo.cityOfBirth || prev.personalInfo.cityOfBirth || userProfileData?.cityOfBirth || '',
-                    nationality: (appData.personalInfo.nationality && appData.personalInfo.nationality.length > 0) 
-                      ? appData.personalInfo.nationality 
-                      : (prev.personalInfo.nationality && prev.personalInfo.nationality.length > 0 
-                        ? prev.personalInfo.nationality 
-                        : (Array.isArray(userProfileData?.nationality) ? userProfileData.nationality : (userProfileData?.nationality ? [userProfileData.nationality] : []))),
-                    address: appData.personalInfo.address || prev.personalInfo.address || userProfileData?.address || '',
-                    city: appData.personalInfo.city || prev.personalInfo.city || userProfileData?.city || '',
-                    country: appData.personalInfo.country || prev.personalInfo.country || (Array.isArray(userProfileData?.country) ? userProfileData.country[0] || '' : (userProfileData?.country || '')),
-                    postalCode: appData.personalInfo.postalCode || prev.personalInfo.postalCode || userProfileData?.postalCode || '',
-                    passportNumber: appData.personalInfo.passportNumber || prev.personalInfo.passportNumber || userProfileData?.passportNumber || '',
-                    passportAvailable: appData.personalInfo.passportAvailable !== undefined ? appData.personalInfo.passportAvailable : (prev.personalInfo.passportAvailable !== undefined ? prev.personalInfo.passportAvailable : !!userProfileData?.passportNumber),
-                    passportExpirationDate: appData.personalInfo.passportExpirationDate || prev.personalInfo.passportExpirationDate || userProfileData?.passportExpirationDate || '',
-                    cinNumber: appData.personalInfo.cinNumber || prev.personalInfo.cinNumber || userProfileData?.cinNumber || '',
-                    alternateEmail: appData.personalInfo.alternateEmail || prev.personalInfo.alternateEmail || userProfileData?.alternateEmail || '',
-                    religion: appData.personalInfo.religion || prev.personalInfo.religion || userProfileData?.religion || '',
-                    nativeLanguage: appData.personalInfo.nativeLanguage || prev.personalInfo.nativeLanguage || userProfileData?.nativeLanguage || '',
-                    chineseName: appData.personalInfo.chineseName || prev.personalInfo.chineseName || userProfileData?.chineseName || '',
-                    wechatId: appData.personalInfo.wechatId || prev.personalInfo.wechatId || userProfileData?.wechatId || '',
-                    skypeNo: appData.personalInfo.skypeNo || prev.personalInfo.skypeNo || userProfileData?.skypeNo || '',
-                    emergencyContactName: appData.personalInfo.emergencyContactName || prev.personalInfo.emergencyContactName || userProfileData?.emergencyContactName || '',
-                    emergencyContactGender: appData.personalInfo.emergencyContactGender || prev.personalInfo.emergencyContactGender || userProfileData?.emergencyContactGender || '',
-                    emergencyContactRelationship: appData.personalInfo.emergencyContactRelationship || prev.personalInfo.emergencyContactRelationship || userProfileData?.emergencyContactRelationship || '',
-                    emergencyContactPhone: appData.personalInfo.emergencyContactPhone || prev.personalInfo.emergencyContactPhone || userProfileData?.emergencyContactPhone || '',
-                    emergencyContactEmail: appData.personalInfo.emergencyContactEmail || prev.personalInfo.emergencyContactEmail || userProfileData?.emergencyContactEmail || '',
-                    emergencyContactAddress: appData.personalInfo.emergencyContactAddress || prev.personalInfo.emergencyContactAddress || userProfileData?.emergencyContactAddress || '',
-                    // Determine hasWorkExperience: prioritize application data, then check if profile has work data
-                    hasWorkExperience: appData.personalInfo.hasWorkExperience !== undefined 
-                      ? appData.personalInfo.hasWorkExperience 
-                      : (prev.personalInfo.hasWorkExperience !== undefined && prev.personalInfo.firstName)
-                        ? prev.personalInfo.hasWorkExperience
-                        : (userProfileData?.hasWorkExperience !== undefined 
-                          ? userProfileData.hasWorkExperience 
-                          : (userProfileData?.workCompany || userProfileData?.workPosition || userProfileData?.workStartDate || userProfileData?.workEndDate || userProfileData?.workDescription ? true : false)),
-                    workCompany: appData.personalInfo.workCompany || prev.personalInfo.workCompany || userProfileData?.workCompany || '',
-                    workPosition: appData.personalInfo.workPosition || prev.personalInfo.workPosition || userProfileData?.workPosition || '',
-                    workStartDate: appData.personalInfo.workStartDate || prev.personalInfo.workStartDate || userProfileData?.workStartDate || '',
-                    workEndDate: appData.personalInfo.workEndDate || prev.personalInfo.workEndDate || userProfileData?.workEndDate || '',
-                    workDescription: appData.personalInfo.workDescription || prev.personalInfo.workDescription || userProfileData?.workDescription || ''
+                    ...prev.personalInfo, // Keep pre-filled profile data
+                    ...appData.personalInfo // Override with saved application data
                   }
                 }));
               }
@@ -800,17 +643,6 @@ const ApplicationProcess = () => {
             // Set current step from application
             if (existingApplication.application.currentStep) {
               setCurrentStep(existingApplication.application.currentStep);
-            }
-            
-            // Load modification request status if application is submitted
-            if (existingApplication.application.status === 'submitted' || existingApplication.application.submittedAt) {
-              try {
-                const modificationStatus = await modificationRequestService.getModificationRequestStatus(existingApplication.application.id);
-                setModificationRequest(modificationStatus.data);
-                setModificationAllowed(modificationStatus.modificationAllowed);
-              } catch (error) {
-                console.error('Error loading modification request status:', error);
-              }
             }
           } else {
             // Create new application
@@ -876,36 +708,18 @@ const ApplicationProcess = () => {
     }
   }, [formData.preferences]);
 
-  // Note: Auto-save for personal info is disabled
-  // Users must manually save using the "Enregistrer" button
+  // Auto-save with debouncing
+  useEffect(() => {
+    if (!application || !formData.personalInfo.firstName) return;
+    
+    const timeoutId = setTimeout(() => {
+      saveApplicationProgress();
+    }, 2000); // Save after 2 seconds of inactivity
+    
+    return () => clearTimeout(timeoutId);
+  }, [formData.personalInfo, application]);
 
   // Step validation functions
-  // Calculate real progress based on actual step validations
-  const calculateRealProgress = () => {
-    let completedSteps = 0;
-    // Only count steps 1-5 for progress (step 6 is final steps, not part of completion)
-    const totalSteps = 5;
-    
-    // Step 1: Personal Information - based on validateStep1()
-    if (validateStep1()) completedSteps++;
-    
-    // Step 2: Academic Background - based on step2Validated
-    if (step2Validated) completedSteps++;
-    
-    // Step 3: Documents - based on step3Validated
-    if (step3Validated) completedSteps++;
-    
-    // Step 4: Preferences - based on step4Validated
-    if (step4Validated) completedSteps++;
-    
-    // Step 5: Review & Submit - based on step5Validated
-    if (step5Validated) completedSteps++;
-    
-    // Step 6 (Final Steps) is not counted in progress as it's a post-submission tracking step
-    
-    return Math.round((completedSteps / totalSteps) * 100);
-  };
-
   const validateStep1 = () => {
     const { personalInfo } = formData;
     return (
@@ -1119,6 +933,9 @@ const ApplicationProcess = () => {
       
       await applicationService.updateApplication(application.id, updateData);
       
+      // Sync with user profile if needed
+      await syncWithUserProfile();
+      
       setLastSaved(new Date());
       console.log('Application progress saved successfully');
     } catch (error) {
@@ -1128,88 +945,56 @@ const ApplicationProcess = () => {
     }
   };
 
-  // Save personal information to user profile manually
-  const savePersonalInfoToProfile = async () => {
+  // Sync application data with user profile (only fill empty fields)
+  const syncWithUserProfile = async () => {
     try {
-      setIsSaving(true);
-      const personalInfo = formData.personalInfo;
+      const currentProfile = await profileService.getProfile();
+      const updates = {};
       
-      const updates = {
-        // Basic Information
-        firstName: personalInfo.firstName,
-        lastName: personalInfo.lastName,
-        email: personalInfo.email,
-        dateOfBirth: personalInfo.dateOfBirth,
-        gender: personalInfo.gender,
-        maritalStatus: personalInfo.maritalStatus,
-        
-        // Birth Information
-        countryOfBirth: personalInfo.countryOfBirth,
-        cityOfBirth: personalInfo.cityOfBirth,
-        nationality: personalInfo.nationality,
-        
-        // Contact Information
-        phone: personalInfo.phone,
-        phoneCountry: personalInfo.phoneCountry,
-        whatsapp: personalInfo.whatsapp,
-        whatsappCountry: personalInfo.whatsappCountry,
-        alternateEmail: personalInfo.alternateEmail,
-        
-        // Address Information
-        address: personalInfo.address,
-        city: personalInfo.city,
-        country: personalInfo.country,
-        postalCode: personalInfo.postalCode,
-        
-        // Official Documents
-        passportNumber: personalInfo.passportNumber,
-        passportExpirationDate: personalInfo.passportExpirationDate,
-        cinNumber: personalInfo.cinNumber,
-        
-        // Additional Information
-        religion: personalInfo.religion,
-        nativeLanguage: personalInfo.nativeLanguage,
-        chineseName: personalInfo.chineseName,
-        
-        // Communication
-        wechatId: personalInfo.wechatId,
-        skypeNo: personalInfo.skypeNo,
-        
-        // Emergency Contact Information
-        emergencyContactName: personalInfo.emergencyContactName,
-        emergencyContactGender: personalInfo.emergencyContactGender,
-        emergencyContactRelationship: personalInfo.emergencyContactRelationship,
-        emergencyContactPhone: personalInfo.emergencyContactPhone,
-        emergencyContactEmail: personalInfo.emergencyContactEmail,
-        emergencyContactAddress: personalInfo.emergencyContactAddress,
-        
-        // Work Experience Information
-        hasWorkExperience: personalInfo.hasWorkExperience,
-        workCompany: personalInfo.workCompany,
-        workPosition: personalInfo.workPosition,
-        workStartDate: personalInfo.workStartDate,
-        workEndDate: personalInfo.workEndDate,
-        workDescription: personalInfo.workDescription
-      };
+      // Only update profile fields that are empty
+      if (!currentProfile.firstName && formData.personalInfo.firstName) {
+        updates.firstName = formData.personalInfo.firstName;
+      }
+      if (!currentProfile.lastName && formData.personalInfo.lastName) {
+        updates.lastName = formData.personalInfo.lastName;
+      }
+      if (!currentProfile.phone && formData.personalInfo.phone) {
+        updates.phone = formData.personalInfo.phone;
+        updates.phoneCountry = formData.personalInfo.phoneCountry;
+      }
+      if (!currentProfile.whatsapp && formData.personalInfo.whatsapp) {
+        updates.whatsapp = formData.personalInfo.whatsapp;
+        updates.whatsappCountry = formData.personalInfo.whatsappCountry;
+      }
+      if (!currentProfile.dateOfBirth && formData.personalInfo.dateOfBirth) {
+        updates.dateOfBirth = formData.personalInfo.dateOfBirth;
+      }
+      if (!currentProfile.nationality && formData.personalInfo.nationality && formData.personalInfo.nationality.length > 0) {
+        updates.nationality = formData.personalInfo.nationality;
+      }
+      if (!currentProfile.address && formData.personalInfo.address) {
+        updates.address = formData.personalInfo.address;
+      }
+      if (!currentProfile.city && formData.personalInfo.city) {
+        updates.city = formData.personalInfo.city;
+      }
+      if (!currentProfile.country && formData.personalInfo.country) {
+        updates.country = formData.personalInfo.country;
+      }
+      if (!currentProfile.postalCode && formData.personalInfo.postalCode) {
+        updates.postalCode = formData.personalInfo.postalCode;
+      }
+      if (!currentProfile.passportNumber && formData.personalInfo.passportNumber) {
+        updates.passportNumber = formData.personalInfo.passportNumber;
+      }
       
-      console.log('Saving personal info to profile:', updates);
-      await profileService.updateProfile(updates);
-      console.log('Personal information saved to profile successfully');
-      
-      // Show success message
-      alert(language === 'en' 
-        ? 'Personal information saved to profile successfully!' 
-        : 'Informations personnelles sauvegardées dans le profil avec succès !'
-      );
-      
+      // Only update if there are changes to make
+      if (Object.keys(updates).length > 0) {
+        await profileService.updateProfile(updates);
+        console.log('Profile updated with application data:', updates);
+      }
     } catch (error) {
-      console.error('Error saving personal info to profile:', error);
-      alert(language === 'en' 
-        ? 'Error saving personal information. Please try again.' 
-        : 'Erreur lors de la sauvegarde des informations personnelles. Veuillez réessayer.'
-      );
-    } finally {
-      setIsSaving(false);
+      console.error('Error syncing with user profile:', error);
     }
   };
 
@@ -1325,19 +1110,6 @@ const ApplicationProcess = () => {
       if (newStep === 5) {
         refreshDataForReview();
       }
-      
-      // Refresh final steps when reaching step 6 (Final Steps)
-      if (newStep === 6) {
-        const refreshFinalSteps = async () => {
-          try {
-            const updatedFinalSteps = await finalStepService.getFinalSteps(language);
-            setFinalSteps(updatedFinalSteps);
-          } catch (error) {
-            console.error('Error refreshing final steps:', error);
-          }
-        };
-        refreshFinalSteps();
-      }
     }
   };
 
@@ -1347,7 +1119,7 @@ const ApplicationProcess = () => {
     }
   };
 
-  const handleDownloadDocument = async (documentId, fileName) => {
+  const handleDownloadDocument = async (documentId: number, fileName: string) => {
     try {
       const blob = await finalStepService.downloadDocument(documentId);
       const url = window.URL.createObjectURL(blob);
@@ -1364,28 +1136,6 @@ const ApplicationProcess = () => {
     }
   };
 
-  const handleRequestModification = async () => {
-    if (!application || !modificationReason.trim()) {
-      alert(language === 'en' ? 'Please provide a reason for the modification request' : 'Veuillez fournir une raison pour la demande de modification');
-      return;
-    }
-
-    try {
-      const result = await modificationRequestService.createModificationRequest(application.id, modificationReason);
-      setModificationRequest(result.data);
-      setShowModificationModal(false);
-      setModificationReason('');
-      alert(language === 'en' 
-        ? 'Modification request submitted successfully. You will be notified when it is reviewed.' 
-        : 'Demande de modification soumise avec succès. Vous serez notifié lorsqu\'elle sera examinée.');
-    } catch (error) {
-      console.error('Error creating modification request:', error);
-      alert(language === 'en' 
-        ? 'Failed to submit modification request' 
-        : 'Échec de la soumission de la demande de modification');
-    }
-  };
-
   const handleSubmit = async () => {
     if (!application) return;
     
@@ -1394,8 +1144,8 @@ const ApplicationProcess = () => {
       console.log('Final preferences data before submission:', formData.preferences);
       console.log('Selected intake:', formData.preferences?.intake);
       
-      // Validate that intake is selected if program has intakes available
-      if (program && program.multiIntakes && program.multiIntakes.length > 0 && !formData.preferences.intake) {
+      // Validate that intake is selected if program has multiple intakes
+      if (program && program.multiIntakes && program.multiIntakes.length > 1 && !formData.preferences.intake) {
         alert(language === 'en' ? 'Please select a preferred intake before submitting.' : 'Veuillez sélectionner une période d\'admission préférée avant de soumettre.');
         return;
       }
@@ -1422,34 +1172,6 @@ const ApplicationProcess = () => {
       // Validate step 5 (Review & Submit) automatically upon successful submission
       await profileService.saveStep5Validation(true);
       setStep5Validated(true);
-      
-      // Reload application data to get updated status
-      const updatedApplication = await applicationService.getApplication(application.id);
-      setApplication(updatedApplication);
-      
-      // Reload final steps data before activating pre-admission step
-      try {
-        const refreshedFinalSteps = await finalStepService.getFinalSteps(language);
-        setFinalSteps(refreshedFinalSteps);
-        
-        // Activate pre-admission step (first final step) after submission
-        const preAdmissionStep = refreshedFinalSteps.find(step => step.order === 1);
-        if (preAdmissionStep) {
-          await finalStepService.updateFinalStepStatus(preAdmissionStep.id, {
-            status: 'in_progress',
-            notes: language === 'en' 
-              ? 'Application submitted successfully. Your application is now under review.'
-              : 'Candidature soumise avec succès. Votre candidature est maintenant en cours d\'examen.'
-          });
-          
-          // Refresh final steps again to show updated status
-          const updatedFinalSteps = await finalStepService.getFinalSteps(language);
-          setFinalSteps(updatedFinalSteps);
-        }
-      } catch (error) {
-        console.error('Error activating pre-admission step:', error);
-        // Don't block the submission if this fails
-      }
       
       alert(language === 'en' ? 'Application submitted successfully!' : 'Candidature soumise avec succès!');
       
@@ -1528,89 +1250,6 @@ const ApplicationProcess = () => {
     );
   };
 
-  // Translation functions for field values
-  const translateGender = (gender) => {
-    const translations = {
-      'male': { en: 'Male', fr: 'Masculin' },
-      'female': { en: 'Female', fr: 'Féminin' },
-      'other': { en: 'Other', fr: 'Autre' }
-    };
-    return translations[gender]?.[language] || gender;
-  };
-
-  const translateMaritalStatus = (status) => {
-    const translations = {
-      'single': { en: 'Single', fr: 'Célibataire' },
-      'married': { en: 'Married', fr: 'Marié(e)' },
-      'divorced': { en: 'Divorced', fr: 'Divorcé(e)' },
-      'widowed': { en: 'Widowed', fr: 'Veuf(ve)' }
-    };
-    return translations[status]?.[language] || status;
-  };
-
-  const translateQualificationType = (type) => {
-    const translations = {
-      'academic': { en: 'Academic', fr: 'Académique' },
-      'language': { en: 'Language Test', fr: 'Test de Langue' },
-      'standardized': { en: 'Standardized Test', fr: 'Test Standardisé' }
-    };
-    return translations[type]?.[language] || type;
-  };
-
-  const translateRelationship = (relationship) => {
-    const translations = {
-      'parent': { en: 'Parent', fr: 'Parent' },
-      'guardian': { en: 'Guardian', fr: 'Tuteur' },
-      'spouse': { en: 'Spouse', fr: 'Conjoint(e)' },
-      'sibling': { en: 'Sibling', fr: 'Frère/Sœur' },
-      'other': { en: 'Other', fr: 'Autre' }
-    };
-    return translations[relationship]?.[language] || relationship;
-  };
-
-  const translateYesNo = (value) => {
-    if (value === true || value === 'yes' || value === 'Yes') {
-      return language === 'en' ? 'Yes' : 'Oui';
-    }
-    if (value === false || value === 'no' || value === 'No') {
-      return language === 'en' ? 'No' : 'Non';
-    }
-    return value;
-  };
-
-  const translateField = (fieldKey) => {
-    // Try to get translation from allParams if available
-    if (allParams?.fields) {
-      const field = allParams.fields.find(f => f.code === fieldKey);
-      if (field) {
-        return language === 'fr' ? field.nameFr : field.nameEn;
-      }
-    }
-    return fieldKey;
-  };
-
-  const translateDegree = (degree) => {
-    const translations = {
-      'bachelor': { en: 'Bachelor', fr: 'Licence' },
-      'master': { en: 'Master', fr: 'Master' },
-      'phd': { en: 'PhD', fr: 'Doctorat' },
-      'diploma': { en: 'Diploma', fr: 'Diplôme' },
-      'certificate': { en: 'Certificate', fr: 'Certificat' }
-    };
-    return translations[degree?.toLowerCase()]?.[language] || degree;
-  };
-
-  const translateAcademicQualification = (qualificationKey) => {
-    // Try to get translation from allParams if available
-    if (allParams?.degrees) {
-      const degree = allParams.degrees.find(d => d.code === qualificationKey);
-      if (degree) {
-        return language === 'fr' ? degree.nameFr : degree.nameEn;
-      }
-    }
-    return qualificationKey;
-  };
-
   const renderStepContent = () => {
     switch (currentStep) {
       case 1:
@@ -1649,7 +1288,6 @@ const ApplicationProcess = () => {
                     value={formData.personalInfo.firstName}
                     onChange={(e) => handleInputChange('personalInfo', 'firstName', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    disabled={isReadOnly}
                     required
                   />
                 </div>
@@ -1663,7 +1301,6 @@ const ApplicationProcess = () => {
                     value={formData.personalInfo.lastName}
                     onChange={(e) => handleInputChange('personalInfo', 'lastName', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    disabled={isReadOnly}
                     required
                   />
                 </div>
@@ -1677,7 +1314,6 @@ const ApplicationProcess = () => {
                     value={formData.personalInfo.dateOfBirth}
                     onChange={(e) => handleInputChange('personalInfo', 'dateOfBirth', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    disabled={isReadOnly}
                     required
                   />
                 </div>
@@ -1693,7 +1329,6 @@ const ApplicationProcess = () => {
                     placeholder={language === 'en' ? 'Select country of birth...' : 'Sélectionner le pays de naissance...'}
                     searchPlaceholder={language === 'en' ? 'Search countries...' : 'Rechercher des pays...'}
                     className="w-full"
-                    disabled={isReadOnly}
                   />
                 </div>
                 
@@ -1707,7 +1342,6 @@ const ApplicationProcess = () => {
                     onChange={(e) => handleInputChange('personalInfo', 'cityOfBirth', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                     placeholder={language === 'en' ? 'Enter your city of birth' : 'Saisissez votre ville de naissance'}
-                    disabled={isReadOnly}
                     required
                   />
                 </div>
@@ -1723,7 +1357,6 @@ const ApplicationProcess = () => {
                     placeholder={language === 'en' ? 'Select nationalities...' : 'Sélectionner les nationalités...'}
                     searchPlaceholder={language === 'en' ? 'Search nationalities...' : 'Rechercher des nationalités...'}
                     className="w-full"
-                    disabled={isReadOnly}
                   />
                 </div>
                 
@@ -1735,7 +1368,6 @@ const ApplicationProcess = () => {
                     value={formData.personalInfo.gender}
                     onChange={(e) => handleInputChange('personalInfo', 'gender', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    disabled={isReadOnly}
                     required
                   >
                     <option value="">{language === 'en' ? 'Select gender' : 'Sélectionner le genre'}</option>
@@ -1753,7 +1385,6 @@ const ApplicationProcess = () => {
                     value={formData.personalInfo.maritalStatus}
                     onChange={(e) => handleInputChange('personalInfo', 'maritalStatus', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    disabled={isReadOnly}
                   >
                     <option value="">{language === 'en' ? 'Select status' : 'Sélectionner le statut'}</option>
                     <option value="single">{language === 'en' ? 'Single' : 'Célibataire'}</option>
@@ -1781,7 +1412,6 @@ const ApplicationProcess = () => {
                     value={formData.personalInfo.email}
                     onChange={(e) => handleInputChange('personalInfo', 'email', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    disabled={isReadOnly}
                     required
                   />
                 </div>
@@ -1795,7 +1425,6 @@ const ApplicationProcess = () => {
                   }}
                   placeholder={language === 'en' ? 'Enter phone number' : 'Entrez le numéro de téléphone'}
                   className="w-full"
-                  disabled={isReadOnly}
                 />
                 
                 <PhoneInput
@@ -1807,7 +1436,6 @@ const ApplicationProcess = () => {
                   }}
                   placeholder={language === 'en' ? 'Enter WhatsApp number' : 'Entrez le numéro WhatsApp'}
                   className="w-full"
-                  disabled={isReadOnly}
                 />
               </div>
             </div>
@@ -1828,7 +1456,6 @@ const ApplicationProcess = () => {
                     value={formData.personalInfo.address}
                     onChange={(e) => handleInputChange('personalInfo', 'address', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    disabled={isReadOnly}
                     required
                   />
                 </div>
@@ -1842,7 +1469,6 @@ const ApplicationProcess = () => {
                     value={formData.personalInfo.city}
                     onChange={(e) => handleInputChange('personalInfo', 'city', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    disabled={isReadOnly}
                     required
                   />
                 </div>
@@ -1856,7 +1482,6 @@ const ApplicationProcess = () => {
                     value={formData.personalInfo.country}
                     onChange={(e) => handleInputChange('personalInfo', 'country', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    disabled={isReadOnly}
                     required
                   />
                 </div>
@@ -1870,7 +1495,6 @@ const ApplicationProcess = () => {
                     value={formData.personalInfo.postalCode}
                     onChange={(e) => handleInputChange('personalInfo', 'postalCode', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    disabled={isReadOnly}
                     required
                   />
                 </div>
@@ -1894,7 +1518,6 @@ const ApplicationProcess = () => {
                     onChange={(e) => handleInputChange('personalInfo', 'cinNumber', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                     placeholder={language === 'en' ? 'Enter your CIN number' : 'Saisissez votre numéro CIN'}
-                    disabled={isReadOnly}
                     required
                   />
                 </div>
@@ -1907,7 +1530,6 @@ const ApplicationProcess = () => {
                       checked={formData.personalInfo.passportAvailable}
                       onChange={(e) => handleInputChange('personalInfo', 'passportAvailable', e.target.checked)}
                       className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      disabled={isReadOnly}
                     />
                     <span className="text-sm font-medium text-gray-700">
                       {language === 'en' ? 'I have a passport available' : 'J\'ai un passeport disponible'}
@@ -1928,7 +1550,6 @@ const ApplicationProcess = () => {
                         onChange={(e) => handleInputChange('personalInfo', 'passportNumber', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         placeholder={language === 'en' ? 'Enter your passport number' : 'Saisissez votre numéro de passeport'}
-                        disabled={isReadOnly}
                         required
                       />
                     </div>
@@ -1942,7 +1563,6 @@ const ApplicationProcess = () => {
                         value={formData.personalInfo.passportExpirationDate}
                         onChange={(e) => handleInputChange('personalInfo', 'passportExpirationDate', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                        disabled={isReadOnly}
                         required
                       />
                     </div>
@@ -1969,7 +1589,6 @@ const ApplicationProcess = () => {
                     onChange={(e) => handleInputChange('personalInfo', 'emergencyContactName', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                     placeholder={language === 'en' ? 'Enter emergency contact name' : 'Saisissez le nom du contact d\'urgence'}
-                    disabled={isReadOnly}
                     required
                   />
                 </div>
@@ -1982,7 +1601,6 @@ const ApplicationProcess = () => {
                     value={formData.personalInfo.emergencyContactGender}
                     onChange={(e) => handleInputChange('personalInfo', 'emergencyContactGender', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    disabled={isReadOnly}
                     required
                   >
                     <option value="">{language === 'en' ? 'Select gender' : 'Sélectionner le genre'}</option>
@@ -2000,7 +1618,6 @@ const ApplicationProcess = () => {
                     value={formData.personalInfo.emergencyContactRelationship}
                     onChange={(e) => handleInputChange('personalInfo', 'emergencyContactRelationship', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                    disabled={isReadOnly}
                     required
                   >
                     <option value="">{language === 'en' ? 'Select relationship' : 'Sélectionner la relation'}</option>
@@ -2021,7 +1638,6 @@ const ApplicationProcess = () => {
                   }}
                   placeholder={language === 'en' ? 'Enter emergency contact phone' : 'Entrez le téléphone du contact d\'urgence'}
                   className="w-full"
-                  disabled={isReadOnly}
                 />
                 
                 <div>
@@ -2034,7 +1650,6 @@ const ApplicationProcess = () => {
                     onChange={(e) => handleInputChange('personalInfo', 'emergencyContactEmail', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                     placeholder={language === 'en' ? 'Enter emergency contact email' : 'Saisissez l\'email du contact d\'urgence'}
-                    disabled={isReadOnly}
                     required
                   />
                 </div>
@@ -2049,7 +1664,6 @@ const ApplicationProcess = () => {
                     onChange={(e) => handleInputChange('personalInfo', 'emergencyContactAddress', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                     placeholder={language === 'en' ? 'Enter emergency contact address' : 'Saisissez l\'adresse du contact d\'urgence'}
-                    disabled={isReadOnly}
                     required
                   />
                 </div>
@@ -2071,7 +1685,6 @@ const ApplicationProcess = () => {
                     checked={formData.personalInfo.hasWorkExperience}
                     onChange={(e) => handleInputChange('personalInfo', 'hasWorkExperience', e.target.checked)}
                     className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                    disabled={isReadOnly}
                   />
                   <span className="text-sm font-medium text-gray-700">
                     {language === 'en' ? 'I have work experience' : 'J\'ai une expérience professionnelle'}
@@ -2092,7 +1705,6 @@ const ApplicationProcess = () => {
                       onChange={(e) => handleInputChange('personalInfo', 'workCompany', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                       placeholder={language === 'en' ? 'Enter company name' : 'Saisissez le nom de l\'entreprise'}
-                      disabled={isReadOnly}
                       required
                     />
                   </div>
@@ -2107,7 +1719,6 @@ const ApplicationProcess = () => {
                       onChange={(e) => handleInputChange('personalInfo', 'workPosition', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                       placeholder={language === 'en' ? 'Enter your position' : 'Saisissez votre poste'}
-                      disabled={isReadOnly}
                       required
                     />
                   </div>
@@ -2121,7 +1732,6 @@ const ApplicationProcess = () => {
                       value={formData.personalInfo.workStartDate}
                       onChange={(e) => handleInputChange('personalInfo', 'workStartDate', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                      disabled={isReadOnly}
                       required
                     />
                   </div>
@@ -2136,7 +1746,6 @@ const ApplicationProcess = () => {
                       onChange={(e) => handleInputChange('personalInfo', 'workEndDate', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                       placeholder={language === 'en' ? 'Leave empty if still working' : 'Laissez vide si vous travaillez encore'}
-                      disabled={isReadOnly}
                     />
                   </div>
                   
@@ -2150,45 +1759,10 @@ const ApplicationProcess = () => {
                       rows={3}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                       placeholder={language === 'en' ? 'Describe your responsibilities and achievements' : 'Décrivez vos responsabilités et réalisations'}
-                      disabled={isReadOnly}
                     />
                   </div>
                 </div>
               )}
-            </div>
-            
-            {/* Save Personal Information Button */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h4 className="text-lg font-semibold text-blue-900 mb-2">
-                    {language === 'en' ? 'Save to Profile' : 'Sauvegarder dans le Profil'}
-                  </h4>
-                  <p className="text-sm text-blue-700">
-                    {language === 'en' 
-                      ? 'Save your personal information to your profile for future applications'
-                      : 'Sauvegardez vos informations personnelles dans votre profil pour les futures candidatures'
-                    }
-                  </p>
-                </div>
-                <button
-                  onClick={savePersonalInfoToProfile}
-                  disabled={isSaving || isReadOnly}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                >
-                  {isSaving ? (
-                    <>
-                      <Clock className="w-4 h-4 animate-spin" />
-                      {language === 'en' ? 'Saving...' : 'Sauvegarde...'}
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4" />
-                      {language === 'en' ? 'Save to Profile' : 'Enregistrer dans le Profil'}
-                    </>
-                  )}
-                </button>
-              </div>
             </div>
             
           </div>
@@ -2211,40 +1785,6 @@ const ApplicationProcess = () => {
                 <p className="text-sm text-gray-600">
                   {language === 'en' ? 'Your educational and language background' : 'Votre parcours éducatif et linguistique'}
                 </p>
-              </div>
-            </div>
-
-            {/* Informative Note for France Requirements */}
-            <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4 mb-6">
-              <div className="flex items-start gap-3">
-                <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <h4 className="text-sm font-semibold text-blue-900 mb-2">
-                    {language === 'en' ? 'Important Information for Studies in France' : 'Information Importante pour les Études en France'}
-                  </h4>
-                  <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
-                    <li>
-                      {language === 'en' 
-                        ? 'To study in France, you must add your Baccalauréat and all diplomas you hold.'
-                        : 'Pour étudier en France, vous devez ajouter le baccalauréat et tous les diplômes que vous disposez.'}
-                    </li>
-                    <li>
-                      {language === 'en' 
-                        ? 'TCF is mandatory for studies in French, except in case of exemption.'
-                        : 'Le TCF est obligatoire pour les études en français, sauf en cas de dispense.'}
-                    </li>
-                    <li>
-                      {language === 'en' 
-                        ? 'TOEFL is mandatory for studies in English, except in case of exemption.'
-                        : 'Le TOEFL est obligatoire pour les études en anglais, sauf en cas de dispense.'}
-                    </li>
-                    <li>
-                      {language === 'en' 
-                        ? 'Standardized tests are not required for studies in France.'
-                        : 'Pour les tests standardisés, pas besoin en France.'}
-                    </li>
-                  </ul>
-                </div>
               </div>
             </div>
             
@@ -2398,8 +1938,8 @@ const ApplicationProcess = () => {
               {console.log('Preferences step - MultiIntakes:', program?.multiIntakes)}
               {console.log('Preferences step - MultiIntakes length:', program?.multiIntakes?.length)}
               
-              {/* Check if program has intakes available */}
-              {program && program.multiIntakes && program.multiIntakes.length > 0 ? (
+              {/* Check if program has multiple intakes available */}
+              {program && program.multiIntakes && program.multiIntakes.length > 1 ? (
                 <div className="md:col-span-2 lg:col-span-3">
                   <label className="block text-xs font-medium text-gray-700 mb-4">
                     {language === 'en' ? 'Preferred Intake' : 'Période d\'Admission Préférée'} *
@@ -2519,33 +2059,42 @@ const ApplicationProcess = () => {
                     })}
                   </div>
                 </div>
-              ) : null}
+              ) : (
+                <div className="md:col-span-2 lg:col-span-3">
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                    {language === 'en' ? 'Additional Information' : 'Informations Supplémentaires'}
+                  </label>
+                  <textarea
+                    value={formData.preferences.additionalInfo}
+                    onChange={(e) => handleInputChange('preferences', 'additionalInfo', e.target.value)}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder={language === 'en' ? 'Any additional information you would like to share...' : 'Toute information supplémentaire que vous souhaitez partager...'}
+                  />
+                </div>
+              )}
               
-              {/* Always show additional info input */}
-              <div className="md:col-span-2 lg:col-span-3">
-                <label className="block text-xs font-medium text-gray-700 mb-2">
-                  {language === 'en' ? 'Additional Information' : 'Informations Supplémentaires'}
-                </label>
-                <textarea
-                  value={formData.preferences.additionalInfo}
-                  onChange={(e) => handleInputChange('preferences', 'additionalInfo', e.target.value)}
-                  rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder={language === 'en' ? 'Any additional information you would like to share...' : 'Toute information supplémentaire que vous souhaitez partager...'}
-                  disabled={isReadOnly}
-                />
-              </div>
+              {/* Always show additional info input if intakes are available */}
+              {program && program.multiIntakes && program.multiIntakes.length > 1 && (
+                <div className="md:col-span-2 lg:col-span-3">
+                  <label className="block text-xs font-medium text-gray-700 mb-2">
+                    {language === 'en' ? 'Additional Information' : 'Informations Supplémentaires'}
+                  </label>
+                  <textarea
+                    value={formData.preferences.additionalInfo}
+                    onChange={(e) => handleInputChange('preferences', 'additionalInfo', e.target.value)}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    placeholder={language === 'en' ? 'Any additional information you would like to share...' : 'Toute information supplémentaire que vous souhaitez partager...'}
+                  />
+                </div>
+              )}
               </div>
             </div>
           </div>
         );
 
       case 5:
-        // Use submittedData if application is submitted, otherwise use formData
-        const reviewData = isReadOnly && application?.submittedData 
-          ? { ...formData, ...application.submittedData } 
-          : formData;
-        
         return (
           <div className="space-y-6">
             {/* Admission Team Note */}
@@ -2562,14 +2111,14 @@ const ApplicationProcess = () => {
                   <p className="text-gray-600">{program?.establishment?.name}</p>
                   <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                     <span>📍 {program?.establishment?.country}</span>
-                    <span>🎓 {translateDegree(program?.degree)}</span>
+                    <span>🎓 {program?.degree}</span>
                     <span>⏱️ {program?.duration} {program?.durationUnit}</span>
                   </div>
                 </div>
-                {reviewData.preferences?.intake && (
+                {formData.preferences.intake && (
                   <div className="text-right">
                     <div className="text-sm text-gray-500">{language === 'en' ? 'Preferred Intake' : 'Période Préférée'}</div>
-                    <div className="font-semibold text-blue-600">{formatIntakeName(reviewData.preferences.intake, language)}</div>
+                    <div className="font-semibold text-blue-600">{formatIntakeName(formData.preferences.intake, language)}</div>
                   </div>
                 )}
               </div>
@@ -2601,43 +2150,43 @@ const ApplicationProcess = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'First Name' : 'Prénom'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.firstName || formData.personalInfo.firstName}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.firstName}</p>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Last Name' : 'Nom'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.lastName || formData.personalInfo.lastName}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.lastName}</p>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Date of Birth' : 'Date de Naissance'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.dateOfBirth || formData.personalInfo.dateOfBirth}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.dateOfBirth}</p>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Country of Birth' : 'Pays de Naissance'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.countryOfBirth || formData.personalInfo.countryOfBirth}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.countryOfBirth}</p>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'City of Birth' : 'Ville de Naissance'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.cityOfBirth || formData.personalInfo.cityOfBirth}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.cityOfBirth}</p>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Gender' : 'Genre'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{translateGender(reviewData.personalInfo?.gender || formData.personalInfo.gender)}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.gender}</p>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Marital Status' : 'Statut Matrimonial'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{translateMaritalStatus(reviewData.personalInfo?.maritalStatus || formData.personalInfo.maritalStatus)}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.maritalStatus}</p>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Nationality' : 'Nationalité'}</label>
                           <p className="text-sm font-semibold text-gray-900">
-                            {Array.isArray(reviewData.personalInfo?.nationality || formData.personalInfo.nationality) 
-                              ? (reviewData.personalInfo?.nationality || formData.personalInfo.nationality).join(', ') 
-                              : (reviewData.personalInfo?.nationality || formData.personalInfo.nationality)}
+                            {Array.isArray(formData.personalInfo.nationality) 
+                              ? formData.personalInfo.nationality.join(', ') 
+                              : formData.personalInfo.nationality}
                           </p>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Country' : 'Pays'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.country || formData.personalInfo.country}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.country}</p>
                         </div>
                       </div>
                     </div>
@@ -2672,7 +2221,7 @@ const ApplicationProcess = () => {
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                   <div className="space-y-1">
                                     <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Type' : 'Type'}</label>
-                                    <p className="text-sm font-semibold text-gray-900">{translateQualificationType(qualification.type)}</p>
+                                    <p className="text-sm font-semibold text-gray-900">{qualification.type}</p>
                                   </div>
                                   <div className="space-y-1">
                                     <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Title' : 'Titre'}</label>
@@ -2684,7 +2233,7 @@ const ApplicationProcess = () => {
                                   </div>
                                   <div className="space-y-1">
                                     <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Field' : 'Domaine'}</label>
-                                    <p className="text-sm font-semibold text-gray-900">{translateField(qualification.field) || 'Non renseigné'}</p>
+                                    <p className="text-sm font-semibold text-gray-900">{qualification.field || 'Non renseigné'}</p>
                                   </div>
                                   <div className="space-y-1">
                                     <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Score' : 'Score'}</label>
@@ -2692,7 +2241,7 @@ const ApplicationProcess = () => {
                                   </div>
                                   <div className="space-y-1">
                                     <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Academic Qualification' : 'Qualification Académique'}</label>
-                                    <p className="text-sm font-semibold text-gray-900">{translateAcademicQualification(qualification.academicQualification) || 'Non renseigné'}</p>
+                                    <p className="text-sm font-semibold text-gray-900">{qualification.academicQualification || 'Non renseigné'}</p>
                                   </div>
                                 </div>
                               </div>
@@ -2721,15 +2270,15 @@ const ApplicationProcess = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Email' : 'Email'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.email || formData.personalInfo.email}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.email}</p>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Phone' : 'Téléphone'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.phone || formData.personalInfo.phone}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.phone}</p>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'WhatsApp' : 'WhatsApp'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.whatsapp || formData.personalInfo.whatsapp}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.whatsapp}</p>
                         </div>
                       </div>
                     </div>
@@ -2749,19 +2298,19 @@ const ApplicationProcess = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Address' : 'Adresse'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.address || formData.personalInfo.address}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.address}</p>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'City' : 'Ville'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.city || formData.personalInfo.city}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.city}</p>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Country' : 'Pays'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.country || formData.personalInfo.country}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.country}</p>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Postal Code' : 'Code Postal'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.postalCode || formData.personalInfo.postalCode}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.postalCode}</p>
                         </div>
                       </div>
                     </div>
@@ -2781,17 +2330,17 @@ const ApplicationProcess = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'CIN Number' : 'Numéro CIN'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.cinNumber || formData.personalInfo.cinNumber}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.cinNumber}</p>
                         </div>
-                        {(reviewData.personalInfo?.passportAvailable || formData.personalInfo.passportAvailable) && (
+                        {formData.personalInfo.passportAvailable && (
                           <>
                             <div className="space-y-1">
                               <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Passport Number' : 'Numéro de Passeport'}</label>
-                              <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.passportNumber || formData.personalInfo.passportNumber}</p>
+                              <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.passportNumber}</p>
                             </div>
                             <div className="space-y-1">
                               <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Passport Expiration' : 'Expiration Passeport'}</label>
-                              <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.passportExpirationDate || formData.personalInfo.passportExpirationDate}</p>
+                              <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.passportExpirationDate}</p>
                             </div>
                           </>
                         )}
@@ -2813,27 +2362,27 @@ const ApplicationProcess = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Name' : 'Nom'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.emergencyContactName || formData.personalInfo.emergencyContactName}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.emergencyContactName}</p>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Gender' : 'Genre'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{translateGender(reviewData.personalInfo?.emergencyContactGender || formData.personalInfo.emergencyContactGender)}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.emergencyContactGender}</p>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Relationship' : 'Relation'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{translateRelationship(reviewData.personalInfo?.emergencyContactRelationship || formData.personalInfo.emergencyContactRelationship)}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.emergencyContactRelationship}</p>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Phone' : 'Téléphone'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.emergencyContactPhone || formData.personalInfo.emergencyContactPhone}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.emergencyContactPhone}</p>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Email' : 'Email'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.emergencyContactEmail || formData.personalInfo.emergencyContactEmail}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.emergencyContactEmail}</p>
                         </div>
                         <div className="space-y-1">
                           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Address' : 'Adresse'}</label>
-                          <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.emergencyContactAddress || formData.personalInfo.emergencyContactAddress}</p>
+                          <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.emergencyContactAddress}</p>
                         </div>
                       </div>
                     </div>
@@ -2855,34 +2404,34 @@ const ApplicationProcess = () => {
                           <div className="space-y-1">
                             <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Has Work Experience' : 'A de l\'Expérience Professionnelle'}</label>
                             <p className="text-sm font-semibold text-gray-900">
-                              {translateYesNo(reviewData.personalInfo?.hasWorkExperience || formData.personalInfo.hasWorkExperience)}
+                              {formData.personalInfo.hasWorkExperience ? (language === 'en' ? 'Yes' : 'Oui') : (language === 'en' ? 'No' : 'Non')}
                             </p>
                           </div>
                         </div>
-                        {(reviewData.personalInfo?.hasWorkExperience || formData.personalInfo.hasWorkExperience) && (
+                        {formData.personalInfo.hasWorkExperience && (
                           <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-teal-500">
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                               <div className="space-y-1">
                                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Company' : 'Entreprise'}</label>
-                                <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.workCompany || formData.personalInfo.workCompany}</p>
+                                <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.workCompany}</p>
                               </div>
                               <div className="space-y-1">
                                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Position' : 'Poste'}</label>
-                                <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.workPosition || formData.personalInfo.workPosition}</p>
+                                <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.workPosition}</p>
                               </div>
                               <div className="space-y-1">
                                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Start Date' : 'Date de Début'}</label>
-                                <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.workStartDate || formData.personalInfo.workStartDate}</p>
+                                <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.workStartDate}</p>
                               </div>
                               <div className="space-y-1">
                                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'End Date' : 'Date de Fin'}</label>
-                                <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.workEndDate || formData.personalInfo.workEndDate || (language === 'en' ? 'Present' : 'Présent')}</p>
+                                <p className="text-sm font-semibold text-gray-900">{formData.personalInfo.workEndDate || (language === 'en' ? 'Present' : 'Présent')}</p>
                               </div>
                             </div>
-                            {(reviewData.personalInfo?.workDescription || formData.personalInfo.workDescription) && (
+                            {formData.personalInfo.workDescription && (
                               <div className="mt-4">
                                 <label className="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-2">{language === 'en' ? 'Description' : 'Description'}</label>
-                                <div className="bg-white p-3 rounded border text-sm text-gray-700">{reviewData.personalInfo?.workDescription || formData.personalInfo.workDescription}</div>
+                                <div className="bg-white p-3 rounded border text-sm text-gray-700">{formData.personalInfo.workDescription}</div>
                               </div>
                             )}
                           </div>
@@ -3391,131 +2940,20 @@ const ApplicationProcess = () => {
 
             {/* Submit Button */}
             <div className="flex justify-center pt-6">
-              {application?.status === 'submitted' || application?.submittedAt ? (
-                // Show modification request button if application is submitted
-                <>
-                  {modificationRequest?.status === 'pending' ? (
-                    <div className="text-center">
-                      <div className="px-8 py-4 bg-yellow-100 border border-yellow-400 rounded-2xl text-yellow-800 font-medium">
-                        <div className="flex items-center gap-2 justify-center">
-                          <Clock className="w-5 h-5" />
-                          <span>{language === 'en' ? 'Modification Request Pending' : 'Demande de Modification en Attente'}</span>
-                        </div>
-                      </div>
-                      {modificationRequest.reason && (
-                        <p className="mt-2 text-sm text-gray-600">
-                          {language === 'en' ? 'Reason:' : 'Raison :'} {modificationRequest.reason}
-                        </p>
-                      )}
-                    </div>
-                  ) : modificationRequest?.status === 'approved' && modificationAllowed ? (
-                    <div className="text-center">
-                      <div className="px-8 py-4 bg-green-100 border border-green-400 rounded-2xl text-green-800 font-medium mb-4">
-                        <div className="flex items-center gap-2 justify-center">
-                          <CheckCircle className="w-5 h-5" />
-                          <span>{language === 'en' ? 'Modification Allowed' : 'Modification Autorisée'}</span>
-                        </div>
-                      </div>
-                      {modificationRequest.modificationAllowedUntil && (
-                        <p className="text-sm text-gray-600 mb-4">
-                          {language === 'en' ? 'Valid until:' : 'Valide jusqu\'au :'} {new Date(modificationRequest.modificationAllowedUntil).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US')}
-                        </p>
-                      )}
-                    </div>
-                  ) : modificationRequest?.status === 'rejected' ? (
-                    <div className="text-center">
-                      <div className="px-8 py-4 bg-red-100 border border-red-400 rounded-2xl text-red-800 font-medium mb-4">
-                        <div className="flex items-center gap-2 justify-center">
-                          <AlertCircle className="w-5 h-5" />
-                          <span>{language === 'en' ? 'Modification Request Rejected' : 'Demande de Modification Refusée'}</span>
-                        </div>
-                      </div>
-                      {modificationRequest.adminResponse && (
-                        <p className="text-sm text-gray-600 mb-4">
-                          {language === 'en' ? 'Admin response:' : 'Réponse de l\'administrateur :'} {modificationRequest.adminResponse}
-                        </p>
-                      )}
-                      <button
-                        onClick={() => setShowModificationModal(true)}
-                        className="px-8 py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl hover:from-orange-600 hover:to-red-700 transition-all duration-300 font-semibold text-base shadow-lg hover:shadow-xl transform hover:-translate-y-1"
-                      >
-                        {language === 'en' ? 'Request Modification Again' : 'Demander une Modification à Nouveau'}
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setShowModificationModal(true)}
-                      className="group relative px-12 py-4 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-2xl hover:from-orange-600 hover:to-red-700 transition-all duration-300 font-semibold text-lg shadow-xl hover:shadow-2xl transform hover:-translate-y-1 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-orange-200"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                          <Edit3 className="w-4 h-4" />
-                        </div>
-                        <span>{language === 'en' ? 'Request Modification' : 'Demander la Modification'}</span>
-                        <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                      </div>
-                      <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-red-500 rounded-2xl opacity-0 group-hover:opacity-20 transition-opacity"></div>
-                    </button>
-                  )}
-                </>
-              ) : (
-                // Show submit button if application is not submitted
-                <button
-                  onClick={handleSubmit}
-                  className="group relative px-12 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 font-semibold text-lg shadow-xl hover:shadow-2xl transform hover:-translate-y-1 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-green-200"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                      <CheckCircle className="w-4 h-4" />
-                    </div>
-                    <span>{language === 'en' ? 'Submit Application' : 'Soumettre la Candidature'}</span>
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              <button
+                onClick={handleSubmit}
+                className="group relative px-12 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-2xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 font-semibold text-lg shadow-xl hover:shadow-2xl transform hover:-translate-y-1 hover:scale-105 focus:outline-none focus:ring-4 focus:ring-green-200"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                    <CheckCircle className="w-4 h-4" />
                   </div>
-                  <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-500 rounded-2xl opacity-0 group-hover:opacity-20 transition-opacity"></div>
-                </button>
-              )}
-            </div>
-
-            {/* Modification Request Modal */}
-            {showModificationModal && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-2xl p-6 max-w-lg w-full mx-4 shadow-2xl">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                    {language === 'en' ? 'Request Modification' : 'Demander la Modification'}
-                  </h3>
-                  <p className="text-sm text-gray-600 mb-4">
-                    {language === 'en' 
-                      ? 'Please provide a reason for requesting modification of your submitted application. Your request will be reviewed by the admin team.'
-                      : 'Veuillez fournir une raison pour demander la modification de votre candidature soumise. Votre demande sera examinée par l\'équipe d\'administration.'}
-                  </p>
-                  <textarea
-                    value={modificationReason}
-                    onChange={(e) => setModificationReason(e.target.value)}
-                    placeholder={language === 'en' ? 'Enter your reason...' : 'Entrez votre raison...'}
-                    rows={5}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-none"
-                  />
-                  <div className="flex gap-3 mt-6">
-                    <button
-                      onClick={() => {
-                        setShowModificationModal(false);
-                        setModificationReason('');
-                      }}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      {language === 'en' ? 'Cancel' : 'Annuler'}
-                    </button>
-                    <button
-                      onClick={handleRequestModification}
-                      disabled={!modificationReason.trim()}
-                      className="flex-1 px-4 py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-lg hover:from-orange-600 hover:to-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {language === 'en' ? 'Submit Request' : 'Soumettre la Demande'}
-                    </button>
-                  </div>
+                  <span>{language === 'en' ? 'Submit Application' : 'Soumettre la Candidature'}</span>
+                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </div>
-              </div>
-            )}
+                <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-500 rounded-2xl opacity-0 group-hover:opacity-20 transition-opacity"></div>
+              </button>
+            </div>
           </div>
           </div>
         );
@@ -3526,28 +2964,6 @@ const ApplicationProcess = () => {
             {/* Admission Team Note */}
             {renderAdmissionTeamNote(6)}
 
-            {/* Message if application is not submitted */}
-            {!(application?.status === 'submitted' || application?.submittedAt) && (
-              <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex-shrink-0">
-                    <AlertCircle className="w-6 h-6 text-yellow-600" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold text-yellow-900 mb-2">
-                      {language === 'en' ? 'Submission Required' : 'Soumission Requise'}
-                    </h3>
-                    <p className="text-sm text-yellow-800">
-                      {language === 'en' 
-                        ? 'You must submit your application to access this step. Please complete all previous steps and submit your application to proceed.'
-                        : 'Vous devez soumettre votre candidature pour accéder à cette étape. Veuillez compléter toutes les étapes précédentes et soumettre votre candidature pour continuer.'
-                      }
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Dynamic Timeline */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
               <div className="relative">
@@ -3557,10 +2973,6 @@ const ApplicationProcess = () => {
                 <div className="space-y-8">
                   {finalSteps.map((step, index) => {
                     const getStatusColor = (status) => {
-                      // If application is not submitted, all steps should be gray (not started)
-                      if (!(application?.status === 'submitted' || application?.submittedAt)) {
-                        return 'bg-gray-300';
-                      }
                       switch (status) {
                         case 'completed': return 'bg-green-500';
                         case 'in_progress': return 'bg-blue-500';
@@ -3570,10 +2982,6 @@ const ApplicationProcess = () => {
                     };
 
                     const getStatusIcon = (status) => {
-                      // If application is not submitted, all steps should show Award icon
-                      if (!(application?.status === 'submitted' || application?.submittedAt)) {
-                        return <Award className="w-4 h-4 text-white" />;
-                      }
                       switch (status) {
                         case 'completed': return <CheckCircle className="w-4 h-4 text-white" />;
                         case 'in_progress': return <Clock className="w-4 h-4 text-white" />;
@@ -3604,8 +3012,8 @@ const ApplicationProcess = () => {
                             {step.description}
                           </p>
                           
-                          {/* Dynamic Note - Only show if application is submitted */}
-                          {step.notes && (application?.status === 'submitted' || application?.submittedAt) && (
+                          {/* Dynamic Note */}
+                          {step.notes && (
                             <div className={`${getNoteColor(step.status)} border rounded-lg p-3 mb-3`}>
                               <p className="text-xs font-medium mb-1">
                                 {language === 'en' ? 'Note:' : 'Note :'}
@@ -3616,8 +3024,8 @@ const ApplicationProcess = () => {
                             </div>
                           )}
 
-                          {/* Dynamic Documents - Only show if application is submitted */}
-                          {step.documents && step.documents.length > 0 && (application?.status === 'submitted' || application?.submittedAt) && (
+                          {/* Dynamic Documents */}
+                          {step.documents && step.documents.length > 0 && (
                             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                               <p className="text-xs text-gray-700 font-medium mb-2">
                                 {language === 'en' ? 'Documents to download:' : 'Documents à télécharger :'}
@@ -3640,6 +3048,189 @@ const ApplicationProcess = () => {
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            </div>
+
+                  {/* Step 2: Enrollment */}
+                  <div className="relative flex items-start gap-4">
+                    <div className="relative z-10 w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Users className="w-4 h-4 text-gray-600" />
+                    </div>
+                    <div className="flex-1 pt-1">
+                      <h3 className="text-base font-semibold text-gray-900 mb-1">
+                        {language === 'en' ? 'Enrollment' : 'Inscription'}
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-2">
+                        {language === 'en' ? 'Confirmation documents' : 'Documents de confirmation'}
+                      </p>
+                      <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
+                        <p className="text-xs text-green-800 font-medium mb-1">
+                          {language === 'en' ? 'Note:' : 'Note :'}
+                        </p>
+                        <p className="text-xs text-green-700">
+                          {language === 'en' 
+                            ? 'If pre-admitted, you will receive enrollment confirmation documents and detailed instructions for completing your registration process.'
+                            : 'Si pré-admis, vous recevrez les documents de confirmation d\'inscription et des instructions détaillées pour compléter votre processus d\'inscription.'
+                          }
+                        </p>
+                      </div>
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        <p className="text-xs text-gray-700 font-medium mb-2">
+                          {language === 'en' ? 'Documents to download:' : 'Documents à télécharger :'}
+                        </p>
+                        <div className="space-y-1">
+                          <button className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 transition-colors">
+                            <Download className="w-3 h-3" />
+                            {language === 'en' ? 'Enrollment Form' : 'Formulaire d\'Inscription'}
+                          </button>
+                          <button className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 transition-colors">
+                            <Download className="w-3 h-3" />
+                            {language === 'en' ? 'Registration Guide' : 'Guide d\'Inscription'}
+                          </button>
+                          <button className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 transition-colors">
+                            <Download className="w-3 h-3" />
+                            {language === 'en' ? 'Payment Instructions' : 'Instructions de Paiement'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 3: Final Admission */}
+                  <div className="relative flex items-start gap-4">
+                    <div className="relative z-10 w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Briefcase className="w-4 h-4 text-gray-600" />
+                    </div>
+                    <div className="flex-1 pt-1">
+                      <h3 className="text-base font-semibold text-gray-900 mb-1">
+                        {language === 'en' ? 'Final Admission' : 'Admission Finale'}
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-2">
+                        {language === 'en' ? 'Official acceptance letter' : 'Lettre d\'acceptation officielle'}
+                      </p>
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 mb-3">
+                        <p className="text-xs text-purple-800 font-medium mb-1">
+                          {language === 'en' ? 'Note:' : 'Note :'}
+                        </p>
+                        <p className="text-xs text-purple-700">
+                          {language === 'en' 
+                            ? 'Complete all required procedures to receive your final admission letter and official acceptance. This document is essential for visa application.'
+                            : 'Complétez toutes les procédures requises pour recevoir votre lettre d\'admission finale et votre acceptation officielle. Ce document est essentiel pour la demande de visa.'
+                          }
+                        </p>
+                      </div>
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        <p className="text-xs text-gray-700 font-medium mb-2">
+                          {language === 'en' ? 'Documents to download:' : 'Documents à télécharger :'}
+                        </p>
+                        <div className="space-y-1">
+                          <button className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 transition-colors">
+                            <Download className="w-3 h-3" />
+                            {language === 'en' ? 'Final Admission Letter' : 'Lettre d\'Admission Finale'}
+                          </button>
+                          <button className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 transition-colors">
+                            <Download className="w-3 h-3" />
+                            {language === 'en' ? 'Acceptance Certificate' : 'Certificat d\'Acceptation'}
+                          </button>
+                          <button className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 transition-colors">
+                            <Download className="w-3 h-3" />
+                            {language === 'en' ? 'Next Steps Guide' : 'Guide des Prochaines Étapes'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 4: Visa */}
+                  <div className="relative flex items-start gap-4">
+                    <div className="relative z-10 w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
+                      <Globe className="w-4 h-4 text-gray-600" />
+                    </div>
+                    <div className="flex-1 pt-1">
+                      <h3 className="text-base font-semibold text-gray-900 mb-1">
+                        {language === 'en' ? 'Visa' : 'Visa'}
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-2">
+                        {language === 'en' ? 'Student visa application' : 'Demande de visa étudiant'}
+                      </p>
+                      <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-3">
+                        <p className="text-xs text-orange-800 font-medium mb-1">
+                          {language === 'en' ? 'Note:' : 'Note :'}
+                        </p>
+                        <p className="text-xs text-orange-700">
+                          {language === 'en' 
+                            ? 'Apply for your student visa using the admission letter. E-TAWJIHI will provide guidance and support throughout the visa application process.'
+                            : 'Demandez votre visa étudiant en utilisant la lettre d\'admission. E-TAWJIHI fournira des conseils et un soutien tout au long du processus de demande de visa.'
+                          }
+                        </p>
+                      </div>
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        <p className="text-xs text-gray-700 font-medium mb-2">
+                          {language === 'en' ? 'Documents to download:' : 'Documents à télécharger :'}
+                        </p>
+                        <div className="space-y-1">
+                          <button className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 transition-colors">
+                            <Download className="w-3 h-3" />
+                            {language === 'en' ? 'Visa Application Guide' : 'Guide de Demande de Visa'}
+                          </button>
+                          <button className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 transition-colors">
+                            <Download className="w-3 h-3" />
+                            {language === 'en' ? 'Required Documents List' : 'Liste des Documents Requis'}
+                          </button>
+                          <button className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 transition-colors">
+                            <Download className="w-3 h-3" />
+                            {language === 'en' ? 'Visa Interview Tips' : 'Conseils pour l\'Entretien Visa'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 5: Travel & Accommodation */}
+                  <div className="relative flex items-start gap-4">
+                    <div className="relative z-10 w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
+                      <MapPin className="w-4 h-4 text-gray-600" />
+                    </div>
+                    <div className="flex-1 pt-1">
+                      <h3 className="text-base font-semibold text-gray-900 mb-1">
+                        {language === 'en' ? 'Travel & Accommodation' : 'Voyage et Logement'}
+                      </h3>
+                      <p className="text-sm text-gray-600 mb-2">
+                        {language === 'en' ? 'Planning and support' : 'Planification et soutien'}
+                      </p>
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3">
+                        <p className="text-xs text-indigo-800 font-medium mb-1">
+                          {language === 'en' ? 'Note:' : 'Note :'}
+                        </p>
+                        <p className="text-xs text-indigo-700">
+                          {language === 'en' 
+                            ? 'Plan your travel and accommodation. E-TAWJIHI can assist with airport pickup, temporary housing, and settling into your new environment.'
+                            : 'Planifiez votre voyage et votre logement. E-TAWJIHI peut aider avec l\'accueil à l\'aéroport, le logement temporaire et l\'installation dans votre nouvel environnement.'
+                          }
+                        </p>
+                      </div>
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        <p className="text-xs text-gray-700 font-medium mb-2">
+                          {language === 'en' ? 'Documents to download:' : 'Documents à télécharger :'}
+                        </p>
+                        <div className="space-y-1">
+                          <button className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 transition-colors">
+                            <Download className="w-3 h-3" />
+                            {language === 'en' ? 'Travel Planning Guide' : 'Guide de Planification Voyage'}
+                          </button>
+                          <button className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 transition-colors">
+                            <Download className="w-3 h-3" />
+                            {language === 'en' ? 'Accommodation Options' : 'Options de Logement'}
+                          </button>
+                          <button className="flex items-center gap-2 text-xs text-blue-600 hover:text-blue-800 transition-colors">
+                            <Download className="w-3 h-3" />
+                            {language === 'en' ? 'Arrival Checklist' : 'Liste de Vérification Arrivée'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -3804,11 +3395,11 @@ const ApplicationProcess = () => {
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div 
                     className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${calculateRealProgress()}%` }}
+                    style={{ width: `${(currentStep / steps.length) * 100}%` }}
                   ></div>
                 </div>
                 <p className="text-xs text-gray-600 mt-1">
-                  {calculateRealProgress()}% {language === 'en' ? 'Complete' : 'Terminé'}
+                  {Math.round((currentStep / steps.length) * 100)}% {language === 'en' ? 'Complete' : 'Terminé'}
                 </p>
               </div>
               
@@ -3816,10 +3407,7 @@ const ApplicationProcess = () => {
                 {steps.map((step, index) => {
                   const Icon = step.icon;
                   const isActive = currentStep === step.id;
-                  const isCompleted = step.id === 1 ? validateStep1() : step.id === 2 ? step2Validated : step.id === 3 ? step3Validated : step.id === 4 ? step4Validated : step.id === 5 ? step5Validated : false;
-                  
-                  // For step 6 (Final Steps), it should be yellow if step 5 is validated (submitted)
-                  const isFinalStepActive = step.id === 6 && step5Validated;
+                  const isCompleted = step.id === 1 ? validateStep1() : step.id === 2 ? step2Validated : step.id === 3 ? step3Validated : step.id === 4 ? step4Validated : step.id === 5 ? step5Validated : currentStep > step.id;
                   
                   return (
                     <div
@@ -3829,7 +3417,7 @@ const ApplicationProcess = () => {
                           ? 'bg-blue-500 text-white shadow-lg' 
                           : isCompleted 
                             ? 'bg-green-50 border border-green-200 text-green-900 hover:bg-green-100' 
-                            : isFinalStepActive || (step.id === 1 && !validateStep1()) || (step.id === 2 && !step2Validated) || (step.id === 3 && !step3Validated) || (step.id === 4 && !step4Validated) || (step.id === 5 && !step5Validated)
+                            : (step.id === 1 && !validateStep1()) || (step.id === 2 && !step2Validated) || (step.id === 3 && !step3Validated) || (step.id === 4 && !step4Validated) || (step.id === 5 && !step5Validated)
                               ? 'bg-yellow-50 border border-yellow-200 text-yellow-800 hover:bg-yellow-100'
                               : 'hover:bg-gray-50 text-gray-700'
                       }`}
@@ -3839,29 +3427,17 @@ const ApplicationProcess = () => {
                         if (step.id === 5) {
                           refreshDataForReview();
                         }
-                        // Refresh final steps when clicking on step 6 (Final Steps)
-                        if (step.id === 6) {
-                          const refreshFinalSteps = async () => {
-                            try {
-                              const updatedFinalSteps = await finalStepService.getFinalSteps(language);
-                              setFinalSteps(updatedFinalSteps);
-                            } catch (error) {
-                              console.error('Error refreshing final steps:', error);
-                            }
-                          };
-                          refreshFinalSteps();
-                        }
                       }}
                     >
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
-                        isActive 
-                          ? 'bg-white/20 text-white' 
-                          : isCompleted 
-                            ? 'bg-green-500 text-white' 
-                            : isFinalStepActive || (step.id === 1 && !validateStep1()) || (step.id === 2 && !step2Validated) || (step.id === 3 && !step3Validated) || (step.id === 4 && !step4Validated) || (step.id === 5 && !step5Validated)
-                              ? 'bg-yellow-200 text-yellow-700'
-                              : 'bg-gray-200 text-gray-600'
-                      }`}>
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
+                          isActive 
+                            ? 'bg-white/20 text-white' 
+                            : isCompleted 
+                              ? 'bg-green-500 text-white' 
+                              : (step.id === 1 && !validateStep1()) || (step.id === 2 && !step2Validated) || (step.id === 3 && !step3Validated) || (step.id === 4 && !step4Validated) || (step.id === 5 && !step5Validated)
+                                ? 'bg-yellow-200 text-yellow-700'
+                                : 'bg-gray-200 text-gray-600'
+                        }`}>
                         {isCompleted ? (
                           <CheckCircle className="w-4 h-4" />
                         ) : (
@@ -3870,12 +3446,12 @@ const ApplicationProcess = () => {
                       </div>
                       <div className="flex-1">
                           <h3 className={`font-medium text-sm ${
-                            isActive ? 'text-white' : isCompleted ? 'text-green-900' : isFinalStepActive || (step.id === 1 && !validateStep1()) || (step.id === 2 && !step2Validated) || (step.id === 3 && !step3Validated) || (step.id === 4 && !step4Validated) || (step.id === 5 && !step5Validated) ? 'text-yellow-800' : 'text-gray-900'
+                            isActive ? 'text-white' : isCompleted ? 'text-green-900' : (step.id === 1 && !validateStep1()) || (step.id === 2 && !step2Validated) || (step.id === 3 && !step3Validated) || (step.id === 4 && !step4Validated) || (step.id === 5 && !step5Validated) || (step.id === 4 && !step4Validated) ? 'text-yellow-800' : 'text-gray-900'
                           }`}>
                           {step.title}
                         </h3>
                         <p className={`text-xs ${
-                          isActive ? 'text-white/80' : isCompleted ? 'text-green-700' : isFinalStepActive || (step.id === 1 && !validateStep1()) || (step.id === 2 && !step2Validated) || (step.id === 3 && !step3Validated) || (step.id === 4 && !step4Validated) || (step.id === 5 && !step5Validated) ? 'text-yellow-700' : 'text-gray-600'
+                          isActive ? 'text-white/80' : isCompleted ? 'text-green-700' : (step.id === 1 && !validateStep1()) || (step.id === 2 && !step2Validated) || (step.id === 3 && !step3Validated) || (step.id === 4 && !step4Validated) || (step.id === 5 && !step5Validated) || (step.id === 4 && !step4Validated) ? 'text-yellow-700' : 'text-gray-600'
                         }`}>
                           {step.description}
                         </p>
@@ -3925,7 +3501,7 @@ const ApplicationProcess = () => {
                     {language === 'en' ? 'Next' : 'Suivant'}
                     <ChevronRight className="w-4 h-4" />
                   </button>
-                ) : currentStep === 5 ? (
+                ) : (
                   <button
                     onClick={handleSubmit}
                     className="group flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 hover:scale-105"
@@ -3936,7 +3512,7 @@ const ApplicationProcess = () => {
                     <span className="font-semibold">{language === 'en' ? 'Submit Application' : 'Soumettre la Candidature'}</span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </button>
-                ) : null}
+                )}
               </div>
             </div>
           </div>
