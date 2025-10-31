@@ -6,7 +6,7 @@ import StandardizedTestModal from './StandardizedTestModal';
 import { useAllParameters } from '../../hooks/useAllParameters';
 import profileService from '../../services/profileService';
 
-const QualificationsTabs = ({ degrees, onAddDegree, onDeleteDegree, onRefreshQualifications, language, activeSubsection, onSubsectionChange }) => {
+const QualificationsTabs = ({ degrees = [], onAddDegree, onDeleteDegree, onRefreshQualifications, language, activeSubsection, onSubsectionChange, applications = [] }) => {
   const [activeTab, setActiveTab] = useState(activeSubsection || 'academic');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalType, setModalType] = useState('academic');
@@ -117,12 +117,32 @@ const QualificationsTabs = ({ degrees, onAddDegree, onDeleteDegree, onRefreshQua
 
   const handleAddDefaultQualifications = async () => {
     try {
-      const updatedQualifications = await profileService.addSimpleCommonQualifications();
-      // Call the refresh function passed as prop to update qualifications without page reload
-      if (onRefreshQualifications) {
-        onRefreshQualifications(updatedQualifications);
+      // Check if Baccalauréat already exists
+      const hasBaccalaureat = degrees.some(degree => 
+        degree.type === 'academic' && 
+        (degree.academicQualification === 'high-school' || 
+         degree.title?.toLowerCase().includes('baccalauréat') ||
+         degree.title?.toLowerCase().includes('baccalaureat'))
+      );
+      
+      // Check if TCF already exists
+      const hasTCF = degrees.some(degree => 
+        degree.type === 'language' && 
+        (degree.title?.toLowerCase().includes('tcf') ||
+         degree.scoreType?.toLowerCase().includes('tcf'))
+      );
+      
+      // Only add missing qualifications
+      if (!hasBaccalaureat || !hasTCF) {
+        const updatedQualifications = await profileService.addSimpleCommonQualifications();
+        // Call the refresh function passed as prop to update qualifications without page reload
+        if (onRefreshQualifications) {
+          onRefreshQualifications(updatedQualifications);
+        }
+        console.log('Simple qualifications added successfully');
+      } else {
+        console.log('All required qualifications already exist');
       }
-      console.log('Simple qualifications added successfully');
     } catch (error) {
       console.error('Error adding simple qualifications:', error);
     }
@@ -216,18 +236,122 @@ const QualificationsTabs = ({ degrees, onAddDegree, onDeleteDegree, onRefreshQua
           </button>
         </div>
 
-        {/* Add Default Qualifications Button */}
-        <div className="mt-4 flex justify-center">
-          <button
-            onClick={handleAddDefaultQualifications}
-            className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-emerald-600 text-white rounded-lg hover:from-blue-700 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl"
-          >
-            <Download className="w-4 h-4" />
-            <span>
-              {language === 'en' ? 'Add Baccalauréat & TCF' : 'Ajouter Baccalauréat & TCF'}
-            </span>
-          </button>
-        </div>
+        {/* Add Default Qualifications Button - Conditional based on applications */}
+        {(() => {
+          // Check if user has any France or China applications
+          const hasFranceApplication = applications.some(app => app.isFrance);
+          const hasChinaApplication = applications.some(app => app.isChina);
+          
+          if (!hasFranceApplication && !hasChinaApplication) {
+            return null; // Don't show button if no France/China applications
+          }
+
+          return (
+            <div className="mt-4 flex flex-col items-center gap-3">
+              {/* France Applications - Show Baccalauréat & TCF */}
+              {hasFranceApplication && (() => {
+                // Check if Baccalauréat already exists
+                const hasBaccalaureat = degrees.some(degree => 
+                  degree.type === 'academic' && 
+                  (degree.academicQualification === 'high-school' || 
+                   degree.title?.toLowerCase().includes('baccalauréat') ||
+                   degree.title?.toLowerCase().includes('baccalaureat'))
+                );
+                
+                // Check if TCF already exists
+                const hasTCF = degrees.some(degree => 
+                  degree.type === 'language' && 
+                  (degree.title?.toLowerCase().includes('tcf') ||
+                   degree.scoreType?.toLowerCase().includes('tcf'))
+                );
+                
+                // Only show button if at least one qualification is missing
+                if (hasBaccalaureat && hasTCF) {
+                  return null;
+                }
+                
+                return (
+                  <button
+                    onClick={handleAddDefaultQualifications}
+                    className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-emerald-600 text-white rounded-lg hover:from-blue-700 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>
+                      {language === 'en' ? 'Add Baccalauréat & TCF' : 'Ajouter Baccalauréat & TCF'}
+                    </span>
+                  </button>
+                );
+              })()}
+              
+              {/* China Applications - Show Baccalauréat & CSCA */}
+              {hasChinaApplication && (() => {
+                // Check if Baccalauréat already exists
+                const hasBaccalaureat = degrees.some(degree => 
+                  degree.type === 'academic' && 
+                  (degree.academicQualification === 'high-school' || 
+                   degree.title?.toLowerCase().includes('baccalauréat') ||
+                   degree.title?.toLowerCase().includes('baccalaureat'))
+                );
+                
+                // Check if CSCA already exists
+                const hasCSCA = degrees.some(degree => 
+                  degree.type === 'professional' && 
+                  (degree.title?.toLowerCase().includes('csca') ||
+                   degree.scoreType?.toLowerCase().includes('csca'))
+                );
+                
+                // Only show button if at least one qualification is missing
+                if (hasBaccalaureat && hasCSCA) {
+                  return null;
+                }
+                
+                return (
+                  <button
+                    onClick={async () => {
+                      try {
+                        // Add Baccalauréat only if it doesn't exist
+                        if (!hasBaccalaureat) {
+                          const bacQualification = {
+                            type: 'academic',
+                            title: language === 'en' ? 'Baccalauréat' : 'Baccalauréat',
+                            academicQualification: 'high-school'
+                          };
+                          await onAddDegree(bacQualification);
+                        }
+                        
+                        // Add CSCA only if it doesn't exist
+                        if (!hasCSCA) {
+                          const cscaQualification = {
+                            type: 'professional',
+                            title: 'CSCA',
+                            scoreType: 'CSCA',
+                            field: allParams?.standardizedTests?.find(test => test.code === 'CSCA')?.code || 'CSCA'
+                          };
+                          await onAddDegree(cscaQualification);
+                        }
+                        
+                        // Refresh qualifications to ensure UI is updated
+                        if (onRefreshQualifications) {
+                          const updatedQualifications = await profileService.getQualifications();
+                          onRefreshQualifications(updatedQualifications);
+                        }
+                        console.log('China qualifications added successfully');
+                      } catch (error) {
+                        console.error('Error adding China qualifications:', error);
+                      }
+                    }}
+                    className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-lg hover:from-red-700 hover:to-orange-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>
+                      {language === 'en' ? 'Add Baccalauréat & CSCA' : 'Ajouter Baccalauréat & CSCA'}
+                    </span>
+                  </button>
+                );
+              })()}
+            </div>
+          );
+        })()}
 
         {/* Instructions Note */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -302,6 +426,16 @@ const QualificationsTabs = ({ degrees, onAddDegree, onDeleteDegree, onRefreshQua
                               <span className="font-medium">{language === 'en' ? 'Field of Study:' : 'Domaine d\'Études:'}</span> {getFieldTranslation(degree.field)}
                             </p>
                           )}
+                          {/* Baccalaureate Stream - Only show if degree is Baccalauréat */}
+                          {degree.baccalaureateStream && (() => {
+                            const val = (degree.academicQualification || '').toLowerCase();
+                            const isBac = val === 'high-school' || val === 'baccalaureat' || val === 'baccalauréat' || val === 'baccalaureate' || val === 'bac';
+                            return isBac ? (
+                              <p className="text-sm text-gray-700">
+                                <span className="font-medium">{language === 'en' ? 'Baccalaureate Stream:' : 'Filière du Baccalauréat:'}</span> {degree.baccalaureateStream}
+                              </p>
+                            ) : null;
+                          })()}
                         </div>
                       )}
                     </div>

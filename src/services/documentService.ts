@@ -126,7 +126,11 @@ class DocumentService {
       // Application Documents
       'recommendationLetter1': { type: 'application', category: 'recommendation' },
       'recommendationLetter2': { type: 'application', category: 'recommendation' },
-      'motivationLetter': { type: 'application', category: 'motivation' }
+      'motivationLetter': { type: 'application', category: 'motivation' },
+      
+      // China-specific Documents
+      'medicalHealthCheck': { type: 'application', category: 'medical' },
+      'anthropometricRecord': { type: 'application', category: 'official' }
     };
 
     return typeMapping[docKey] || { type: 'other', category: 'other' };
@@ -151,7 +155,11 @@ class DocumentService {
       'enrollmentCertificate': { en: 'Enrollment Certificate', fr: 'Attestation de Scolarité' },
       'recommendationLetter1': { en: 'Recommendation Letter 1', fr: 'Lettre de Recommandation 1' },
       'recommendationLetter2': { en: 'Recommendation Letter 2', fr: 'Lettre de Recommandation 2' },
-      'motivationLetter': { en: 'Motivation Letter', fr: 'Lettre de Motivation' }
+      'motivationLetter': { en: 'Motivation Letter', fr: 'Lettre de Motivation' },
+      
+      // China-specific Documents
+      'medicalHealthCheck': { en: 'Medical Health Check', fr: 'Certificat Médical de Santé' },
+      'anthropometricRecord': { en: 'Anthropometric Record (Good Conduct)', fr: 'Fiche Anthropométrique (Bonne Conduite)' }
     };
 
     return titleMapping[docKey]?.[language] || docKey;

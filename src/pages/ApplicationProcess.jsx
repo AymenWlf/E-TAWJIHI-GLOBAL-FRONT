@@ -42,6 +42,7 @@ import SingleSelect from '../components/ui/SingleSelect';
 import PhoneInput from '../components/ui/PhoneInput';
 import { useAllParameters } from '../hooks/useAllParameters';
 import { useAuth } from '../contexts/AuthContext';
+import EAdvisorWidget from '../components/eadvisor/EAdvisorWidget';
 
 // Utility functions for application periods (inspired by ProgramDetail)
 const getApplicationPeriodStatus = (intake, language = 'en') => {
@@ -172,43 +173,156 @@ const ApplicationProcess = () => {
 
   // Helper function to find document key (same as ApplicationDocumentsSection)
   const findDocumentKey = (doc) => {
+    console.log('🔍 Finding document key for:', doc.title, 'Type:', typeof doc.title, 'Length:', doc.title?.length);
+    
     // Map backend document to frontend document key
     const titleMapping = {
       'Passport': 'passport',
       'Passeport': 'passport',
+      'passport': 'passport',
       'National ID Card': 'nationalId',
       'Carte Nationale': 'nationalId',
+      'nationalId': 'nationalId',
       'Curriculum Vitae (CV)': 'cv',
+      'cv': 'cv',
       'Guardian 1 National ID': 'guardian1NationalId',
       'Carte Nationale Tuteur 1': 'guardian1NationalId',
+      'guardian1NationalId': 'guardian1NationalId',
       'Guardian 2 National ID': 'guardian2NationalId',
       'Carte Nationale Tuteur 2': 'guardian2NationalId',
-      'General Transcript': 'transcript',
-      'Relevé de note général': 'transcript',
+      'guardian2NationalId': 'guardian2NationalId',
+      'General Transcript': 'generalTranscript',
+      'Relevé de note général': 'generalTranscript',
+      'Relevé de Notes': 'generalTranscript',
+      'Transcript': 'generalTranscript',
+      'transcript': 'transcript',
       'English Test Certificate': 'englishTest',
       'Certificat de Test d\'Anglais': 'englishTest',
+      'englishTest': 'englishTest',
       'French Test Certificate': 'frenchTest',
       'Certificat de Test de Français': 'frenchTest',
+      'frenchTest': 'frenchTest',
       'Portfolio': 'portfolio',
+      'portfolio': 'portfolio',
       'Baccalaureate Diploma': 'baccalaureate',
       'Diplôme du Baccalauréat': 'baccalaureate',
+      'baccalaureate': 'baccalaureate',
       'BAC+2 Diploma': 'bac2',
       'Diplôme BAC+2': 'bac2',
+      'bac2': 'bac2',
       'BAC+3 Diploma': 'bac3',
       'Diplôme BAC+3': 'bac3',
+      'bac3': 'bac3',
       'BAC+5 Diploma': 'bac5',
       'Diplôme BAC+5': 'bac5',
+      'bac5': 'bac5',
       'Enrollment Certificate': 'enrollmentCertificate',
       'Attestation de Scolarité': 'enrollmentCertificate',
+      'enrollmentCertificate': 'enrollmentCertificate',
       'Recommendation Letter 1': 'recommendationLetter1',
       'Lettre de Recommandation 1': 'recommendationLetter1',
+      'recommendationLetter1': 'recommendationLetter1',
       'Recommendation Letter 2': 'recommendationLetter2',
       'Lettre de Recommandation 2': 'recommendationLetter2',
+      'recommendationLetter2': 'recommendationLetter2',
       'Motivation Letter': 'motivationLetter',
-      'Lettre de Motivation': 'motivationLetter'
+      'Lettre de Motivation': 'motivationLetter',
+      'motivationLetter': 'motivationLetter',
+      'Medical Health Check': 'medicalHealthCheck',
+      'Certificat Médical de Santé': 'medicalHealthCheck',
+      'medicalHealthCheck': 'medicalHealthCheck', // Direct key mapping
+      'Anthropometric Record (Good Conduct)': 'anthropometricRecord',
+      'Fiche Anthropométrique (Bonne Conduite)': 'anthropometricRecord',
+      'anthropometricRecord': 'anthropometricRecord', // Direct key mapping
+      
+      // Additional variations for China documents
+      'Certificat M__dical de Sant__': 'medicalHealthCheck', // With encoded characters
+      'Fiche Anthropom__trique (Bonne Conduite)': 'anthropometricRecord', // With encoded characters
+      'Certificat MÃ©dical de SantÃ©': 'medicalHealthCheck', // UTF-8 encoding issues
+      'Fiche AnthropomÃ©trique (Bonne Conduite)': 'anthropometricRecord' // UTF-8 encoding issues
     };
 
-    return titleMapping[doc.title] || null;
+    // First try exact match
+    if (titleMapping[doc.title]) {
+      console.log('✅ Exact match found:', doc.title, '->', titleMapping[doc.title]);
+      return titleMapping[doc.title];
+    } else {
+      console.log('❌ No exact match for:', doc.title);
+      console.log('Title length:', doc.title.length);
+      console.log('Title char codes:', doc.title.split('').map(c => c.charCodeAt(0)));
+      console.log('Available keys containing "Certificat":', Object.keys(titleMapping).filter(key => key.includes('Certificat')));
+      console.log('Available keys containing "Médical":', Object.keys(titleMapping).filter(key => key.includes('Médical')));
+      
+      // Try to find the exact key by comparing character by character
+      const exactKey = Object.keys(titleMapping).find(key => {
+        if (key.length !== doc.title.length) return false;
+        return key.split('').every((char, index) => char === doc.title[index]);
+      });
+      
+      if (exactKey) {
+        console.log('✅ Found exact key by character comparison:', exactKey, '->', titleMapping[exactKey]);
+        return titleMapping[exactKey];
+      }
+    }
+    
+    // For China documents, try partial matching
+    if (doc.title && typeof doc.title === 'string') {
+      const title = doc.title.toLowerCase();
+      
+      // Normalize special characters for better matching
+      const normalizedTitle = title
+        .replace(/[éèêë]/g, 'e')
+        .replace(/[àâä]/g, 'a')
+        .replace(/[ùûü]/g, 'u')
+        .replace(/[ôö]/g, 'o')
+        .replace(/[îï]/g, 'i')
+        .replace(/[ç]/g, 'c');
+      
+      console.log('Normalized title:', normalizedTitle);
+      
+      // Check for medical health check variations
+      if (title.includes('médical') || title.includes('medical') || title.includes('santé') || title.includes('health') ||
+          normalizedTitle.includes('medical') || normalizedTitle.includes('sante') ||
+          (title.includes('certificat') && title.includes('santé')) ||
+          (normalizedTitle.includes('certificat') && normalizedTitle.includes('sante'))) {
+        console.log('✅ Partial match for medical health check');
+        return 'medicalHealthCheck';
+      }
+      
+      // Check for anthropometric record variations
+      if (title.includes('anthropométrique') || title.includes('anthropometric') || title.includes('conduite') || title.includes('conduct') ||
+          normalizedTitle.includes('anthropometrique') || normalizedTitle.includes('conduct') ||
+          (title.includes('fiche') && title.includes('conduite')) ||
+          (normalizedTitle.includes('fiche') && normalizedTitle.includes('conduct'))) {
+        console.log('✅ Partial match for anthropometric record');
+        return 'anthropometricRecord';
+      }
+    }
+    
+    // Final fallback: try to match by key patterns
+    if (doc.title && typeof doc.title === 'string') {
+      const title = doc.title.toLowerCase();
+      
+      // Medical health check patterns
+      if ((title.includes('certificat') && title.includes('médical')) ||
+          (title.includes('certificat') && title.includes('medical')) ||
+          (title.includes('certificat') && title.includes('santé')) ||
+          (title.includes('certificat') && title.includes('sante'))) {
+        console.log('✅ Fallback match for medical health check');
+        return 'medicalHealthCheck';
+      }
+      
+      // Anthropometric record patterns
+      if ((title.includes('fiche') && title.includes('anthropométrique')) ||
+          (title.includes('fiche') && title.includes('anthropometric')) ||
+          (title.includes('fiche') && title.includes('conduite')) ||
+          (title.includes('fiche') && title.includes('conduct'))) {
+        console.log('✅ Fallback match for anthropometric record');
+        return 'anthropometricRecord';
+      }
+    }
+    
+    return null;
   };
 
   // Function to create documents map from userDocuments
@@ -218,8 +332,15 @@ const ApplicationProcess = () => {
     
     if (documents && Array.isArray(documents)) {
       console.log('Creating documents map from:', documents);
+      console.log('Looking for China documents specifically...');
       documents.forEach(doc => {
         console.log('Processing document:', doc.title, '->', findDocumentKey(doc));
+        
+        // Special logging for China documents
+        if (doc.title && (doc.title.includes('Médical') || doc.title.includes('Anthropométrique') || doc.title.includes('Medical') || doc.title.includes('Anthropometric'))) {
+          console.log('🔍 CHINA DOCUMENT DETECTED:', doc.title, 'Type:', doc.type, 'Category:', doc.category);
+        }
+        
         const docKey = findDocumentKey(doc);
         if (docKey) {
           map[docKey] = {
@@ -235,6 +356,7 @@ const ApplicationProcess = () => {
             originalLanguage: doc.originalLanguage,
             etawjihiNotes: doc.etawjihiNotes
           };
+          console.log(`Successfully mapped document: ${doc.title} -> ${docKey}`);
         } else {
           console.warn('No document key found for:', doc.title);
         }
@@ -255,6 +377,17 @@ const ApplicationProcess = () => {
     
     console.log('Final documents map:', map);
     console.log('Final translations map:', translations);
+    
+    // Log China documents specifically
+    const chinaDocs = ['medicalHealthCheck', 'anthropometricRecord'];
+    chinaDocs.forEach(docKey => {
+      if (map[docKey]) {
+        console.log(`✅ China document ${docKey} found in map:`, map[docKey]);
+      } else {
+        console.log(`❌ China document ${docKey} NOT found in map`);
+      }
+    });
+    
     return { map, translations };
   };
 
@@ -285,6 +418,30 @@ const ApplicationProcess = () => {
     return isOriginalFrench || hasFrenchTrans;
   };
 
+  // Helper function to check if required document is properly in English (for China)
+  const isRequiredDocumentInEnglish = (docKey, uploadedDoc, docRequired) => {
+    if (!docRequired) return true; // Non-required documents are always valid
+    
+    if (!uploadedDoc) return false; // Required document is missing
+    
+    // Check if original is in English
+    const isOriginalEnglish = uploadedDoc.originalLanguage === 'English' || 
+                             uploadedDoc.originalLanguage === 'Anglais';
+    
+    // Check if has English translation
+    const hasEnglishTrans = hasEnglishTranslation(docKey);
+    
+    console.log(`🔍 Document ${docKey} validation:`, {
+      originalLanguage: uploadedDoc.originalLanguage,
+      isOriginalEnglish,
+      hasEnglishTrans,
+      result: isOriginalEnglish || hasEnglishTrans
+    });
+    
+    // For required documents, must have either English original OR English translation
+    return isOriginalEnglish || hasEnglishTrans;
+  };
+
   // Helper function to check if required document needs French validation
   const needsFrenchValidation = (docKey, uploadedDoc, docRequired) => {
     if (!docRequired) return false; // Non-required documents don't need French validation
@@ -300,6 +457,35 @@ const ApplicationProcess = () => {
     
     // For required documents, show "Français Requis" if not in French
     return !isOriginalFrench && !hasFrenchTrans;
+  };
+
+  // Helper function to check if required document needs English validation (for China)
+  const needsEnglishValidation = (docKey, uploadedDoc, docRequired) => {
+    if (!docRequired) return false; // Non-required documents don't need English validation
+    
+    if (!uploadedDoc) return true; // Required document is missing, needs English
+    
+    // Check if original is in English
+    const isOriginalEnglish = uploadedDoc.originalLanguage === 'English' || 
+                             uploadedDoc.originalLanguage === 'Anglais';
+    
+    // Check if has English translation
+    const hasEnglishTrans = hasEnglishTranslation(docKey);
+    
+    // For required documents, show "Anglais Requis" if not in English
+    return !isOriginalEnglish && !hasEnglishTrans;
+  };
+
+  // Helper function to check if document has English translation
+  const hasEnglishTranslation = (docKey) => {
+    const translations = translationsMap[docKey] || [];
+    console.log(`🔍 Checking English translation for ${docKey}:`, translations);
+    const hasEnglish = translations.some(translation => 
+      translation.targetLanguage === 'en' || 
+      translation.targetLanguage === 'English'
+    );
+    console.log(`✅ Has English translation for ${docKey}:`, hasEnglish);
+    return hasEnglish;
   };
 
   // Form data state
@@ -320,6 +506,7 @@ const ApplicationProcess = () => {
       cinNumber: '',
       passportAvailable: false,
       passportNumber: '',
+      passportIssueDate: '',
       whatsapp: '',
       phoneCountry: '',
       whatsappCountry: '',
@@ -345,6 +532,24 @@ const ApplicationProcess = () => {
       workStartDate: '',
       workEndDate: '',
       workDescription: ''
+    },
+    // China-specific fields
+    chinaFields: {
+      religion: '',
+      familyMembers: {
+        father: {
+          name: '',
+          dateOfBirth: '',
+          occupation: '',
+          phone: ''
+        },
+        mother: {
+          name: '',
+          dateOfBirth: '',
+          occupation: '',
+          phone: ''
+        }
+      }
     },
     academicInfo: {
       currentInstitution: '',
@@ -554,6 +759,7 @@ const ApplicationProcess = () => {
               country: prev.personalInfo.country || (Array.isArray(userProfileData.country) ? userProfileData.country[0] || '' : (userProfileData.country || '')),
               postalCode: prev.personalInfo.postalCode || userProfileData.postalCode || '',
               passportNumber: prev.personalInfo.passportNumber || userProfileData.passportNumber || '',
+              passportIssueDate: prev.personalInfo.passportIssueDate || userProfileData.passportIssueDate || '',
               passportAvailable: prev.personalInfo.passportAvailable !== undefined ? prev.personalInfo.passportAvailable : !!userProfileData.passportNumber,
               passportExpirationDate: prev.personalInfo.passportExpirationDate || userProfileData.passportExpirationDate || '',
               cinNumber: prev.personalInfo.cinNumber || userProfileData.cinNumber || '',
@@ -617,6 +823,20 @@ const ApplicationProcess = () => {
           // Load existing form data from the specific application
           if (specificApplication.applicationData) {
             const appData = specificApplication.applicationData;
+            
+            // Load China-specific fields from application entity
+            if (specificApplication.isChina) {
+              setFormData(prev => ({
+                ...prev,
+                chinaFields: {
+                  religion: specificApplication.religion || '',
+                  familyMembers: specificApplication.familyMembers || {
+                    father: { name: '', dateOfBirth: '', occupation: '', phone: '' },
+                    mother: { name: '', dateOfBirth: '', occupation: '', phone: '' }
+                  }
+                }
+              }));
+            }
             if (appData.personalInfo) {
               setFormData(prev => ({
                 ...prev,
@@ -644,6 +864,7 @@ const ApplicationProcess = () => {
                   country: appData.personalInfo.country || prev.personalInfo.country || (Array.isArray(userProfileData?.country) ? userProfileData.country[0] || '' : (userProfileData?.country || '')),
                   postalCode: appData.personalInfo.postalCode || prev.personalInfo.postalCode || userProfileData?.postalCode || '',
                   passportNumber: appData.personalInfo.passportNumber || prev.personalInfo.passportNumber || userProfileData?.passportNumber || '',
+                  passportIssueDate: appData.personalInfo.passportIssueDate || prev.personalInfo.passportIssueDate || userProfileData?.passportIssueDate || '',
                   passportAvailable: appData.personalInfo.passportAvailable !== undefined ? appData.personalInfo.passportAvailable : (prev.personalInfo.passportAvailable !== undefined ? prev.personalInfo.passportAvailable : !!userProfileData?.passportNumber),
                   passportExpirationDate: appData.personalInfo.passportExpirationDate || prev.personalInfo.passportExpirationDate || userProfileData?.passportExpirationDate || '',
                   cinNumber: appData.personalInfo.cinNumber || prev.personalInfo.cinNumber || userProfileData?.cinNumber || '',
@@ -687,16 +908,22 @@ const ApplicationProcess = () => {
                 documents: appData.documents
               }));
             }
-            if (appData.preferences) {
-              setFormData(prev => ({
-                ...prev,
-                preferences: appData.preferences
-              }));
+              if (appData.preferences) {
+                setFormData(prev => ({
+                  ...prev,
+                  preferences: appData.preferences
+                }));
+              }
+              if (appData.chinaFields) {
+                setFormData(prev => ({
+                  ...prev,
+                  chinaFields: appData.chinaFields
+                }));
+              }
             }
-          }
-          
-          // Set current step from application
-          if (specificApplication.currentStep) {
+            
+            // Set current step from application
+            if (specificApplication.currentStep) {
             setCurrentStep(specificApplication.currentStep);
           }
           
@@ -746,6 +973,7 @@ const ApplicationProcess = () => {
                     country: appData.personalInfo.country || prev.personalInfo.country || (Array.isArray(userProfileData?.country) ? userProfileData.country[0] || '' : (userProfileData?.country || '')),
                     postalCode: appData.personalInfo.postalCode || prev.personalInfo.postalCode || userProfileData?.postalCode || '',
                     passportNumber: appData.personalInfo.passportNumber || prev.personalInfo.passportNumber || userProfileData?.passportNumber || '',
+                    passportIssueDate: appData.personalInfo.passportIssueDate || prev.personalInfo.passportIssueDate || userProfileData?.passportIssueDate || '',
                     passportAvailable: appData.personalInfo.passportAvailable !== undefined ? appData.personalInfo.passportAvailable : (prev.personalInfo.passportAvailable !== undefined ? prev.personalInfo.passportAvailable : !!userProfileData?.passportNumber),
                     passportExpirationDate: appData.personalInfo.passportExpirationDate || prev.personalInfo.passportExpirationDate || userProfileData?.passportExpirationDate || '',
                     cinNumber: appData.personalInfo.cinNumber || prev.personalInfo.cinNumber || userProfileData?.cinNumber || '',
@@ -795,6 +1023,12 @@ const ApplicationProcess = () => {
                   preferences: appData.preferences
                 }));
               }
+              if (appData.chinaFields) {
+                setFormData(prev => ({
+                  ...prev,
+                  chinaFields: appData.chinaFields
+                }));
+              }
             }
             
             // Set current step from application
@@ -836,7 +1070,10 @@ const ApplicationProcess = () => {
     const checkStep3Validation = async () => {
       try {
         const validationResult = await profileService.validateStep3();
-        console.log('Backend validation result:', validationResult);
+        console.log('🔍 Backend validation result:', validationResult);
+        console.log('🔍 Step 3 validation isValid:', validationResult.isValid);
+        console.log('🔍 Missing documents:', validationResult.missingDocuments);
+        console.log('🔍 Documents status:', validationResult.documentsStatus);
         setStep3Validated(validationResult.isValid);
       } catch (error) {
         console.error('Error checking step 3 validation:', error);
@@ -1071,6 +1308,98 @@ const ApplicationProcess = () => {
       'BY': '🇧🇾', 'AL': '🇦🇱', 'MK': '🇲🇰', 'ME': '🇲🇪', 'RS': '🇷🇸',
       'BA': '🇧🇦', 'XK': '🇽🇰', 'AD': '🇦🇩', 'MC': '🇲🇨', 'SM': '🇸🇲',
       'VA': '🇻🇦', 'LI': '🇱🇮', 'FO': '🇫🇴', 'GL': '🇬🇱', 'SJ': '🇸🇯',
+      'AX': '🇦🇽', 'GG': '🇬🇬', 'JE': '🇯🇪', 'IM': '🇮🇲', 'GI': '🇬🇮',
+      'PT': '🇵🇹', 'ES': '🇪🇸', 'FR': '🇫🇷', 'IT': '🇮🇹', 'DE': '🇩🇪',
+      'NL': '🇳🇱', 'BE': '🇧🇪', 'CH': '🇨🇭', 'AT': '🇦🇹', 'SE': '🇸🇪',
+      'NO': '🇳🇴', 'DK': '🇩🇰', 'FI': '🇫🇮', 'IE': '🇮🇪', 'LU': '🇱🇺',
+      'MA': '🇲🇦', 'TN': '🇹🇳', 'DZ': '🇩🇿', 'EG': '🇪🇬', 'LY': '🇱🇾',
+      'SD': '🇸🇩', 'ET': '🇪🇹', 'KE': '🇰🇪', 'NG': '🇳🇬', 'ZA': '🇿🇦',
+      'CN': '🇨🇳', 'JP': '🇯🇵', 'KR': '🇰🇷', 'IN': '🇮🇳', 'SG': '🇸🇬',
+      'MY': '🇲🇾', 'TH': '🇹🇭', 'VN': '🇻🇳', 'ID': '🇮🇩', 'PH': '🇵🇭',
+      'BR': '🇧🇷', 'AR': '🇦🇷', 'MX': '🇲🇽', 'CL': '🇨🇱', 'CO': '🇨🇴',
+      'PE': '🇵🇪', 'VE': '🇻🇪', 'UY': '🇺🇾', 'PY': '🇵🇾', 'BO': '🇧🇴',
+      'RU': '🇷🇺', 'UA': '🇺🇦', 'PL': '🇵🇱', 'CZ': '🇨🇿', 'HU': '🇭🇺',
+      'RO': '🇷🇴', 'BG': '🇧🇬', 'HR': '🇭🇷', 'SI': '🇸🇮', 'SK': '🇸🇰',
+      'LT': '🇱🇹', 'LV': '🇱🇻', 'EE': '🇪🇪', 'TR': '🇹🇷', 'GR': '🇬🇷',
+      'CY': '🇨🇾', 'MT': '🇲🇹', 'IS': '🇮🇸', 'IL': '🇮🇱', 'AE': '🇦🇪',
+      'SA': '🇸🇦', 'QA': '🇶🇦', 'KW': '🇰🇼', 'BH': '🇧🇭', 'OM': '🇴🇲',
+      'JO': '🇯🇴', 'LB': '🇱🇧', 'SY': '🇸🇾', 'IQ': '🇮🇶', 'IR': '🇮🇷',
+      'AF': '🇦🇫', 'PK': '🇵🇰', 'BD': '🇧🇩', 'LK': '🇱🇰', 'MV': '🇲🇻',
+      'NP': '🇳🇵', 'BT': '🇧🇹', 'MM': '🇲🇲', 'LA': '🇱🇦', 'KH': '🇰🇭',
+      'MN': '🇲🇳', 'KZ': '🇰🇿', 'UZ': '🇺🇿', 'KG': '🇰🇬', 'TJ': '🇹🇯',
+      'TM': '🇹🇲', 'AZ': '🇦🇿', 'AM': '🇦🇲', 'GE': '🇬🇪', 'MD': '🇲🇩',
+      'BY': '🇧🇾', 'AL': '🇦🇱', 'MK': '🇲🇰', 'ME': '🇲🇪', 'RS': '🇷🇸',
+      'BA': '🇧🇦', 'XK': '🇽🇰', 'AD': '🇦🇩', 'MC': '🇲🇨', 'SM': '🇸🇲',
+      'VA': '🇻🇦', 'LI': '🇱🇮', 'FO': '🇫🇴', 'GL': '🇬🇱', 'SJ': '🇸🇯',
+      'AX': '🇦🇽', 'GG': '🇬🇬', 'JE': '🇯🇪', 'IM': '🇮🇲', 'GI': '🇬🇮',
+      'PT': '🇵🇹', 'ES': '🇪🇸', 'FR': '🇫🇷', 'IT': '🇮🇹', 'DE': '🇩🇪',
+      'NL': '🇳🇱', 'BE': '🇧🇪', 'CH': '🇨🇭', 'AT': '🇦🇹', 'SE': '🇸🇪',
+      'NO': '🇳🇴', 'DK': '🇩🇰', 'FI': '🇫🇮', 'IE': '🇮🇪', 'LU': '🇱🇺',
+      'MA': '🇲🇦', 'TN': '🇹🇳', 'DZ': '🇩🇿', 'EG': '🇪🇬', 'LY': '🇱🇾',
+      'SD': '🇸🇩', 'ET': '🇪🇹', 'KE': '🇰🇪', 'NG': '🇳🇬', 'ZA': '🇿🇦',
+      'CN': '🇨🇳', 'JP': '🇯🇵', 'KR': '🇰🇷', 'IN': '🇮🇳', 'SG': '🇸🇬',
+      'MY': '🇲🇾', 'TH': '🇹🇭', 'VN': '🇻🇳', 'ID': '🇮🇩', 'PH': '🇵🇭',
+      'BR': '🇧🇷', 'AR': '🇦🇷', 'MX': '🇲🇽', 'CL': '🇨🇱', 'CO': '🇨🇴',
+      'PE': '🇵🇪', 'VE': '🇻🇪', 'UY': '🇺🇾', 'PY': '🇵🇾', 'BO': '🇧🇴',
+      'RU': '🇷🇺', 'UA': '🇺🇦', 'PL': '🇵🇱', 'CZ': '🇨🇿', 'HU': '🇭🇺',
+      'RO': '🇷🇴', 'BG': '🇧🇬', 'HR': '🇭🇷', 'SI': '🇸🇮', 'SK': '🇸🇰',
+      'LT': '🇱🇹', 'LV': '🇱🇻', 'EE': '🇪🇪', 'TR': '🇹🇷', 'GR': '🇬🇷',
+      'CY': '🇨🇾', 'MT': '🇲🇹', 'IS': '🇮🇸', 'IL': '🇮🇱', 'AE': '🇦🇪',
+      'SA': '🇸🇦', 'QA': '🇶🇦', 'KW': '🇰🇼', 'BH': '🇧🇭', 'OM': '🇴🇲',
+      'JO': '🇯🇴', 'LB': '🇱🇧', 'SY': '🇸🇾', 'IQ': '🇮🇶', 'IR': '🇮🇷',
+      'AF': '🇦🇫', 'PK': '🇵🇰', 'BD': '🇧🇩', 'LK': '🇱🇰', 'MV': '🇲🇻',
+      'NP': '🇳🇵', 'BT': '🇧🇹', 'MM': '🇲🇲', 'LA': '🇱🇦', 'KH': '🇰🇭',
+      'MN': '🇲🇳', 'KZ': '🇰🇿', 'UZ': '🇺🇿', 'KG': '🇰🇬', 'TJ': '🇹🇯',
+      'TM': '🇹🇲', 'AZ': '🇦🇿', 'AM': '🇦🇲', 'GE': '🇬🇪', 'MD': '🇲🇩',
+      'BY': '🇧🇾', 'AL': '🇦🇱', 'MK': '🇲🇰', 'ME': '🇲🇪', 'RS': '🇷🇸',
+      'BA': '🇧🇦', 'XK': '🇽🇰', 'AD': '🇦🇩', 'MC': '🇲🇨', 'SM': '🇸🇲',
+      'VA': '🇻🇦', 'LI': '🇱🇮', 'FO': '🇫🇴', 'GL': '🇬🇱', 'SJ': '🇸🇯',
+      'AX': '🇦🇽', 'GG': '🇬🇬', 'JE': '🇯🇪', 'IM': '🇮🇲', 'GI': '🇬🇮',
+      'PT': '🇵🇹', 'ES': '🇪🇸', 'FR': '🇫🇷', 'IT': '🇮🇹', 'DE': '🇩🇪',
+      'NL': '🇳🇱', 'BE': '🇧🇪', 'CH': '🇨🇭', 'AT': '🇦🇹', 'SE': '🇸🇪',
+      'NO': '🇳🇴', 'DK': '🇩🇰', 'FI': '🇫🇮', 'IE': '🇮🇪', 'LU': '🇱🇺',
+      'MA': '🇲🇦', 'TN': '🇹🇳', 'DZ': '🇩🇿', 'EG': '🇪🇬', 'LY': '🇱🇾',
+      'SD': '🇸🇩', 'ET': '🇪🇹', 'KE': '🇰🇪', 'NG': '🇳🇬', 'ZA': '🇿🇦',
+      'CN': '🇨🇳', 'JP': '🇯🇵', 'KR': '🇰🇷', 'IN': '🇮🇳', 'SG': '🇸🇬',
+      'MY': '🇲🇾', 'TH': '🇹🇭', 'VN': '🇻🇳', 'ID': '🇮🇩', 'PH': '🇵🇭',
+      'BR': '🇧🇷', 'AR': '🇦🇷', 'MX': '🇲🇽', 'CL': '🇨🇱', 'CO': '🇨🇴',
+      'PE': '🇵🇪', 'VE': '🇻🇪', 'UY': '🇺🇾', 'PY': '🇵🇾', 'BO': '🇧🇴',
+      'RU': '🇷🇺', 'UA': '🇺🇦', 'PL': '🇵🇱', 'CZ': '🇨🇿', 'HU': '🇭🇺',
+      'RO': '🇷🇴', 'BG': '🇧🇬', 'HR': '🇭🇷', 'SI': '🇸🇮', 'SK': '🇸🇰',
+      'LT': '🇱🇹', 'LV': '🇱🇻', 'EE': '🇪🇪', 'TR': '🇹🇷', 'GR': '🇬🇷',
+      'CY': '🇨🇾', 'MT': '🇲🇹', 'IS': '🇮🇸', 'IL': '🇮🇱', 'AE': '🇦🇪',
+      'SA': '🇸🇦', 'QA': '🇶🇦', 'KW': '🇰🇼', 'BH': '🇧🇭', 'OM': '🇴🇲',
+      'JO': '🇯🇴', 'LB': '🇱🇧', 'SY': '🇸🇾', 'IQ': '🇮🇶', 'IR': '🇮🇷',
+      'AF': '🇦🇫', 'PK': '🇵🇰', 'BD': '🇧🇩', 'LK': '🇱🇰', 'MV': '🇲🇻',
+      'NP': '🇳🇵', 'BT': '🇧🇹', 'MM': '🇲🇲', 'LA': '🇱🇦', 'KH': '🇰🇭',
+      'MN': '🇲🇳', 'KZ': '🇰🇿', 'UZ': '🇺🇿', 'KG': '🇰🇬', 'TJ': '🇹🇯',
+      'TM': '🇹🇲', 'AZ': '🇦🇿', 'AM': '🇦🇲', 'GE': '🇬🇪', 'MD': '🇲🇩',
+      'BY': '🇧🇾', 'AL': '🇦🇱', 'MK': '🇲🇰', 'ME': '🇲🇪', 'RS': '🇷🇸',
+      'BA': '🇧🇦', 'XK': '🇽🇰', 'AD': '🇦🇩', 'MC': '🇲🇨', 'SM': '🇸🇲',
+      'VA': '🇻🇦', 'LI': '🇱🇮', 'FO': '🇫🇴', 'GL': '🇬🇱', 'SJ': '🇸🇯',
+      'AX': '🇦🇽', 'GG': '🇬🇬', 'JE': '🇯🇪', 'IM': '🇮🇲', 'GI': '🇬🇮',
+      'PT': '🇵🇹', 'ES': '🇪🇸', 'FR': '🇫🇷', 'IT': '🇮🇹', 'DE': '🇩🇪',
+      'NL': '🇳🇱', 'BE': '🇧🇪', 'CH': '🇨🇭', 'AT': '🇦🇹', 'SE': '🇸🇪',
+      'NO': '🇳🇴', 'DK': '🇩🇰', 'FI': '🇫🇮', 'IE': '🇮🇪', 'LU': '🇱🇺',
+      'MA': '🇲🇦', 'TN': '🇹🇳', 'DZ': '🇩🇿', 'EG': '🇪🇬', 'LY': '🇱🇾',
+      'SD': '🇸🇩', 'ET': '🇪🇹', 'KE': '🇰🇪', 'NG': '🇳🇬', 'ZA': '🇿🇦',
+      'CN': '🇨🇳', 'JP': '🇯🇵', 'KR': '🇰🇷', 'IN': '🇮🇳', 'SG': '🇸🇬',
+      'MY': '🇲🇾', 'TH': '🇹🇭', 'VN': '🇻🇳', 'ID': '🇮🇩', 'PH': '🇵🇭',
+      'BR': '🇧🇷', 'AR': '🇦🇷', 'MX': '🇲🇽', 'CL': '🇨🇱', 'CO': '🇨🇴',
+      'PE': '🇵🇪', 'VE': '🇻🇪', 'UY': '🇺🇾', 'PY': '🇵🇾', 'BO': '🇧🇴',
+      'RU': '🇷🇺', 'UA': '🇺🇦', 'PL': '🇵🇱', 'CZ': '🇨🇿', 'HU': '🇭🇺',
+      'RO': '🇷🇴', 'BG': '🇧🇬', 'HR': '🇭🇷', 'SI': '🇸🇮', 'SK': '🇸🇰',
+      'LT': '🇱🇹', 'LV': '🇱🇻', 'EE': '🇪🇪', 'TR': '🇹🇷', 'GR': '🇬🇷',
+      'CY': '🇨🇾', 'MT': '🇲🇹', 'IS': '🇮🇸', 'IL': '🇮🇱', 'AE': '🇦🇪',
+      'SA': '🇸🇦', 'QA': '🇶🇦', 'KW': '🇰🇼', 'BH': '🇧🇭', 'OM': '🇴🇲',
+      'JO': '🇯🇴', 'LB': '🇱🇧', 'SY': '🇸🇾', 'IQ': '🇮🇶', 'IR': '🇮🇷',
+      'AF': '🇦🇫', 'PK': '🇵🇰', 'BD': '🇧🇩', 'LK': '🇱🇰', 'MV': '🇲🇻',
+      'NP': '🇳🇵', 'BT': '🇧🇹', 'MM': '🇲🇲', 'LA': '🇱🇦', 'KH': '🇰🇭',
+      'MN': '🇲🇳', 'KZ': '🇰🇿', 'UZ': '🇺🇿', 'KG': '🇰🇬', 'TJ': '🇹🇯',
+      'TM': '🇹🇲', 'AZ': '🇦🇿', 'AM': '🇦🇲', 'GE': '🇬🇪', 'MD': '🇲🇩',
+      'BY': '🇧🇾', 'AL': '🇦🇱', 'MK': '🇲🇰', 'ME': '🇲🇪', 'RS': '🇷🇸',
+      'BA': '🇧🇦', 'XK': '🇽🇰', 'AD': '🇦🇩', 'MC': '🇲🇨', 'SM': '🇸🇲',
+      'VA': '🇻🇦', 'LI': '🇱🇮', 'FO': '🇫🇴', 'GL': '🇬🇱', 'SJ': '🇸🇯',
       'AX': '🇦🇽', 'GG': '🇬🇬', 'JE': '🇯🇪', 'IM': '🇮🇲', 'GI': '🇬🇮'
     };
     return flags[code] || '🏳️';
@@ -1111,6 +1440,11 @@ const ApplicationProcess = () => {
         },
         language: language
       };
+
+      // Add China-specific fields if application is for China
+      if (application.isChina && dataToSave.chinaFields) {
+        updateData.chinaFields = dataToSave.chinaFields;
+      }
       
       // Debug: Log the intake selection being saved
       console.log('Saving application progress with intake:', dataToSave.preferences.intake);
@@ -1411,6 +1745,11 @@ const ApplicationProcess = () => {
         },
         language: language
       };
+
+      // Add China-specific fields if application is for China
+      if (application.isChina && formData.chinaFields) {
+        updateData.chinaFields = formData.chinaFields;
+      }
       
       console.log('Final payload being sent:', updateData);
       console.log('Preferences payload specifically:', updateData.preferences);
@@ -1899,6 +2238,7 @@ const ApplicationProcess = () => {
                   />
                 </div>
                 
+
                 {/* Passport Available Checkbox */}
                 <div className="md:col-span-2 lg:col-span-3">
                   <label className="flex items-center gap-3 cursor-pointer">
@@ -1928,6 +2268,20 @@ const ApplicationProcess = () => {
                         onChange={(e) => handleInputChange('personalInfo', 'passportNumber', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         placeholder={language === 'en' ? 'Enter your passport number' : 'Saisissez votre numéro de passeport'}
+                        disabled={isReadOnly}
+                        required
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-2">
+                        {language === 'en' ? 'Issue Date' : 'Date de Délivrance'} *
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.personalInfo.passportIssueDate}
+                        onChange={(e) => handleInputChange('personalInfo', 'passportIssueDate', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                         disabled={isReadOnly}
                         required
                       />
@@ -2157,6 +2511,160 @@ const ApplicationProcess = () => {
               )}
             </div>
             
+            {/* China-specific fields - Only show if application is for China */}
+            {application?.isChina && (
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                  <Flag className="w-5 h-5 text-red-600" />
+                  {language === 'en' ? 'China Application Specific Fields' : 'Champs Spécifiques à la Candidature Chine'}
+                </h4>
+                
+                
+                {/* Religion */}
+                <div className="mb-6">
+                  <div className="max-w-md">
+                    <label className="block text-xs font-medium text-gray-700 mb-2">
+                      {language === 'en' ? 'Religion' : 'Religion'} *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.chinaFields.religion}
+                      onChange={(e) => handleInputChange('chinaFields', 'religion', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      placeholder={language === 'en' ? 'Enter your religion' : 'Saisissez votre religion'}
+                      disabled={isReadOnly}
+                      required
+                    />
+                  </div>
+                </div>
+                
+                {/* Family Members */}
+                <div className="mb-6">
+                  <h5 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <Users className="w-4 h-4 text-green-600" />
+                    {language === 'en' ? 'Family Members' : 'Membres de la Famille'}
+                  </h5>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Father */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h6 className="text-sm font-medium text-gray-800 mb-3">
+                        {language === 'en' ? 'Father' : 'Père'}
+                      </h6>
+                      <div className="space-y-3">
+                        <input
+                          type="text"
+                          value={formData.chinaFields.familyMembers.father.name}
+                          onChange={(e) => handleInputChange('chinaFields', 'familyMembers', {
+                            ...formData.chinaFields.familyMembers,
+                            father: { ...formData.chinaFields.familyMembers.father, name: e.target.value }
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          placeholder={language === 'en' ? 'Father\'s name' : 'Nom du père'}
+                          disabled={isReadOnly}
+                        />
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            {language === 'en' ? 'Date of Birth' : 'Date de naissance'}
+                          </label>
+                          <input
+                            type="date"
+                            value={formData.chinaFields.familyMembers.father.dateOfBirth}
+                            onChange={(e) => handleInputChange('chinaFields', 'familyMembers', {
+                              ...formData.chinaFields.familyMembers,
+                              father: { ...formData.chinaFields.familyMembers.father, dateOfBirth: e.target.value }
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                            disabled={isReadOnly}
+                          />
+                        </div>
+                        <input
+                          type="text"
+                          value={formData.chinaFields.familyMembers.father.occupation}
+                          onChange={(e) => handleInputChange('chinaFields', 'familyMembers', {
+                            ...formData.chinaFields.familyMembers,
+                            father: { ...formData.chinaFields.familyMembers.father, occupation: e.target.value }
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          placeholder={language === 'en' ? 'Father\'s occupation' : 'Profession du père'}
+                          disabled={isReadOnly}
+                        />
+                        <input
+                          type="tel"
+                          value={formData.chinaFields.familyMembers.father.phone}
+                          onChange={(e) => handleInputChange('chinaFields', 'familyMembers', {
+                            ...formData.chinaFields.familyMembers,
+                            father: { ...formData.chinaFields.familyMembers.father, phone: e.target.value }
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          placeholder={language === 'en' ? 'Father\'s phone' : 'Téléphone du père'}
+                          disabled={isReadOnly}
+                        />
+                      </div>
+                    </div>
+                    
+                    {/* Mother */}
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <h6 className="text-sm font-medium text-gray-800 mb-3">
+                        {language === 'en' ? 'Mother' : 'Mère'}
+                      </h6>
+                      <div className="space-y-3">
+                        <input
+                          type="text"
+                          value={formData.chinaFields.familyMembers.mother.name}
+                          onChange={(e) => handleInputChange('chinaFields', 'familyMembers', {
+                            ...formData.chinaFields.familyMembers,
+                            mother: { ...formData.chinaFields.familyMembers.mother, name: e.target.value }
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          placeholder={language === 'en' ? 'Mother\'s name' : 'Nom de la mère'}
+                          disabled={isReadOnly}
+                        />
+                        <div>
+                          <label className="block text-xs font-medium text-gray-700 mb-1">
+                            {language === 'en' ? 'Date of Birth' : 'Date de naissance'}
+                          </label>
+                          <input
+                            type="date"
+                            value={formData.chinaFields.familyMembers.mother.dateOfBirth}
+                            onChange={(e) => handleInputChange('chinaFields', 'familyMembers', {
+                              ...formData.chinaFields.familyMembers,
+                              mother: { ...formData.chinaFields.familyMembers.mother, dateOfBirth: e.target.value }
+                            })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                            disabled={isReadOnly}
+                          />
+                        </div>
+                        <input
+                          type="text"
+                          value={formData.chinaFields.familyMembers.mother.occupation}
+                          onChange={(e) => handleInputChange('chinaFields', 'familyMembers', {
+                            ...formData.chinaFields.familyMembers,
+                            mother: { ...formData.chinaFields.familyMembers.mother, occupation: e.target.value }
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          placeholder={language === 'en' ? 'Mother\'s occupation' : 'Profession de la mère'}
+                          disabled={isReadOnly}
+                        />
+                        <input
+                          type="tel"
+                          value={formData.chinaFields.familyMembers.mother.phone}
+                          onChange={(e) => handleInputChange('chinaFields', 'familyMembers', {
+                            ...formData.chinaFields.familyMembers,
+                            mother: { ...formData.chinaFields.familyMembers.mother, phone: e.target.value }
+                          })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                          placeholder={language === 'en' ? 'Mother\'s phone' : 'Téléphone de la mère'}
+                          disabled={isReadOnly}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+              </div>
+            )}
+            
             {/* Save Personal Information Button */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
               <div className="flex items-center justify-between">
@@ -2215,38 +2723,71 @@ const ApplicationProcess = () => {
             </div>
 
             {/* Informative Note for France Requirements */}
-            <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4 mb-6">
-              <div className="flex items-start gap-3">
-                <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <h4 className="text-sm font-semibold text-blue-900 mb-2">
-                    {language === 'en' ? 'Important Information for Studies in France' : 'Information Importante pour les Études en France'}
-                  </h4>
-                  <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
-                    <li>
-                      {language === 'en' 
-                        ? 'To study in France, you must add your Baccalauréat and all diplomas you hold.'
-                        : 'Pour étudier en France, vous devez ajouter le baccalauréat et tous les diplômes que vous disposez.'}
-                    </li>
-                    <li>
-                      {language === 'en' 
-                        ? 'TCF is mandatory for studies in French, except in case of exemption.'
-                        : 'Le TCF est obligatoire pour les études en français, sauf en cas de dispense.'}
-                    </li>
-                    <li>
-                      {language === 'en' 
-                        ? 'TOEFL is mandatory for studies in English, except in case of exemption.'
-                        : 'Le TOEFL est obligatoire pour les études en anglais, sauf en cas de dispense.'}
-                    </li>
-                    <li>
-                      {language === 'en' 
-                        ? 'Standardized tests are not required for studies in France.'
-                        : 'Pour les tests standardisés, pas besoin en France.'}
-                    </li>
-                  </ul>
+            {application?.isFrance && (
+              <div className="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-blue-900 mb-2">
+                      {language === 'en' ? 'Important Information for Studies in France' : 'Information Importante pour les Études en France'}
+                    </h4>
+                    <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                      <li>
+                        {language === 'en' 
+                          ? 'To study in France, you must add your Baccalauréat and all diplomas you hold.'
+                          : 'Pour étudier en France, vous devez ajouter le baccalauréat et tous les diplômes que vous disposez.'}
+                      </li>
+                      <li>
+                        {language === 'en' 
+                          ? 'TCF is mandatory for studies in French, except in case of exemption.'
+                          : 'Le TCF est obligatoire pour les études en français, sauf en cas de dispense.'}
+                      </li>
+                      <li>
+                        {language === 'en' 
+                          ? 'TOEFL is mandatory for studies in English, except in case of exemption.'
+                          : 'Le TOEFL est obligatoire pour les études en anglais, sauf en cas de dispense.'}
+                      </li>
+                      <li>
+                        {language === 'en' 
+                          ? 'Standardized tests are not required for studies in France.'
+                          : 'Pour les tests standardisés, pas besoin en France.'}
+                      </li>
+                    </ul>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Informative Note for China Requirements */}
+            {application?.isChina && (
+              <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 mb-6">
+                <div className="flex items-start gap-3">
+                  <Info className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-red-900 mb-2">
+                      {language === 'en' ? 'Important Information for Studies in China' : 'Information Importante pour les Études en Chine'}
+                    </h4>
+                    <ul className="text-sm text-red-800 space-y-1 list-disc list-inside">
+                      <li>
+                        {language === 'en' 
+                          ? 'To study in China, you must add your Baccalauréat and all diplomas you hold.'
+                          : 'Pour étudier en Chine, vous devez ajouter le baccalauréat et tous les diplômes que vous disposez.'}
+                      </li>
+                      <li>
+                        {language === 'en' 
+                          ? 'CSCA (China Standardized Competency Assessment) is required for studies in China.'
+                          : 'Le CSCA (Évaluation Standardisée des Compétences de Chine) est requis pour les études en Chine.'}
+                      </li>
+                      <li>
+                        {language === 'en' 
+                          ? 'English certification (IELTS, TOEFL, etc.) is mandatory for some Chinese universities.'
+                          : 'La certification d\'anglais (IELTS, TOEFL, etc.) est obligatoire pour certaines universités chinoises.'}
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
             
             
             {/* Qualifications */}
@@ -2259,6 +2800,7 @@ const ApplicationProcess = () => {
                 language={language}
                 activeSubsection="academic"
                 onSubsectionChange={() => {}}
+                applications={application ? [application] : []}
               />
             </div>
 
@@ -2372,6 +2914,7 @@ const ApplicationProcess = () => {
                   }
                 }));
               }}
+              application={application}
             />
           </div>
         );
@@ -2523,7 +3066,7 @@ const ApplicationProcess = () => {
               
               {/* Always show additional info input */}
               <div className="md:col-span-2 lg:col-span-3">
-                <label className="block text-xs font-medium text-gray-700 mb-2">
+                <label className="block text-xs font-medium text-gray-700 mb-2 mt-4">
                   {language === 'en' ? 'Additional Information' : 'Informations Supplémentaires'}
                 </label>
                 <textarea
@@ -2550,6 +3093,29 @@ const ApplicationProcess = () => {
           <div className="space-y-6">
             {/* Admission Team Note */}
             {renderAdmissionTeamNote(5)}
+
+            {/* China-specific note for document language requirement */}
+            {application?.isChina && (
+              <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-sm font-bold">!</span>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-red-900 mb-2">
+                      {language === 'en' ? 'Important: Document Language Requirement for China Applications' : 'Important : Exigence de Langue des Documents pour les Candidatures Chine'}
+                    </h4>
+                    <p className="text-sm text-red-800">
+                      {language === 'en' 
+                        ? 'For applications to China, all documents must be in English. Please ensure all your academic documents, transcripts, and certificates are translated to English before submission.'
+                        : 'Pour les candidatures en Chine, tous les documents doivent être en anglais. Veuillez vous assurer que tous vos documents académiques, relevés de notes et certificats sont traduits en anglais avant la soumission.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Program Summary Card */}
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
@@ -2790,11 +3356,16 @@ const ApplicationProcess = () => {
                               <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.passportNumber || formData.personalInfo.passportNumber}</p>
                             </div>
                             <div className="space-y-1">
+                              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Issue Date' : 'Date de Délivrance'}</label>
+                              <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.passportIssueDate || formData.personalInfo.passportIssueDate}</p>
+                            </div>
+                            <div className="space-y-1">
                               <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Passport Expiration' : 'Expiration Passeport'}</label>
                               <p className="text-sm font-semibold text-gray-900">{reviewData.personalInfo?.passportExpirationDate || formData.personalInfo.passportExpirationDate}</p>
                             </div>
                           </>
                         )}
+                        
                       </div>
                     </div>
                   </div>
@@ -2891,6 +3462,90 @@ const ApplicationProcess = () => {
                     </div>
                   </div>
 
+
+                  {/* China-specific fields - Only show if application is for China */}
+                  {application?.isChina && (
+                    <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+                      <div className="bg-gradient-to-r from-red-50 to-orange-50 px-6 py-4 border-b border-gray-200">
+                        <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-3">
+                          <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                            <Flag className="w-4 h-4 text-red-600" />
+                          </div>
+                          🇨🇳 {language === 'en' ? 'China Application Specific Fields' : 'Champs Spécifiques à la Candidature Chine'}
+                        </h4>
+                      </div>
+                      <div className="p-6">
+                        <div className="space-y-6">
+                          {/* Religion */}
+                          <div className="space-y-1">
+                            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Religion' : 'Religion'}</label>
+                            <p className="text-sm font-semibold text-gray-900">{formData.chinaFields?.religion || ''}</p>
+                          </div>
+
+                          {/* Family Members */}
+                          <div className="space-y-4">
+                            <h5 className="text-md font-semibold text-gray-900 flex items-center gap-2">
+                              <Users className="w-4 h-4 text-green-600" />
+                              {language === 'en' ? 'Family Members' : 'Membres de la Famille'}
+                            </h5>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                              {/* Father */}
+                              <div className="bg-gray-50 p-4 rounded-lg">
+                                <h6 className="text-sm font-medium text-gray-800 mb-3">
+                                  {language === 'en' ? 'Father' : 'Père'}
+                                </h6>
+                                <div className="space-y-2">
+                                  <div className="space-y-1">
+                                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Name' : 'Nom'}</label>
+                                    <p className="text-sm font-semibold text-gray-900">{formData.chinaFields?.familyMembers?.father?.name || ''}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Date of Birth' : 'Date de Naissance'}</label>
+                                    <p className="text-sm font-semibold text-gray-900">{formData.chinaFields?.familyMembers?.father?.dateOfBirth || ''}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Occupation' : 'Profession'}</label>
+                                    <p className="text-sm font-semibold text-gray-900">{formData.chinaFields?.familyMembers?.father?.occupation || ''}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Phone' : 'Téléphone'}</label>
+                                    <p className="text-sm font-semibold text-gray-900">{formData.chinaFields?.familyMembers?.father?.phone || ''}</p>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              {/* Mother */}
+                              <div className="bg-gray-50 p-4 rounded-lg">
+                                <h6 className="text-sm font-medium text-gray-800 mb-3">
+                                  {language === 'en' ? 'Mother' : 'Mère'}
+                                </h6>
+                                <div className="space-y-2">
+                                  <div className="space-y-1">
+                                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Name' : 'Nom'}</label>
+                                    <p className="text-sm font-semibold text-gray-900">{formData.chinaFields?.familyMembers?.mother?.name || ''}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Date of Birth' : 'Date de Naissance'}</label>
+                                    <p className="text-sm font-semibold text-gray-900">{formData.chinaFields?.familyMembers?.mother?.dateOfBirth || ''}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Occupation' : 'Profession'}</label>
+                                    <p className="text-sm font-semibold text-gray-900">{formData.chinaFields?.familyMembers?.mother?.occupation || ''}</p>
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">{language === 'en' ? 'Phone' : 'Téléphone'}</label>
+                                    <p className="text-sm font-semibold text-gray-900">{formData.chinaFields?.familyMembers?.mother?.phone || ''}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Documents Status */}
                   <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
                     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
@@ -2910,7 +3565,10 @@ const ApplicationProcess = () => {
                           </span>
                           <span className="text-lg font-bold text-blue-600">
                             {(() => {
-                              const totalDocs = 17; // Total number of document types from ApplicationDocumentsSection
+                              const baseDocs = 16; // Base number of document types (removed frenchTest from academic)
+                              const chinaDocs = application?.isChina ? 2 : 0; // China-specific documents
+                              const franceDocs = application?.isFrance ? 1 : 0; // France-specific documents
+                              const totalDocs = baseDocs + chinaDocs + franceDocs;
                               const uploadedDocs = Object.keys(documentsMap).length;
                               const percentage = Math.round((uploadedDocs / totalDocs) * 100);
                               return `${percentage}%`;
@@ -2922,9 +3580,12 @@ const ApplicationProcess = () => {
                             className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-500"
                             style={{ 
                               width: `${(() => {
-                                const totalDocs = 17; // Total number of document types from ApplicationDocumentsSection
-                                const uploadedDocs = Object.keys(documentsMap).length;
-                                return Math.round((uploadedDocs / totalDocs) * 100);
+                              const baseDocs = 16; // Base number of document types (removed frenchTest from academic)
+                              const chinaDocs = application?.isChina ? 2 : 0; // China-specific documents
+                              const franceDocs = application?.isFrance ? 1 : 0; // France-specific documents
+                              const totalDocs = baseDocs + chinaDocs + franceDocs;
+                              const uploadedDocs = Object.keys(documentsMap).length;
+                              return Math.round((uploadedDocs / totalDocs) * 100);
                               })()}%` 
                             }}
                           ></div>
@@ -2933,55 +3594,61 @@ const ApplicationProcess = () => {
 
                       {/* Required Documents Progress */}
                       <div className="mb-6">
-                        <div className="flex justify-between items-center mb-3">
-                          <span className="text-sm font-medium text-gray-700">
-                            Documents Requis (Minimum)
-                          </span>
-                          <span className={`text-lg font-bold ${
-                            (() => {
-                              const requiredDocs = ['passport', 'nationalId', 'cv', 'guardian1NationalId', 'transcript', 'frenchTest', 'baccalaureate', 'motivationLetter', 'recommendationLetter1'];
-                              const uploadedRequiredDocs = requiredDocs.filter(docKey => documentsMap[docKey]);
-                              const isComplete = uploadedRequiredDocs.length === requiredDocs.length;
-                              return isComplete ? 'text-green-600' : 'text-orange-600';
-                            })()
-                          }`}>
-                            {(() => {
-                              const requiredDocs = ['passport', 'nationalId', 'cv', 'guardian1NationalId', 'transcript', 'frenchTest', 'baccalaureate', 'motivationLetter', 'recommendationLetter1'];
-                              const uploadedRequiredDocs = requiredDocs.filter(docKey => documentsMap[docKey]);
-                              const percentage = Math.round((uploadedRequiredDocs.length / requiredDocs.length) * 100);
-                              return `${percentage}%`;
-                            })()}
-                          </span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-3">
-                          <div 
-                            className={`h-3 rounded-full transition-all duration-500 ${
-                              (() => {
-                                const requiredDocs = ['passport', 'nationalId', 'cv', 'guardian1NationalId', 'transcript', 'frenchTest', 'baccalaureate', 'motivationLetter', 'recommendationLetter1'];
-                                const uploadedRequiredDocs = requiredDocs.filter(docKey => documentsMap[docKey]);
-                                const isComplete = uploadedRequiredDocs.length === requiredDocs.length;
-                                return isComplete ? 'bg-gradient-to-r from-green-500 to-green-600' : 'bg-gradient-to-r from-orange-500 to-orange-600';
-                              })()
-                            }`}
-                            style={{ 
-                              width: `${(() => {
-                                const requiredDocs = ['passport', 'nationalId', 'cv', 'guardian1NationalId', 'transcript', 'frenchTest', 'baccalaureate', 'motivationLetter', 'recommendationLetter1'];
-                                const uploadedRequiredDocs = requiredDocs.filter(docKey => documentsMap[docKey]);
-                                return Math.round((uploadedRequiredDocs.length / requiredDocs.length) * 100);
-                              })()}%` 
-                            }}
-                          ></div>
-                        </div>
+                        {(() => {
+                          // Base required documents (always required)
+                          const baseRequiredDocs = ['passport', 'nationalId', 'cv', 'guardian1NationalId', 'generalTranscript', 'baccalaureate', 'motivationLetter', 'recommendationLetter1'];
+                          
+                          // Add country-specific required documents
+                          const chinaRequiredDocs = application?.isChina ? ['medicalHealthCheck', 'anthropometricRecord'] : [];
+                          const franceRequiredDocs = application?.isFrance ? ['frenchTest'] : [];
+                          
+                          // Combine all required documents
+                          const requiredDocs = [...baseRequiredDocs, ...chinaRequiredDocs, ...franceRequiredDocs];
+                          
+                          // Calculate uploaded required documents
+                          const uploadedRequiredDocs = requiredDocs.filter(docKey => documentsMap[docKey]);
+                          const percentage = Math.round((uploadedRequiredDocs.length / requiredDocs.length) * 100);
+                          const isComplete = uploadedRequiredDocs.length === requiredDocs.length;
+                          
+                          return (
+                            <>
+                              <div className="flex justify-between items-center mb-3">
+                                <span className="text-sm font-medium text-gray-700">
+                                  Documents Requis (Minimum)
+                                </span>
+                                <span className={`text-lg font-bold ${isComplete ? 'text-green-600' : 'text-orange-600'}`}>
+                                  {percentage}%
+                                </span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-3">
+                                <div 
+                                  className={`h-3 rounded-full transition-all duration-500 ${
+                                    isComplete ? 'bg-gradient-to-r from-green-500 to-green-600' : 'bg-gradient-to-r from-orange-500 to-orange-600'
+                                  }`}
+                                  style={{ width: `${percentage}%` }}
+                                ></div>
+                              </div>
+                            </>
+                          );
+                        })()}
                         <div className="mt-2 flex justify-between items-center">
                           <span className="text-xs text-gray-500">
                             {(() => {
-                              const requiredDocs = ['passport', 'nationalId', 'cv', 'guardian1NationalId', 'transcript', 'frenchTest', 'baccalaureate', 'motivationLetter', 'recommendationLetter1'];
+                              // Use the same logic as above
+                              const baseRequiredDocs = ['passport', 'nationalId', 'cv', 'guardian1NationalId', 'generalTranscript', 'baccalaureate', 'motivationLetter', 'recommendationLetter1'];
+                              const chinaRequiredDocs = application?.isChina ? ['medicalHealthCheck', 'anthropometricRecord'] : [];
+                              const franceRequiredDocs = application?.isFrance ? ['frenchTest'] : [];
+                              const requiredDocs = [...baseRequiredDocs, ...chinaRequiredDocs, ...franceRequiredDocs];
                               const uploadedRequiredDocs = requiredDocs.filter(docKey => documentsMap[docKey]);
                               return `${uploadedRequiredDocs.length}/${requiredDocs.length} documents requis`;
                             })()}
                           </span>
                           {(() => {
-                            const requiredDocs = ['passport', 'nationalId', 'cv', 'guardian1NationalId', 'transcript', 'frenchTest', 'baccalaureate', 'motivationLetter', 'recommendationLetter1'];
+                            // Use the same logic as above
+                            const baseRequiredDocs = ['passport', 'nationalId', 'cv', 'guardian1NationalId', 'generalTranscript', 'baccalaureate', 'motivationLetter', 'recommendationLetter1'];
+                            const chinaRequiredDocs = application?.isChina ? ['medicalHealthCheck', 'anthropometricRecord'] : [];
+                            const franceRequiredDocs = application?.isFrance ? ['frenchTest'] : [];
+                            const requiredDocs = [...baseRequiredDocs, ...chinaRequiredDocs, ...franceRequiredDocs];
                             const uploadedRequiredDocs = requiredDocs.filter(docKey => documentsMap[docKey]);
                             const isComplete = uploadedRequiredDocs.length === requiredDocs.length;
                             return isComplete ? (
@@ -3068,15 +3735,33 @@ const ApplicationProcess = () => {
                                       }`}>
                                         {validationInfo.text}
                                       </span>
-                                      {needsFrenchValidation(doc.key, uploadedDoc, doc.required) && (
-                                        <span className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">
-                                          Français Requis
-                                        </span>
-                                      )}
-                                      {isRequiredDocumentInFrench(doc.key, uploadedDoc, doc.required) && (
-                                        <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
-                                          ✓ En Français
-                                        </span>
+                                      {/* Language validation based on application country */}
+                                      {application?.isChina ? (
+                                        <>
+                                          {needsEnglishValidation(doc.key, uploadedDoc, doc.required) && (
+                                            <span className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">
+                                              Anglais Requis
+                                            </span>
+                                          )}
+                                          {isRequiredDocumentInEnglish(doc.key, uploadedDoc, doc.required) && (
+                                            <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                                              ✓ En Anglais
+                                            </span>
+                                          )}
+                                        </>
+                                      ) : (
+                                        <>
+                                          {needsFrenchValidation(doc.key, uploadedDoc, doc.required) && (
+                                            <span className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">
+                                              Français Requis
+                                            </span>
+                                          )}
+                                          {isRequiredDocumentInFrench(doc.key, uploadedDoc, doc.required) && (
+                                            <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                                              ✓ En Français
+                                            </span>
+                                          )}
+                                        </>
                                       )}
                                     </>
                                   ) : (
@@ -3102,9 +3787,8 @@ const ApplicationProcess = () => {
                         </h5>
                         <div className="space-y-2">
                           {[
-                            { key: 'transcript', label: 'Relevé de note général', required: true },
+                            { key: 'generalTranscript', label: language === 'en' ? 'General Transcript' : 'Relevé de note général', required: true },
                             { key: 'englishTest', label: 'Certificat de Test d\'Anglais', required: false },
-                            { key: 'frenchTest', label: 'Certificat de Test de Français', required: true },
                             { key: 'portfolio', label: 'Portfolio', required: false },
                             { key: 'baccalaureate', label: 'Diplôme du Baccalauréat', required: true },
                             { key: 'bac2', label: 'Diplôme BAC+2', required: false },
@@ -3166,15 +3850,33 @@ const ApplicationProcess = () => {
                                       }`}>
                                         {validationInfo.text}
                                       </span>
-                                      {needsFrenchValidation(doc.key, uploadedDoc, doc.required) && (
-                                        <span className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">
-                                          Français Requis
-                                        </span>
-                                      )}
-                                      {isRequiredDocumentInFrench(doc.key, uploadedDoc, doc.required) && (
-                                        <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
-                                          ✓ En Français
-                                        </span>
+                                      {/* Language validation based on application country */}
+                                      {application?.isChina ? (
+                                        <>
+                                          {needsEnglishValidation(doc.key, uploadedDoc, doc.required) && (
+                                            <span className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">
+                                              Anglais Requis
+                                            </span>
+                                          )}
+                                          {isRequiredDocumentInEnglish(doc.key, uploadedDoc, doc.required) && (
+                                            <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                                              ✓ En Anglais
+                                            </span>
+                                          )}
+                                        </>
+                                      ) : (
+                                        <>
+                                          {needsFrenchValidation(doc.key, uploadedDoc, doc.required) && (
+                                            <span className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">
+                                              Français Requis
+                                            </span>
+                                          )}
+                                          {isRequiredDocumentInFrench(doc.key, uploadedDoc, doc.required) && (
+                                            <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                                              ✓ En Français
+                                            </span>
+                                          )}
+                                        </>
                                       )}
                                     </>
                                   ) : (
@@ -3258,15 +3960,33 @@ const ApplicationProcess = () => {
                                       }`}>
                                         {validationInfo.text}
                                       </span>
-                                      {needsFrenchValidation(doc.key, uploadedDoc, doc.required) && (
-                                        <span className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">
-                                          Français Requis
-                                        </span>
-                                      )}
-                                      {isRequiredDocumentInFrench(doc.key, uploadedDoc, doc.required) && (
-                                        <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
-                                          ✓ En Français
-                                        </span>
+                                      {/* Language validation based on application country */}
+                                      {application?.isChina ? (
+                                        <>
+                                          {needsEnglishValidation(doc.key, uploadedDoc, doc.required) && (
+                                            <span className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">
+                                              Anglais Requis
+                                            </span>
+                                          )}
+                                          {isRequiredDocumentInEnglish(doc.key, uploadedDoc, doc.required) && (
+                                            <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                                              ✓ En Anglais
+                                            </span>
+                                          )}
+                                        </>
+                                      ) : (
+                                        <>
+                                          {needsFrenchValidation(doc.key, uploadedDoc, doc.required) && (
+                                            <span className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">
+                                              Français Requis
+                                            </span>
+                                          )}
+                                          {isRequiredDocumentInFrench(doc.key, uploadedDoc, doc.required) && (
+                                            <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                                              ✓ En Français
+                                            </span>
+                                          )}
+                                        </>
                                       )}
                                     </>
                                   ) : (
@@ -3283,6 +4003,193 @@ const ApplicationProcess = () => {
                           })}
                         </div>
                       </div>
+
+                      {/* China-Specific Documents Section - Only show if application is for China */}
+                      {application?.isChina && (
+                        <div>
+                          <h5 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-red-600" />
+                            🇨🇳 Documents Spécifiques à la Chine
+                          </h5>
+                          <div className="space-y-2">
+                            {[
+                              { key: 'medicalHealthCheck', label: 'Certificat Médical de Santé', required: true },
+                              { key: 'anthropometricRecord', label: 'Fiche Anthropométrique (Bonne Conduite)', required: true }
+                            ].map((doc) => {
+                              const uploadedDoc = documentsMap[doc.key];
+                              const isUploaded = !!uploadedDoc;
+                              
+                              // Fonction pour obtenir l'état de validation
+                              const getValidationStatus = (doc) => {
+                                if (!doc) return { status: 'missing', text: 'Manquant', color: 'gray', icon: null };
+                                
+                                switch (doc.validationStatus) {
+                                  case 'approved':
+                                    return { status: 'approved', text: 'Validé', color: 'green', icon: CheckCircle };
+                                  case 'under_review':
+                                    return { status: 'under_review', text: 'En cours de révision', color: 'yellow', icon: Clock };
+                                  case 'rejected':
+                                    return { status: 'rejected', text: 'Refusé', color: 'red', icon: XCircle };
+                                  default:
+                                    return { status: 'uploaded', text: 'Téléchargé', color: 'blue', icon: Upload };
+                                }
+                              };
+                              
+                              const validationInfo = getValidationStatus(uploadedDoc);
+                              const StatusIcon = validationInfo.icon;
+                              
+                              return (
+                                <div key={doc.key} className="flex items-center justify-between py-3 px-4 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-3 h-3 rounded-full ${
+                                      validationInfo.status === 'approved' ? 'bg-green-500' :
+                                      validationInfo.status === 'under_review' ? 'bg-yellow-500' :
+                                      validationInfo.status === 'rejected' ? 'bg-red-500' :
+                                      validationInfo.status === 'uploaded' ? 'bg-blue-500' :
+                                      'bg-gray-300'
+                                    }`}></div>
+                                    <span className="text-sm font-medium text-gray-700">
+                                      {doc.label}
+                                      {doc.required && <span className="text-red-500 ml-1">*</span>}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {isUploaded ? (
+                                      <>
+                                        {StatusIcon && <StatusIcon className={`w-4 h-4 ${
+                                          validationInfo.color === 'green' ? 'text-green-600' :
+                                          validationInfo.color === 'yellow' ? 'text-yellow-600' :
+                                          validationInfo.color === 'red' ? 'text-red-600' :
+                                          'text-blue-600'
+                                        }`} />}
+                                        <span className={`text-sm font-semibold ${
+                                          validationInfo.color === 'green' ? 'text-green-600' :
+                                          validationInfo.color === 'yellow' ? 'text-yellow-600' :
+                                          validationInfo.color === 'red' ? 'text-red-600' :
+                                          'text-blue-600'
+                                        }`}>
+                                          {validationInfo.text}
+                                        </span>
+                                        {/* Language validation for China - English required */}
+                                        {needsEnglishValidation(doc.key, uploadedDoc, doc.required) && (
+                                          <span className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">
+                                            Anglais Requis
+                                          </span>
+                                        )}
+                                        {isRequiredDocumentInEnglish(doc.key, uploadedDoc, doc.required) && (
+                                          <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                                            ✓ En Anglais
+                                          </span>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <>
+                                        <div className="w-4 h-4 border-2 border-gray-300 rounded-full"></div>
+                                        <span className="text-sm text-gray-500">
+                                          Manquant
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* France-Specific Documents Section - Only show if application is for France */}
+                      {application?.isFrance && (
+                        <div>
+                          <h5 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-blue-600" />
+                            🇫🇷 Documents Spécifiques à la France
+                          </h5>
+                          <div className="space-y-2">
+                            {[
+                              { key: 'frenchTest', label: 'Certificat de Test de Français', required: true }
+                            ].map((doc) => {
+                              const uploadedDoc = documentsMap[doc.key];
+                              const isUploaded = !!uploadedDoc;
+                              
+                              // Fonction pour obtenir l'état de validation
+                              const getValidationStatus = (doc) => {
+                                if (!doc) return { status: 'missing', text: 'Manquant', color: 'gray', icon: null };
+                                
+                                switch (doc.validationStatus) {
+                                  case 'approved':
+                                    return { status: 'approved', text: 'Validé', color: 'green', icon: CheckCircle };
+                                  case 'under_review':
+                                    return { status: 'under_review', text: 'En cours de révision', color: 'yellow', icon: Clock };
+                                  case 'rejected':
+                                    return { status: 'rejected', text: 'Refusé', color: 'red', icon: XCircle };
+                                  default:
+                                    return { status: 'uploaded', text: 'Téléchargé', color: 'blue', icon: Upload };
+                                }
+                              };
+                              
+                              const validationInfo = getValidationStatus(uploadedDoc);
+                              const StatusIcon = validationInfo.icon;
+                              
+                              return (
+                                <div key={doc.key} className="flex items-center justify-between py-3 px-4 bg-white rounded-lg border border-gray-200 hover:shadow-sm transition-shadow">
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-3 h-3 rounded-full ${
+                                      validationInfo.status === 'approved' ? 'bg-green-500' :
+                                      validationInfo.status === 'under_review' ? 'bg-yellow-500' :
+                                      validationInfo.status === 'rejected' ? 'bg-red-500' :
+                                      validationInfo.status === 'uploaded' ? 'bg-blue-500' :
+                                      'bg-gray-300'
+                                    }`}></div>
+                                    <span className="text-sm font-medium text-gray-700">
+                                      {doc.label}
+                                      {doc.required && <span className="text-red-500 ml-1">*</span>}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {isUploaded ? (
+                                      <>
+                                        {StatusIcon && <StatusIcon className={`w-4 h-4 ${
+                                          validationInfo.color === 'green' ? 'text-green-600' :
+                                          validationInfo.color === 'yellow' ? 'text-yellow-600' :
+                                          validationInfo.color === 'red' ? 'text-red-600' :
+                                          'text-blue-600'
+                                        }`} />}
+                                        <span className={`text-sm font-semibold ${
+                                          validationInfo.color === 'green' ? 'text-green-600' :
+                                          validationInfo.color === 'yellow' ? 'text-yellow-600' :
+                                          validationInfo.color === 'red' ? 'text-red-600' :
+                                          'text-blue-600'
+                                        }`}>
+                                          {validationInfo.text}
+                                        </span>
+                                        {/* Language validation for France - French required */}
+                                        {needsFrenchValidation(doc.key, uploadedDoc, doc.required) && (
+                                          <span className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">
+                                            Français Requis
+                                          </span>
+                                        )}
+                                        {isRequiredDocumentInFrench(doc.key, uploadedDoc, doc.required) && (
+                                          <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                                            ✓ En Français
+                                          </span>
+                                        )}
+                                      </>
+                                    ) : (
+                                      <>
+                                        <div className="w-4 h-4 border-2 border-gray-300 rounded-full"></div>
+                                        <span className="text-sm text-gray-500">
+                                          Manquant
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* E-TAWJIHI Validation Status */}
@@ -3302,7 +4209,10 @@ const ApplicationProcess = () => {
                           </div>
                           <div className="text-lg font-bold text-blue-600">
                             {(() => {
-                              const totalDocs = 17; // Total number of document types from ApplicationDocumentsSection
+                              const baseDocs = 16; // Base number of document types (removed frenchTest from academic)
+                              const chinaDocs = application?.isChina ? 2 : 0; // China-specific documents
+                              const franceDocs = application?.isFrance ? 1 : 0; // France-specific documents
+                              const totalDocs = baseDocs + chinaDocs + franceDocs;
                               const uploadedDocs = Object.keys(documentsMap).length;
                               const percentage = Math.round((uploadedDocs / totalDocs) * 100);
                               return `${percentage}%`;
@@ -3312,7 +4222,10 @@ const ApplicationProcess = () => {
                       </div>
                       <div className="mt-2 text-xs text-blue-800">
                         {(() => {
-                          const totalDocs = 17; // Total number of document types from ApplicationDocumentsSection
+                          const baseDocs = 16; // Base number of document types (removed frenchTest from academic)
+                          const chinaDocs = application?.isChina ? 2 : 0; // China-specific documents
+                          const franceDocs = application?.isFrance ? 1 : 0; // France-specific documents
+                          const totalDocs = baseDocs + chinaDocs + franceDocs;
                           const uploadedDocs = Object.keys(documentsMap).length;
                           const percentage = Math.round((uploadedDocs / totalDocs) * 100);
                           
@@ -3641,10 +4554,12 @@ const ApplicationProcess = () => {
                     );
                   })}
                 </div>
-              </div>
-            </div>
 
-            {/* E-TAWJIHI Notes */}
+                    </div>
+                  </div>
+
+
+                  {/* E-TAWJIHI Notes */}
             {(application?.etawjihiNotes || formData?.etawjihiNotes) && (
               <div className="bg-amber-50 rounded-lg p-4 border border-amber-200 mb-4">
                 <div className="flex items-start gap-3">
@@ -3948,3 +4863,7 @@ const ApplicationProcess = () => {
 
 
 export default ApplicationProcess;
+
+// Inject E-ADVISOR POC widget on this page only
+// eslint-disable-next-line
+(() => {})();

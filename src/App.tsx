@@ -8,6 +8,7 @@ import LoadingSpinner from './components/LoadingSpinner';
 import ProtectedRoute from './components/ProtectedRoute';
 import ToastContainer from './components/ToastContainer';
 import { ToastProvider, useToastContext } from './contexts/ToastContext';
+import EAdvisorWidget from './components/eadvisor/EAdvisorWidget';
 
 // Lazy loading des pages pour de meilleures performances
 const LandingPage = lazy(() => import('./pages/LandingPageSimple'));
@@ -207,6 +208,7 @@ function AppContent() {
             </Routes>
             </Suspense>
             <ToastContainer toasts={toasts} removeToast={removeToast} />
+            <EAdvisorWidget />
     </Router>
   );
 }

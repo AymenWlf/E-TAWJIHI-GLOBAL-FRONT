@@ -1511,6 +1511,7 @@ const StudentProfileUpdated = () => {
                     language={language}
                     activeSubsection={activeSubsection}
                     onSubsectionChange={handleSubsectionChange}
+                    applications={applications}
                   />
                 )}
 

@@ -9,7 +9,7 @@ import documentTranslationService from '../../services/documentTranslationServic
 import { useAuth } from '../../contexts/AuthContext';
 import { useAllParameters } from '../../hooks/useAllParameters';
 
-const ApplicationDocumentsSection = ({ language, onUploadDocument, onDocumentUploaded }) => {
+const ApplicationDocumentsSection = ({ language, onUploadDocument, onDocumentUploaded, application }) => {
   const { user, isAuthenticated } = useAuth();
   const { parameters: allParams, loading: paramsLoading } = useAllParameters();
   const [documents, setDocuments] = useState({});
@@ -137,43 +137,112 @@ const ApplicationDocumentsSection = ({ language, onUploadDocument, onDocumentUpl
   };
 
   const findDocumentKey = (doc) => {
+    console.log('🔍 ApplicationDocumentsSection - Finding document key for:', doc.title, 'Type:', typeof doc.title, 'Length:', doc.title?.length);
+    
     // Map backend document to frontend document key
     const titleMapping = {
-      'Passport': 'passport',
-      'Passeport': 'passport',
-      'National ID Card': 'nationalId',
-      'Carte Nationale': 'nationalId',
-      'Curriculum Vitae (CV)': 'cv',
-      'Guardian 1 National ID': 'guardian1NationalId',
-      'Carte Nationale Tuteur 1': 'guardian1NationalId',
-      'Guardian 2 National ID': 'guardian2NationalId',
-      'Carte Nationale Tuteur 2': 'guardian2NationalId',
-      'General Transcript': 'transcript',
-      'Relevé de note général': 'transcript',
-      'English Test Certificate': 'englishTest',
-      'Certificat de Test d\'Anglais': 'englishTest',
-      'French Test Certificate': 'frenchTest',
-      'Certificat de Test de Français': 'frenchTest',
-      'Portfolio': 'portfolio',
-      'Baccalaureate Diploma': 'baccalaureate',
-      'Diplôme du Baccalauréat': 'baccalaureate',
-      'BAC+2 Diploma': 'bac2',
-      'Diplôme BAC+2': 'bac2',
-      'BAC+3 Diploma': 'bac3',
-      'Diplôme BAC+3': 'bac3',
-      'BAC+5 Diploma': 'bac5',
-      'Diplôme BAC+5': 'bac5',
-      'Enrollment Certificate': 'enrollmentCertificate',
-      'Attestation de Scolarité': 'enrollmentCertificate',
-      'Recommendation Letter 1': 'recommendationLetter1',
-      'Lettre de Recommandation 1': 'recommendationLetter1',
-      'Recommendation Letter 2': 'recommendationLetter2',
-      'Lettre de Recommandation 2': 'recommendationLetter2',
-      'Motivation Letter': 'motivationLetter',
-      'Lettre de Motivation': 'motivationLetter'
+      'passport': 'passport',
+      'nationalId': 'nationalId',
+      'cv': 'cv',
+      'guardian1NationalId': 'guardian1NationalId',
+      'guardian2NationalId': 'guardian2NationalId',
+      'generalTranscript': 'generalTranscript',
+      'englishTest': 'englishTest',
+      'frenchTest': 'frenchTest',
+      'portfolio': 'portfolio',
+      'baccalaureate': 'baccalaureate',
+      'bac2': 'bac2',
+      'bac3': 'bac3',
+      'bac5': 'bac5',
+      'enrollmentCertificate': 'enrollmentCertificate',
+      'recommendationLetter1': 'recommendationLetter1',
+      'recommendationLetter2': 'recommendationLetter2',
+      'motivationLetter': 'motivationLetter',
+      'medicalHealthCheck': 'medicalHealthCheck',
+      'anthropometricRecord': 'anthropometricRecord'
     };
 
-    return titleMapping[doc.title] || null;
+    // First try exact match
+    if (titleMapping[doc.title]) {
+      console.log('✅ ApplicationDocumentsSection - Exact match found:', doc.title, '->', titleMapping[doc.title]);
+      return titleMapping[doc.title];
+    } else {
+      console.log('❌ ApplicationDocumentsSection - No exact match for:', doc.title);
+      console.log('Title length:', doc.title.length);
+      console.log('Title char codes:', doc.title.split('').map(c => c.charCodeAt(0)));
+      console.log('Available keys containing "Certificat":', Object.keys(titleMapping).filter(key => key.includes('Certificat')));
+      console.log('Available keys containing "Médical":', Object.keys(titleMapping).filter(key => key.includes('Médical')));
+      
+      // Try to find the exact key by comparing character by character
+      const exactKey = Object.keys(titleMapping).find(key => {
+        if (key.length !== doc.title.length) return false;
+        return key.split('').every((char, index) => char === doc.title[index]);
+      });
+      
+      if (exactKey) {
+        console.log('✅ ApplicationDocumentsSection - Found exact key by character comparison:', exactKey, '->', titleMapping[exactKey]);
+        return titleMapping[exactKey];
+      }
+    }
+    
+    // For China documents, try partial matching
+    if (doc.title && typeof doc.title === 'string') {
+      const title = doc.title.toLowerCase();
+      
+      // Normalize special characters for better matching
+      const normalizedTitle = title
+        .replace(/[éèêë]/g, 'e')
+        .replace(/[àâä]/g, 'a')
+        .replace(/[ùûü]/g, 'u')
+        .replace(/[ôö]/g, 'o')
+        .replace(/[îï]/g, 'i')
+        .replace(/[ç]/g, 'c');
+      
+      console.log('ApplicationDocumentsSection - Normalized title:', normalizedTitle);
+      
+      // Check for medical health check variations
+      if (title.includes('médical') || title.includes('medical') || title.includes('santé') || title.includes('health') ||
+          normalizedTitle.includes('medical') || normalizedTitle.includes('sante') ||
+          (title.includes('certificat') && title.includes('santé')) ||
+          (normalizedTitle.includes('certificat') && normalizedTitle.includes('sante'))) {
+        console.log('✅ ApplicationDocumentsSection - Partial match for medical health check');
+        return 'medicalHealthCheck';
+      }
+      
+      // Check for anthropometric record variations
+      if (title.includes('anthropométrique') || title.includes('anthropometric') || title.includes('conduite') || title.includes('conduct') ||
+          normalizedTitle.includes('anthropometrique') || normalizedTitle.includes('conduct') ||
+          (title.includes('fiche') && title.includes('conduite')) ||
+          (normalizedTitle.includes('fiche') && normalizedTitle.includes('conduct'))) {
+        console.log('✅ ApplicationDocumentsSection - Partial match for anthropometric record');
+        return 'anthropometricRecord';
+      }
+    }
+    
+    // Final fallback: try to match by key patterns
+    if (doc.title && typeof doc.title === 'string') {
+      const title = doc.title.toLowerCase();
+      
+      // Medical health check patterns
+      if ((title.includes('certificat') && title.includes('médical')) ||
+          (title.includes('certificat') && title.includes('medical')) ||
+          (title.includes('certificat') && title.includes('santé')) ||
+          (title.includes('certificat') && title.includes('sante'))) {
+        console.log('✅ ApplicationDocumentsSection - Fallback match for medical health check');
+        return 'medicalHealthCheck';
+      }
+      
+      // Anthropometric record patterns
+      if ((title.includes('fiche') && title.includes('anthropométrique')) ||
+          (title.includes('fiche') && title.includes('anthropometric')) ||
+          (title.includes('fiche') && title.includes('conduite')) ||
+          (title.includes('fiche') && title.includes('conduct'))) {
+        console.log('✅ ApplicationDocumentsSection - Fallback match for anthropometric record');
+        return 'anthropometricRecord';
+      }
+    }
+    
+    return null;
   };
 
   // Document definitions - exact match with user requirements
@@ -234,7 +303,7 @@ const ApplicationDocumentsSection = ({ language, onUploadDocument, onDocumentUpl
       emoji: '🎓',
       documents: [
         { 
-          key: 'transcript', 
+          key: 'generalTranscript', 
           label: language === 'en' ? 'General Transcript' : 'Relevé de note général', 
           required: true,
           description: language === 'en' 
@@ -248,14 +317,6 @@ const ApplicationDocumentsSection = ({ language, onUploadDocument, onDocumentUpl
           description: language === 'en' 
             ? 'English test certificate (IELTS, TOEFL, etc.) - Required if studying in English.'
             : 'Certificat de test d\'anglais (IELTS, TOEFL, etc.) - Obligatoire si études en anglais.'
-        },
-        { 
-          key: 'frenchTest', 
-          label: language === 'en' ? 'French Test Certificate' : 'Certificat de Test de Français', 
-          required: true,
-          description: language === 'en' 
-            ? 'French test certificate (TCF, DELF, DALF) - Required for French studies.'
-            : 'Certificat de test de français (TCF, DELF, DALF) - Obligatoire pour les études en français.'
         },
         { 
           key: 'portfolio', 
@@ -341,6 +402,55 @@ const ApplicationDocumentsSection = ({ language, onUploadDocument, onDocumentUpl
       ]
     }
   ];
+
+  // Add China-specific documents if application is for China
+  if (application?.isChina) {
+    documentSections.push({
+      title: language === 'en' ? 'China-Specific Documents' : 'Documents Spécifiques à la Chine',
+      icon: FileText,
+      color: 'red',
+      emoji: '🇨🇳',
+      documents: [
+        { 
+          key: 'medicalHealthCheck', 
+          label: language === 'en' ? 'Medical Health Check' : 'Certificat Médical de Santé', 
+          required: true,
+          description: language === 'en' 
+            ? 'Medical health check certificate filled by a doctor. Download the template and have it completed by a medical professional.'
+            : 'Certificat médical de santé rempli par un médecin. Téléchargez le modèle et faites-le remplir par un professionnel de santé.',
+          hasTemplate: true
+        },
+        { 
+          key: 'anthropometricRecord', 
+          label: language === 'en' ? 'Anthropometric Record (Good Conduct)' : 'Fiche Anthropométrique (Bonne Conduite)', 
+          required: true,
+          description: language === 'en' 
+            ? 'Anthropometric record and good conduct certificate issued by the authorities.'
+            : 'Fiche anthropométrique et certificat de bonne conduite délivré par les autorités.'
+        }
+      ]
+    });
+  }
+
+  // Add France-specific documents if application is for France
+  if (application?.isFrance) {
+    documentSections.push({
+      title: language === 'en' ? 'France-Specific Documents' : 'Documents Spécifiques à la France',
+      icon: FileText,
+      color: 'blue',
+      emoji: '🇫🇷',
+      documents: [
+        { 
+          key: 'frenchTest', 
+          label: language === 'en' ? 'French Test Certificate' : 'Certificat de Test de Français', 
+          required: true,
+          description: language === 'en' 
+            ? 'French test certificate (TCF, DELF, DALF) - Required for French studies.'
+            : 'Certificat de test de français (TCF, DELF, DALF) - Obligatoire pour les études en français.'
+        }
+      ]
+    });
+  }
 
   const handleFileUpload = async (docKey, file) => {
     if (!file) return;
@@ -1439,6 +1549,21 @@ startxref
                           onClick={(e) => {
                             e.preventDefault();
                             alert(language === 'en' ? 'Download template would start here' : 'Téléchargement du modèle commencerait ici');
+                          }}
+                        >
+                          <Download className="w-3 h-3" />
+                          {language === 'en' ? 'Download Template' : 'Télécharger Modèle'}
+                        </a>
+                      )}
+                      {doc.hasTemplate && (
+                        <a 
+                          href="#" 
+                          className="text-xs text-red-600 hover:text-red-800 underline flex items-center gap-1"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            alert(language === 'en' 
+                              ? `Medical Health Check template download would start here for ${doc.label}` 
+                              : `Téléchargement du modèle de certificat médical commencerait ici pour ${doc.label}`);
                           }}
                         >
                           <Download className="w-3 h-3" />

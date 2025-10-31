@@ -53,6 +53,8 @@ export interface Qualification {
   englishScore?: string;
   academicQualification?: string;
   exactQualificationName?: string;
+  baccalaureateStream?: string;
+  baccalaureateStreamOther?: string;
   detailedScores?: {
     overall?: string;
     listening?: string;

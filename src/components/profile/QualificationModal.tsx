@@ -65,7 +65,9 @@ const QualificationModal: React.FC<QualificationModalProps> = ({
     scoreType: '',
     description: '',
     academicQualification: '',
-    exactQualificationName: ''
+    exactQualificationName: '',
+    baccalaureateStream: '',
+    baccalaureateStreamOther: ''
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -159,7 +161,9 @@ const QualificationModal: React.FC<QualificationModalProps> = ({
         scoreType: qualification.scoreType || '',
         description: qualification.description || '',
         academicQualification: qualification.academicQualification || '',
-        exactQualificationName: qualification.exactQualificationName || ''
+        exactQualificationName: qualification.exactQualificationName || '',
+        baccalaureateStream: (qualification as any).baccalaureateStream || '',
+        baccalaureateStreamOther: (qualification as any).baccalaureateStreamOther || ''
       });
     } else {
       setFormData({
@@ -174,7 +178,9 @@ const QualificationModal: React.FC<QualificationModalProps> = ({
         scoreType: '',
         description: '',
         academicQualification: '',
-        exactQualificationName: ''
+        exactQualificationName: '',
+        baccalaureateStream: '',
+        baccalaureateStreamOther: ''
       });
     }
     setErrors({});
@@ -227,7 +233,9 @@ const QualificationModal: React.FC<QualificationModalProps> = ({
       startDate: formData.startYear ? `${formData.startYear}-01-01` : undefined,
       endDate: formData.endYear ? `${formData.endYear}-12-31` : null,
       score: formData.score || undefined,
-      description: formData.description || undefined
+      description: formData.description || undefined,
+      baccalaureateStream: formData.baccalaureateStream || undefined,
+      baccalaureateStreamOther: formData.baccalaureateStreamOther || undefined
     };
 
     // Include ID if editing existing qualification
@@ -303,9 +311,13 @@ const QualificationModal: React.FC<QualificationModalProps> = ({
             <div className="p-2 bg-blue-100 rounded-lg">
               <Award className="w-6 h-6 text-blue-600" />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900">
-              {t[language].title}
-            </h2>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">
+                {t[language].title}
+              </h2>
+              {/* Subtitle just after the title */}
+              <p className="text-sm text-gray-600">{language === 'en' ? 'Academic Diploma' : 'Diplôme académique'}</p>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -400,6 +412,55 @@ const QualificationModal: React.FC<QualificationModalProps> = ({
               className="w-full"
             />
           </div>
+
+          {/* Baccalaureate stream (if Baccalauréat selected) */}
+          {(() => {
+            const val = (formData.academicQualification || '').toLowerCase();
+            const isBac = val === 'high-school' || val === 'baccalaureat' || val === 'baccalauréat' || val === 'baccalaureate' || val === 'bac';
+            if (!isBac) return null;
+            const bacOptions = [
+              { value: 'Sciences Math A', label: 'Sciences Math A' },
+              { value: 'Sciences Math B', label: 'Sciences Math B' },
+              { value: 'Sciences Physique', label: 'Sciences Physique' },
+              { value: 'SVT', label: 'SVT' },
+              { value: 'Sciences et technologies électriques', label: 'Sciences et technologies électriques' },
+              { value: 'Sciences et technologies mécaniques', label: 'Sciences et technologies mécaniques' },
+              { value: 'Sciences économique', label: 'Sciences économique' },
+              { value: 'Sciences gestion comptable', label: 'Sciences gestion comptable' },
+              { value: 'Sciences agronomiques', label: 'Sciences agronomiques' },
+              { value: 'Lettres', label: 'Lettres' },
+              { value: 'Sciences humaines', label: 'Sciences humaines' },
+              { value: 'Sciences de la chariaa', label: 'Sciences de la chariaa' },
+              { value: 'Arts Appliqués', label: 'Arts Appliqués' },
+              { value: 'Autre', label: 'Autre' }
+            ];
+            return (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  {language === 'en' ? 'Baccalaureate Stream' : 'Filière du baccalauréat'}
+                </label>
+                <SelectSearchable
+                  options={bacOptions}
+                  value={formData.baccalaureateStream}
+                  onChange={(value) => handleInputChange('baccalaureateStream', Array.isArray(value) ? value[0] : value)}
+                  placeholder={language === 'en' ? 'Select stream...' : 'Sélectionner la filière...'}
+                  searchable={true}
+                  className="w-full"
+                />
+                {formData.baccalaureateStream === 'Autre' && (
+                  <div className="mt-3">
+                    <input
+                      type="text"
+                      value={formData.baccalaureateStreamOther}
+                      onChange={(e) => handleInputChange('baccalaureateStreamOther', e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder={language === 'en' ? 'Specify other stream' : 'Précisez la filière'}
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Exact Qualification Name */}
           <div>
