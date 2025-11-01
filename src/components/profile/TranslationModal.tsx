@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, FileText, Calculator, CreditCard, AlertCircle } from 'lucide-react';
 import { Service } from '../../types/serviceTypes';
 import { 
-  SUPPORTED_LANGUAGES, 
   DOCUMENT_TYPES,
   getLanguageName, 
   getDocumentType,
@@ -11,6 +10,7 @@ import {
   TranslationRequest 
 } from '../../types/translationTypes';
 import translationService from '../../services/translationService';
+import { useAllParameters } from '../../hooks/useAllParameters';
 
 interface TranslationModalProps {
   isOpen: boolean;
@@ -27,6 +27,10 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
   language,
   onTranslationRequest
 }) => {
+  const { parameters: allParams, loading: paramsLoading } = useAllParameters();
+  
+  // Normalize language to 'fr' or 'en'
+  const normalizedLanguage = (language === 'fr' || language === 'français') ? 'fr' : 'en';
   const [formData, setFormData] = useState({
     documentType: '',
     originalLanguage: '',
@@ -36,27 +40,94 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [calculatedPrice, setCalculatedPrice] = useState<number | null>(null);
+  const [pricePerPage, setPricePerPage] = useState<number | null>(null);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-calculate price when form data changes
+  // Get languages from parameters
+  const getLanguageOptions = () => {
+    if (!allParams?.languages || !Array.isArray(allParams.languages)) {
+      return [];
+    }
+    return allParams.languages.map(lang => ({
+      code: lang.code,
+      name: lang.labelEn || lang.code,
+      nameFr: lang.labelFr || lang.labelEn || lang.code
+    }));
+  };
+
+  // Helper to get language name (with fallback)
+  const getLanguageNameLocal = (code: string) => {
+    const langOption = getLanguageOptions().find(l => l.code === code);
+    if (langOption) {
+      return normalizedLanguage === 'en' ? langOption.name : langOption.nameFr;
+    }
+    // Fallback to the imported function if not found in parameters
+    return getLanguageName(code, normalizedLanguage);
+  };
+
+  // Helper to get language full name (English) for API calls
+  const getLanguageNameForAPI = (code: string): string => {
+    if (!allParams?.languages || !Array.isArray(allParams.languages)) {
+      return code;
+    }
+    const langOption = allParams.languages.find(l => l.code === code);
+    // Use labelEn for API (as stored in DB)
+    return langOption?.labelEn || langOption?.labelFr || code;
+  };
+
+  // Fetch price from API when languages change
   useEffect(() => {
-    if (formData.documentType && formData.originalLanguage && formData.targetLanguage && formData.numberOfPages > 0) {
-      const pricing = calculateTranslationPrice(
-        formData.documentType,
-        formData.originalLanguage,
-        formData.targetLanguage,
-        formData.numberOfPages
-      );
-      
-      if (pricing.totalPrice > 0) {
-        setCalculatedPrice(pricing.totalPrice);
-        setError('');
+    const fetchPrice = async () => {
+      if (formData.originalLanguage && formData.targetLanguage) {
+        try {
+          // Convert language codes to full names for API
+          const fromLanguageName = getLanguageNameForAPI(formData.originalLanguage);
+          const toLanguageName = getLanguageNameForAPI(formData.targetLanguage);
+          
+          const response = await translationService.getTranslationPriceByLanguages(
+            fromLanguageName,
+            toLanguageName
+          );
+          
+          if (response.success && response.data) {
+            setPricePerPage(response.data.price);
+            // Calculate total price based on number of pages
+            if (formData.numberOfPages > 0) {
+              setCalculatedPrice(response.data.price * formData.numberOfPages);
+            } else {
+              setCalculatedPrice(null);
+            }
+            setError('');
+          } else {
+            setPricePerPage(null);
+            setCalculatedPrice(null);
+            if (response.message) {
+              setError(response.message);
+            }
+          }
+        } catch (err: any) {
+          setPricePerPage(null);
+          setCalculatedPrice(null);
+          setError(err.message || 'Prix non disponible pour cette combinaison de langues');
+        }
+      } else {
+        setPricePerPage(null);
+        setCalculatedPrice(null);
       }
+    };
+
+    fetchPrice();
+  }, [formData.originalLanguage, formData.targetLanguage]);
+
+  // Recalculate total when number of pages changes
+  useEffect(() => {
+    if (pricePerPage && formData.numberOfPages > 0) {
+      setCalculatedPrice(pricePerPage * formData.numberOfPages);
     } else {
       setCalculatedPrice(null);
     }
-  }, [formData.documentType, formData.originalLanguage, formData.targetLanguage, formData.numberOfPages]);
+  }, [pricePerPage, formData.numberOfPages]);
 
   if (!isOpen) return null;
 
@@ -66,7 +137,7 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
       // Validate file type
       const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
       if (!allowedTypes.includes(file.type)) {
-        setError(language === 'en' 
+        setError(normalizedLanguage === 'en' 
           ? 'Please select a PDF or image file (JPG, PNG)'
           : 'Veuillez sélectionner un fichier PDF ou image (JPG, PNG)'
         );
@@ -75,7 +146,7 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
       
       // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
-        setError(language === 'en' 
+        setError(normalizedLanguage === 'en' 
           ? 'File size must be less than 10MB'
           : 'La taille du fichier doit être inférieure à 10MB'
         );
@@ -106,35 +177,44 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
 
   const handleSubmit = async () => {
     if (!selectedFile) {
-      setError(language === 'en' 
+      setError(normalizedLanguage === 'en' 
         ? 'Please select a document to translate'
         : 'Veuillez sélectionner un document à traduire'
       );
       return;
     }
 
-    if (!formData.documentType || !formData.originalLanguage || !formData.targetLanguage) {
-      setError(language === 'en' 
-        ? 'Please select document type and languages'
-        : 'Veuillez sélectionner le type de document et les langues'
+    if (!formData.originalLanguage || !formData.targetLanguage) {
+      setError(normalizedLanguage === 'en' 
+        ? 'Please select source and target languages'
+        : 'Veuillez sélectionner les langues source et cible'
+      );
+      return;
+    }
+
+    if (!formData.documentType) {
+      setError(normalizedLanguage === 'en' 
+        ? 'Please select document type'
+        : 'Veuillez sélectionner le type de document'
+      );
+      return;
+    }
+
+    if (!pricePerPage) {
+      setError(normalizedLanguage === 'en' 
+        ? 'Price not available for this language pair'
+        : 'Prix non disponible pour cette combinaison de langues'
       );
       return;
     }
 
     if (!calculatedPrice) {
-      setError(language === 'en' 
-        ? 'Please calculate the price first'
-        : 'Veuillez calculer le prix d\'abord'
+      setError(normalizedLanguage === 'en' 
+        ? 'Please enter number of pages'
+        : 'Veuillez entrer le nombre de pages'
       );
       return;
     }
-
-    const pricing = calculateTranslationPrice(
-      formData.documentType,
-      formData.originalLanguage,
-      formData.targetLanguage,
-      formData.numberOfPages
-    );
 
     try {
       setError('');
@@ -145,7 +225,7 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
         targetLanguage: formData.targetLanguage,
         documentType: formData.documentType,
         numberOfPages: formData.numberOfPages,
-        pricePerPage: pricing.pricePerPage,
+        pricePerPage: pricePerPage,
         totalPrice: calculatedPrice,
         currency: 'MAD',
         notes: formData.notes,
@@ -159,13 +239,13 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
         onTranslationRequest(response.data);
         onClose();
       } else {
-        setError(response.message || (language === 'en' 
+        setError(response.message || (normalizedLanguage === 'en' 
           ? 'Failed to create translation request'
           : 'Échec de la création de la demande de traduction'
         ));
       }
     } catch (error: any) {
-      setError(error.message || (language === 'en' 
+      setError(error.message || (normalizedLanguage === 'en' 
         ? 'Failed to create translation request'
         : 'Échec de la création de la demande de traduction'
       ));
@@ -182,6 +262,7 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
     });
     setSelectedFile(null);
     setCalculatedPrice(null);
+    setPricePerPage(null);
     setError('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
@@ -204,10 +285,10 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
             </div>
             <div>
               <h2 className="text-xl font-bold text-gray-900">
-                {language === 'en' ? service.name : service.nameFr}
+                {normalizedLanguage === 'en' ? service.name : service.nameFr}
               </h2>
               <p className="text-sm text-gray-500">
-                {language === 'en' ? 'Document Translation Request' : 'Demande de Traduction de Document'}
+                {normalizedLanguage === 'en' ? 'Document Translation Request' : 'Demande de Traduction de Document'}
               </p>
             </div>
           </div>
@@ -224,7 +305,7 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
           {/* File Upload */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              {language === 'en' ? 'Upload Document' : 'Télécharger le Document'}
+              {normalizedLanguage === 'en' ? 'Upload Document' : 'Télécharger le Document'}
             </label>
             <div 
               className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors cursor-pointer"
@@ -251,7 +332,7 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
                 <div>
                   <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                   <p className="text-sm text-gray-600">
-                    {language === 'en' 
+                    {normalizedLanguage === 'en' 
                       ? 'Click to upload or drag and drop'
                       : 'Cliquez pour télécharger ou glissez-déposez'
                     }
@@ -274,12 +355,12 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
               onChange={(e) => handleInputChange('documentType', e.target.value)}
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="">
-                {language === 'en' ? 'Select document type' : 'Sélectionner le type de document'}
-              </option>
+                <option value="">
+                  {normalizedLanguage === 'en' ? 'Select document type' : 'Sélectionner le type de document'}
+                </option>
                      {DOCUMENT_TYPES.map(docType => (
                        <option key={docType.id} value={docType.id}>
-                         {language === 'en' ? docType.name : docType.nameFr}
+                         {normalizedLanguage === 'en' ? docType.name : docType.nameFr}
                        </option>
                      ))}
             </select>
@@ -289,7 +370,7 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {language === 'en' ? 'Source Language' : 'Langue Source'}
+                {normalizedLanguage === 'en' ? 'Source Language' : 'Langue Source'}
               </label>
               <select
                 value={formData.originalLanguage}
@@ -297,19 +378,23 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">
-                  {language === 'en' ? 'Select source language' : 'Sélectionner la langue source'}
+                  {normalizedLanguage === 'en' ? 'Select source language' : 'Sélectionner la langue source'}
                 </option>
-                {SUPPORTED_LANGUAGES.map(lang => (
-                  <option key={lang.code} value={lang.code}>
-                    {language === 'en' ? lang.name : lang.nameFr}
-                  </option>
-                ))}
+                {paramsLoading ? (
+                  <option value="" disabled>{normalizedLanguage === 'en' ? 'Loading languages...' : 'Chargement des langues...'}</option>
+                ) : (
+                  getLanguageOptions().map(lang => (
+                    <option key={lang.code} value={lang.code}>
+                      {normalizedLanguage === 'en' ? lang.name : lang.nameFr}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                {language === 'en' ? 'Target Language' : 'Langue Cible'}
+                {normalizedLanguage === 'en' ? 'Target Language' : 'Langue Cible'}
               </label>
               <select
                 value={formData.targetLanguage}
@@ -317,13 +402,17 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">
-                  {language === 'en' ? 'Select target language' : 'Sélectionner la langue cible'}
+                  {normalizedLanguage === 'en' ? 'Select target language' : 'Sélectionner la langue cible'}
                 </option>
-                {SUPPORTED_LANGUAGES.map(lang => (
-                  <option key={lang.code} value={lang.code}>
-                    {language === 'en' ? lang.name : lang.nameFr}
-                  </option>
-                ))}
+                {paramsLoading ? (
+                  <option value="" disabled>{normalizedLanguage === 'en' ? 'Loading languages...' : 'Chargement des langues...'}</option>
+                ) : (
+                  getLanguageOptions().map(lang => (
+                    <option key={lang.code} value={lang.code}>
+                      {normalizedLanguage === 'en' ? lang.name : lang.nameFr}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
           </div>
@@ -331,64 +420,66 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
           {/* Number of Pages */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              {language === 'en' ? 'Number of Pages' : 'Nombre de Pages'}
+              {normalizedLanguage === 'en' ? 'Number of Pages' : 'Nombre de Pages'}
             </label>
             <input
               type="number"
               min="1"
               max="100"
               value={formData.numberOfPages}
-              onChange={(e) => handleInputChange('numberOfPages', parseInt(e.target.value) || 1)}
+              onChange={(e) => {
+                const value = e.target.value;
+                // Allow empty value for easy deletion
+                if (value === '') {
+                  setFormData({ ...formData, numberOfPages: 0 });
+                  return;
+                }
+                const numValue = parseInt(value) || 1;
+                handleInputChange('numberOfPages', numValue);
+              }}
+              onFocus={(e) => e.target.select()}
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
 
                  {/* Price Calculation */}
-                 {formData.documentType && formData.originalLanguage && formData.targetLanguage && (
+                 {formData.originalLanguage && formData.targetLanguage && (
                    <div className="bg-gray-50 p-6 rounded-lg">
                      <div className="mb-4">
                        <h3 className="text-lg font-semibold text-gray-900">
-                         {language === 'en' ? 'Price Calculation' : 'Calcul du Prix'}
+                         {normalizedLanguage === 'en' ? 'Price Calculation' : 'Calcul du Prix'}
                        </h3>
                      </div>
 
                      {calculatedPrice ? (
                        <div className="space-y-4">
-                         {/* Document Details */}
+                         {/* Language Details */}
                          <div className="bg-white p-4 rounded-lg border">
                            <h4 className="font-medium text-gray-900 mb-3">
-                             {language === 'en' ? 'Document Details' : 'Détails du Document'}
+                             {normalizedLanguage === 'en' ? 'Translation Details' : 'Détails de la Traduction'}
                            </h4>
                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                              <div>
                                <span className="text-gray-500">
-                                 {language === 'en' ? 'Type:' : 'Type:'}
+                                 {normalizedLanguage === 'en' ? 'From:' : 'De:'}
                                </span>
-                               <span className="ml-2 font-medium">
-                                 {getDocumentType(formData.documentType)?.[language === 'en' ? 'name' : 'nameFr']}
-                               </span>
-                             </div>
+                              <span className="ml-2 font-medium">
+                                {getLanguageNameLocal(formData.originalLanguage)}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">
+                                {normalizedLanguage === 'en' ? 'To:' : 'Vers:'}
+                              </span>
+                              <span className="ml-2 font-medium">
+                                {getLanguageNameLocal(formData.targetLanguage)}
+                              </span>
+                            </div>
                              <div>
                                <span className="text-gray-500">
-                                 {language === 'en' ? 'Pages:' : 'Pages:'}
+                                 {normalizedLanguage === 'en' ? 'Pages:' : 'Pages:'}
                                </span>
                                <span className="ml-2 font-medium">{formData.numberOfPages}</span>
-                             </div>
-                             <div>
-                               <span className="text-gray-500">
-                                 {language === 'en' ? 'From:' : 'De:'}
-                               </span>
-                               <span className="ml-2 font-medium">
-                                 {getLanguageName(formData.originalLanguage, language)}
-                               </span>
-                             </div>
-                             <div>
-                               <span className="text-gray-500">
-                                 {language === 'en' ? 'To:' : 'Vers:'}
-                               </span>
-                               <span className="ml-2 font-medium">
-                                 {getLanguageName(formData.targetLanguage, language)}
-                               </span>
                              </div>
                            </div>
                          </div>
@@ -396,48 +487,27 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
                          {/* Price Breakdown */}
                          <div className="bg-white p-4 rounded-lg border">
                            <h4 className="font-medium text-gray-900 mb-3">
-                             {language === 'en' ? 'Price Breakdown' : 'Détail des Prix'}
+                             {normalizedLanguage === 'en' ? 'Price Breakdown' : 'Détail des Prix'}
                            </h4>
                            <div className="space-y-2 text-sm">
                              <div className="flex justify-between">
                                <span className="text-gray-600">
-                                 {language === 'en' ? 'Base price per page:' : 'Prix de base par page:'}
+                                 {normalizedLanguage === 'en' ? 'Price per page:' : 'Prix par page:'}
                                </span>
                                <span className="font-medium">
-                                 {getDocumentType(formData.documentType)?.basePrice} MAD
+                                 {pricePerPage ? `${pricePerPage.toLocaleString()} MAD` : '—'}
                                </span>
                              </div>
                              <div className="flex justify-between">
                                <span className="text-gray-600">
-                                 {language === 'en' ? 'Language factor:' : 'Facteur de langue:'}
-                               </span>
-                               <span className="font-medium">
-                                 {getTranslationPrice(formData.originalLanguage, formData.targetLanguage)?.pricePerPage / 50}x
-                               </span>
-                             </div>
-                             <div className="flex justify-between">
-                               <span className="text-gray-600">
-                                 {language === 'en' ? 'Price per page:' : 'Prix par page:'}
-                               </span>
-                               <span className="font-medium">
-                                 {calculateTranslationPrice(
-                                   formData.documentType,
-                                   formData.originalLanguage,
-                                   formData.targetLanguage,
-                                   formData.numberOfPages
-                                 ).pricePerPage} MAD
-                               </span>
-                             </div>
-                             <div className="flex justify-between">
-                               <span className="text-gray-600">
-                                 {language === 'en' ? 'Number of pages:' : 'Nombre de pages:'}
+                                 {normalizedLanguage === 'en' ? 'Number of pages:' : 'Nombre de pages:'}
                                </span>
                                <span className="font-medium">{formData.numberOfPages}</span>
                              </div>
                              <hr className="my-2" />
                              <div className="flex justify-between text-lg font-bold">
                                <span className="text-gray-900">
-                                 {language === 'en' ? 'Total:' : 'Total:'}
+                                 {normalizedLanguage === 'en' ? 'Total:' : 'Total:'}
                                </span>
                                <span className="text-blue-600">
                                  {calculatedPrice.toLocaleString()} MAD
@@ -451,7 +521,7 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
                            <div className="flex items-center space-x-2">
                              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                              <span className="text-green-800 font-medium">
-                               {language === 'en' ? 'Delivery: 48 business hours' : 'Livraison: 48 heures ouvrables'}
+                               {normalizedLanguage === 'en' ? 'Delivery: 48 business hours' : 'Livraison: 48 heures ouvrables'}
                              </span>
                            </div>
                          </div>
@@ -460,9 +530,13 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
                        <div className="text-center py-8">
                          <Calculator className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                          <p className="text-gray-500">
-                           {language === 'en' 
-                             ? 'Price will be calculated automatically when all fields are filled'
-                             : 'Le prix sera calculé automatiquement quand tous les champs sont remplis'
+                           {normalizedLanguage === 'en' 
+                             ? pricePerPage === null 
+                               ? 'Price will be calculated when you select source and target languages'
+                               : 'Enter number of pages to calculate total price'
+                             : pricePerPage === null
+                               ? 'Le prix sera calculé lorsque vous sélectionnerez les langues source et cible'
+                               : 'Entrez le nombre de pages pour calculer le prix total'
                            }
                          </p>
                        </div>
@@ -473,14 +547,14 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
           {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              {language === 'en' ? 'Additional Notes (Optional)' : 'Notes Supplémentaires (Optionnel)'}
+              {normalizedLanguage === 'en' ? 'Additional Notes (Optional)' : 'Notes Supplémentaires (Optionnel)'}
             </label>
             <textarea
               value={formData.notes}
               onChange={(e) => handleInputChange('notes', e.target.value)}
               rows={3}
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder={language === 'en' 
+              placeholder={normalizedLanguage === 'en' 
                 ? 'Any specific requirements or instructions...'
                 : 'Toute exigence ou instruction spécifique...'
               }
@@ -501,7 +575,7 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
               <div className="flex items-center space-x-2">
                 <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
                 <span className="text-sm text-blue-800">
-                  {language === 'en' 
+                  {normalizedLanguage === 'en' 
                     ? 'The translation will be added to your list. Payment will be made for all unpaid translations.'
                     : 'La traduction sera ajoutée à votre liste. Le paiement se fera pour toutes les traductions non payées.'
                   }
@@ -513,7 +587,7 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
                 onClick={handleClose}
                 className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
               >
-                {language === 'en' ? 'Cancel' : 'Annuler'}
+                {normalizedLanguage === 'en' ? 'Cancel' : 'Annuler'}
               </button>
               <button
                 onClick={handleSubmit}
@@ -522,7 +596,7 @@ const TranslationModal: React.FC<TranslationModalProps> = ({
               >
                 <FileText className="w-4 h-4" />
                 <span>
-                  {language === 'en' 
+                  {normalizedLanguage === 'en' 
                     ? 'Add Translation'
                     : 'Ajouter la Traduction'
                   }

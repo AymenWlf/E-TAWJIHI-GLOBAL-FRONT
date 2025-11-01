@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MapPin, Calendar, BookOpen, DollarSign, Globe, Info, ChevronDown, Search, X } from 'lucide-react';
+import { MapPin, Calendar, BookOpen, DollarSign, Globe, Info, ChevronDown, Search, X, Languages, Target, GraduationCap, CheckCircle } from 'lucide-react';
 import MultiSelect from '../ui/MultiSelect';
 import CurrencySelector from './CurrencySelector';
 import BudgetCalculator from './BudgetCalculator';
@@ -20,7 +20,13 @@ const PreferencesSection = ({ profile, onUpdateProfile, language }) => {
     preferredSubjects: [],
     preferredCurrency: 'USD',
     annualBudget: {},
-    scholarshipRequired: false
+    scholarshipRequired: false,
+    // New fields
+    preferredTeachingLanguage: '',
+    mainPriority: '',
+    scholarshipSearch: false,
+    englishTest: 'none', // 'none', 'has', 'planning'
+    frenchTest: 'none' // 'none', 'has', 'planning'
   });
 
   const [showStudyLevelInfo, setShowStudyLevelInfo] = useState(false);
@@ -43,13 +49,30 @@ const PreferencesSection = ({ profile, onUpdateProfile, language }) => {
     }));
   };
 
-  // Map countries from parameters
+  // Map countries from parameters - All countries
   const getCountryOptions = () => {
-    if (!allParams?.countries) return [];
-    return allParams.countries.map(country => ({
-      value: country.code,
-      label: language === 'fr' ? (country.labelFr || country.labelEn) : country.labelEn
-    }));
+    // If parameters are still loading, return empty array
+    if (paramsLoading || !allParams) {
+      return [];
+    }
+    
+    // Check if countries array exists and is populated
+    if (!allParams.countries || !Array.isArray(allParams.countries) || allParams.countries.length === 0) {
+      return [];
+    }
+    
+    // Return all countries from parameters
+    return allParams.countries
+      .filter(country => {
+        // Ensure country is an object with at least a label or code
+        return country && typeof country === 'object' && (country.labelEn || country.labelFr || country.code);
+      })
+      .map(country => ({
+        value: country.code || country.labelEn || country.labelFr, // Use code if available, otherwise labelEn
+        label: language === 'fr' 
+          ? (country.labelFr || country.labelEn || country.code) 
+          : (country.labelEn || country.labelFr || country.code)
+      }));
   };
 
   // Map subjects from parameters
@@ -58,6 +81,15 @@ const PreferencesSection = ({ profile, onUpdateProfile, language }) => {
     return allParams.fields.map(field => ({
       value: field.code,
       label: language === 'fr' ? (field.labelFr || field.labelEn) : field.labelEn
+    }));
+  };
+
+  // Map languages from parameters
+  const getLanguageOptions = () => {
+    if (!allParams?.languages) return [];
+    return allParams.languages.map(lang => ({
+      value: lang.code,
+      label: language === 'fr' ? (lang.labelFr || lang.labelEn) : lang.labelEn
     }));
   };
 
@@ -102,7 +134,17 @@ const PreferencesSection = ({ profile, onUpdateProfile, language }) => {
           preferredSubjects: Array.isArray(preferencesData.preferredSubjects) ? preferencesData.preferredSubjects : [],
           preferredCurrency: preferencesData.preferredCurrency || 'USD',
           annualBudget: preferencesData.annualBudget || {},
-          scholarshipRequired: preferencesData.scholarshipRequired || false
+          scholarshipRequired: preferencesData.scholarshipRequired === true ? true : false,
+          // New fields with defaults
+          preferredTeachingLanguage: preferencesData.preferredTeachingLanguage || '',
+          mainPriority: preferencesData.mainPriority || '',
+          scholarshipSearch: preferencesData.scholarshipSearch === true ? true : false,
+          englishTest: preferencesData.englishTest === 'has' || preferencesData.englishTest === 'planning' 
+            ? preferencesData.englishTest 
+            : (preferencesData.englishTest?.hasTest ? 'has' : preferencesData.englishTest?.planningToTake ? 'planning' : 'none'),
+          frenchTest: preferencesData.frenchTest === 'has' || preferencesData.frenchTest === 'planning' 
+            ? preferencesData.frenchTest 
+            : (preferencesData.frenchTest?.hasTest ? 'has' : preferencesData.frenchTest?.planningToTake ? 'planning' : 'none')
         });
       } catch (error) {
         console.error('Error loading preferences:', error);
@@ -118,7 +160,12 @@ const PreferencesSection = ({ profile, onUpdateProfile, language }) => {
             preferredSubjects: Array.isArray(profile.preferredSubjects) ? profile.preferredSubjects : [],
             preferredCurrency: profile.preferredCurrency || 'USD',
             annualBudget: profile.annualBudget || {},
-            scholarshipRequired: profile.scholarshipRequired || false
+            scholarshipRequired: profile.scholarshipRequired === true ? true : false,
+            preferredTeachingLanguage: '',
+            mainPriority: '',
+            scholarshipSearch: false,
+            englishTest: 'none',
+            frenchTest: 'none'
           });
         }
       } finally {
@@ -267,14 +314,31 @@ const PreferencesSection = ({ profile, onUpdateProfile, language }) => {
           <p className="text-sm text-gray-600">
             {language === 'en' ? 'Select multiple countries where you would like to study' : 'Sélectionnez plusieurs pays où vous aimeriez étudier'}
           </p>
-          <MultiSelect
-            options={getCountryOptions()}
-            value={formData.preferredDestinations}
-            onChange={(value) => handleInputChange('preferredDestinations', value)}
-            placeholder={language === 'en' ? 'Select countries...' : 'Sélectionner des pays...'}
-            searchPlaceholder={language === 'en' ? 'Search countries...' : 'Rechercher des pays...'}
-            maxSelections={5}
-          />
+          {paramsLoading ? (
+            <div className="p-3 border border-gray-200 rounded-xl text-sm text-gray-500 bg-gray-50">
+              <div className="flex items-center space-x-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                <span>{language === 'en' ? 'Loading countries...' : 'Chargement des pays...'}</span>
+              </div>
+            </div>
+          ) : getCountryOptions().length === 0 ? (
+            <div className="p-3 border border-yellow-200 rounded-xl text-sm text-yellow-700 bg-yellow-50">
+              <p>
+                {language === 'en' 
+                  ? 'No countries available. Please check that countries exist in parameters.' 
+                  : 'Aucun pays disponible. Veuillez vérifier que des pays existent dans les paramètres.'}
+              </p>
+            </div>
+          ) : (
+            <MultiSelect
+              options={getCountryOptions()}
+              value={formData.preferredDestinations}
+              onChange={(value) => handleInputChange('preferredDestinations', value)}
+              placeholder={language === 'en' ? 'Select countries...' : 'Sélectionner des pays...'}
+              searchPlaceholder={language === 'en' ? 'Search countries...' : 'Rechercher des pays...'}
+              maxSelections={5}
+            />
+          )}
         </div>
 
         {/* Study Level */}
@@ -418,22 +482,58 @@ const PreferencesSection = ({ profile, onUpdateProfile, language }) => {
             language={language}
           />
         </div>
-      </div>
 
-      {/* Budget Calculator */}
-      <div className="mt-8">
-        <BudgetCalculator
-          value={formData.annualBudget}
-          onChange={(value) => handleInputChange('annualBudget', value)}
-          userCountry={profile?.country}
-          preferredCountries={formData.preferredDestinations}
-          preferredCurrency={formData.preferredCurrency}
-          language={language}
-        />
+        {/* Preferred Teaching Language */}
+        <div className="space-y-4">
+          <div className="flex items-center space-x-2">
+            <Languages className="w-5 h-5 text-blue-600" />
+            <h3 className="text-lg font-semibold text-gray-900">
+              {language === 'en' ? 'Preferred Teaching Language' : 'Langue d\'Enseignement Préférée'}
+            </h3>
+          </div>
+          <p className="text-sm text-gray-600">
+            {language === 'en' ? 'Select your preferred language of instruction' : 'Sélectionnez votre langue d\'enseignement préférée'}
+          </p>
+          <SelectSearchable
+            options={getLanguageOptions()}
+            value={formData.preferredTeachingLanguage}
+            onChange={(value) => handleInputChange('preferredTeachingLanguage', value)}
+            placeholder={language === 'en' ? 'Select language...' : 'Sélectionner une langue...'}
+            searchPlaceholder={language === 'en' ? 'Search languages...' : 'Rechercher des langues...'}
+            className="w-full"
+          />
+        </div>
+
+        {/* Main Priority */}
+        <div className="space-y-4">
+          <div className="flex items-center space-x-2">
+            <Target className="w-5 h-5 text-purple-600" />
+            <h3 className="text-lg font-semibold text-gray-900">
+              {language === 'en' ? 'Main Priority' : 'Priorité Principale'}
+            </h3>
+          </div>
+          <p className="text-sm text-gray-600">
+            {language === 'en' ? 'What matters most to you when choosing an institution?' : 'Qu\'est-ce qui compte le plus pour vous dans le choix d\'un établissement ?'}
+          </p>
+          <select
+            value={formData.mainPriority}
+            onChange={(e) => handleInputChange('mainPriority', e.target.value)}
+            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
+          >
+            <option value="">{language === 'en' ? 'Select priority...' : 'Sélectionner une priorité...'}</option>
+            <option value="quality">{language === 'en' ? 'Quality of Education' : 'Qualité de l\'Éducation'}</option>
+            <option value="cost">{language === 'en' ? 'Affordability / Cost' : 'Accessibilité / Coût'}</option>
+            <option value="location">{language === 'en' ? 'Location / Country' : 'Localisation / Pays'}</option>
+            <option value="reputation">{language === 'en' ? 'University Reputation' : 'Réputation de l\'Université'}</option>
+            <option value="scholarship">{language === 'en' ? 'Scholarship Opportunities' : 'Opportunités de Bourses'}</option>
+            <option value="career">{language === 'en' ? 'Career Opportunities' : 'Opportunités de Carrière'}</option>
+            <option value="research">{language === 'en' ? 'Research Opportunities' : 'Opportunités de Recherche'}</option>
+          </select>
+        </div>
       </div>
 
       {/* Scholarship Requirement */}
-      <div className="bg-gradient-to-r from-blue-50 to-emerald-50 rounded-xl p-6 border border-blue-200">
+      <div className="bg-gradient-to-r from-blue-50 to-emerald-50 rounded-xl p-6 border border-blue-200 mt-8">
         <div className="flex items-center space-x-3">
           <input
             type="checkbox"
@@ -453,61 +553,150 @@ const PreferencesSection = ({ profile, onUpdateProfile, language }) => {
         </p>
       </div>
 
-      {/* Selected Preferences Summary */}
-      {((formData.preferredDestinations && formData.preferredDestinations.length > 0) || 
-        (formData.preferredSubjects && formData.preferredSubjects.length > 0) || 
-        (formData.preferredIntakes && formData.preferredIntakes.length > 0)) && (
+      {/* Language Tests Section */}
+      <div className="mt-8 space-y-6">
+        <h3 className="text-xl font-semibold text-gray-900 flex items-center space-x-2">
+          <CheckCircle className="w-6 h-6 text-blue-600" />
+          <span>{language === 'en' ? 'Language Tests' : 'Tests de Langue'}</span>
+        </h3>
+
+        {/* English Test */}
         <div className="bg-white border border-gray-200 rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
-            {language === 'en' ? 'Selected Preferences' : 'Préférences Sélectionnées'}
-          </h3>
+          <div className="flex items-center space-x-2 mb-4">
+            <Globe className="w-5 h-5 text-blue-600" />
+            <h4 className="text-lg font-semibold text-gray-900">
+              {language === 'en' ? 'English Language Test' : 'Test de Langue Anglaise'}
+            </h4>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">
+            {language === 'en' 
+              ? 'Do you have an English language test or are you planning to take one? (TOEFL, DUOLINGO...)'
+              : 'Avez-vous un test de langue anglais ou envisagez-vous de le passer ? (TOEFL, DUOLINGO...)'}
+          </p>
           
-          {formData.preferredDestinations && formData.preferredDestinations.length > 0 && (
-            <div className="mb-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">
-                {language === 'en' ? 'Destinations:' : 'Destinations:'}
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {formData.preferredDestinations.map((country, index) => (
-                  <span key={`destination-${index}-${typeof country === 'string' ? country : country.code || country.name}`} className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
-                    {typeof country === 'string' ? country : `${country.flag || ''} ${country.name || country.code || country}`}
-                  </span>
-                ))}
-              </div>
+          <div className="space-y-3">
+            <div className="flex items-center space-x-3">
+              <input
+                type="radio"
+                id="englishTestNone"
+                name="englishTest"
+                value="none"
+                checked={formData.englishTest === 'none'}
+                onChange={(e) => handleInputChange('englishTest', e.target.value)}
+                className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+              />
+              <label htmlFor="englishTestNone" className="text-sm font-medium text-gray-700 cursor-pointer">
+                {language === 'en' ? 'No test / Not planned' : 'Pas de test / Non prévu'}
+              </label>
             </div>
-          )}
-
-          {formData.preferredIntakes && formData.preferredIntakes.length > 0 && (
-            <div className="mb-4">
-              <h4 className="text-sm font-medium text-gray-700 mb-2">
-                {language === 'en' ? 'Intakes:' : 'Périodes d\'Admission:'}
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {formData.preferredIntakes.map((intake, index) => (
-                  <span key={`intake-${index}-${intake}`} className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
-                    📅 {intake}
-                  </span>
-                ))}
-              </div>
+            
+            <div className="flex items-center space-x-3">
+              <input
+                type="radio"
+                id="englishTestHas"
+                name="englishTest"
+                value="has"
+                checked={formData.englishTest === 'has'}
+                onChange={(e) => handleInputChange('englishTest', e.target.value)}
+                className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+              />
+              <label htmlFor="englishTestHas" className="text-sm font-medium text-gray-700 cursor-pointer">
+                {language === 'en' ? 'I have an English language test' : 'J\'ai un test de langue anglais'}
+              </label>
             </div>
-          )}
-
-          {formData.preferredSubjects && formData.preferredSubjects.length > 0 && (
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">
-                {language === 'en' ? 'Subjects:' : 'Matières:'}
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {formData.preferredSubjects.map((subject, index) => (
-                  <span key={`subject-${index}-${typeof subject === 'string' ? subject : subject.code || subject.name}`} className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm">
-                    {typeof subject === 'string' ? subject : `${subject.icon || ''} ${subject.name || subject.code || subject}`}
-                  </span>
-                ))}
-              </div>
+            
+            <div className="flex items-center space-x-3">
+              <input
+                type="radio"
+                id="englishTestPlanning"
+                name="englishTest"
+                value="planning"
+                checked={formData.englishTest === 'planning'}
+                onChange={(e) => handleInputChange('englishTest', e.target.value)}
+                className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+              />
+              <label htmlFor="englishTestPlanning" className="text-sm font-medium text-gray-700 cursor-pointer">
+                {language === 'en' ? 'I am planning to take an English language test' : 'Je prévois de passer un test de langue anglais'}
+              </label>
             </div>
-          )}
+          </div>
         </div>
-      )}
+
+        {/* French Test */}
+        <div className="bg-white border border-gray-200 rounded-xl p-6">
+          <div className="flex items-center space-x-2 mb-4">
+            <Languages className="w-5 h-5 text-emerald-600" />
+            <h4 className="text-lg font-semibold text-gray-900">
+              {language === 'en' ? 'French Language Test' : 'Test de Langue Française'}
+            </h4>
+          </div>
+          <p className="text-sm text-gray-600 mb-4">
+            {language === 'en' 
+              ? 'Do you have a French language test or are you planning to take one? (TCF, DELF, DALF...)'
+              : 'Avez-vous un test de langue français ou envisagez-vous de le passer ? (TCF, DELF, DALF...)'}
+          </p>
+          
+          <div className="space-y-3">
+            <div className="flex items-center space-x-3">
+              <input
+                type="radio"
+                id="frenchTestNone"
+                name="frenchTest"
+                value="none"
+                checked={formData.frenchTest === 'none'}
+                onChange={(e) => handleInputChange('frenchTest', e.target.value)}
+                className="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"
+              />
+              <label htmlFor="frenchTestNone" className="text-sm font-medium text-gray-700 cursor-pointer">
+                {language === 'en' ? 'No test / Not planned' : 'Pas de test / Non prévu'}
+              </label>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <input
+                type="radio"
+                id="frenchTestHas"
+                name="frenchTest"
+                value="has"
+                checked={formData.frenchTest === 'has'}
+                onChange={(e) => handleInputChange('frenchTest', e.target.value)}
+                className="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"
+              />
+              <label htmlFor="frenchTestHas" className="text-sm font-medium text-gray-700 cursor-pointer">
+                {language === 'en' ? 'I have a French language test' : 'J\'ai un test de langue français'}
+              </label>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <input
+                type="radio"
+                id="frenchTestPlanning"
+                name="frenchTest"
+                value="planning"
+                checked={formData.frenchTest === 'planning'}
+                onChange={(e) => handleInputChange('frenchTest', e.target.value)}
+                className="w-4 h-4 text-emerald-600 border-gray-300 focus:ring-emerald-500"
+              />
+              <label htmlFor="frenchTestPlanning" className="text-sm font-medium text-gray-700 cursor-pointer">
+                {language === 'en' ? 'I am planning to take a French language test' : 'Je prévois de passer un test de langue français'}
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Budget Calculator */}
+      <div className="mt-8">
+        <BudgetCalculator
+          value={formData.annualBudget}
+          onChange={(value) => handleInputChange('annualBudget', value)}
+          userCountry={profile?.country}
+          preferredCountries={formData.preferredDestinations}
+          preferredCurrency={formData.preferredCurrency}
+          language={language}
+        />
+      </div>
+
 
       {/* Bottom Save Button */}
       <div className="flex justify-center pt-6 border-t border-gray-200">

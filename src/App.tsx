@@ -36,6 +36,7 @@ const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AdminEstablishmentEdit = lazy(() => import('./pages/AdminEstablishmentEdit'));
 const AdminProgramEdit = lazy(() => import('./pages/AdminProgramEdit'));
 const AdminParameters = lazy(() => import('./pages/AdminParameters.jsx'));
+const AdminTranslationPricing = lazy(() => import('./pages/AdminTranslationPricing'));
 const ApplicationProcess = lazy(() => import('./pages/ApplicationProcess'));
 
 // Composant de chargement
@@ -167,6 +168,14 @@ function AppContent() {
                 element={
                   <ProtectedRoute>
                     <AdminParameters />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/translation-pricing" 
+                element={
+                  <ProtectedRoute>
+                    <AdminTranslationPricing />
                   </ProtectedRoute>
                 } 
               />

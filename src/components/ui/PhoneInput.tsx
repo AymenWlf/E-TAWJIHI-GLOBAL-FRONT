@@ -9,6 +9,7 @@ interface PhoneInputProps {
   disabled?: boolean;
   className?: string;
   label?: string;
+  defaultCountryCode?: string; // Code pays par défaut (ex: 'MA', 'FR', 'US')
 }
 
 const PhoneInput: React.FC<PhoneInputProps> = ({
@@ -17,17 +18,23 @@ const PhoneInput: React.FC<PhoneInputProps> = ({
   placeholder = 'Enter phone number',
   disabled = false,
   className = '',
-  label
+  label,
+  defaultCountryCode
 }) => {
   const [isCountryOpen, setIsCountryOpen] = useState(false);
   const [countrySearchTerm, setCountrySearchTerm] = useState('');
   const [selectedCountry, setSelectedCountry] = useState(() => {
-    // Try to detect country from existing value
-    if (value && value.startsWith('+')) {
-      const phoneCode = value.substring(0, 4); // Get first 4 characters for country code
-      const country = COUNTRIES.find(c => value.startsWith(c.phoneCode));
-      return country || COUNTRIES.find(c => c.code === 'US') || COUNTRIES[0];
+    // Priority 1: Use defaultCountryCode if provided
+    if (defaultCountryCode) {
+      const country = COUNTRIES.find(c => c.code === defaultCountryCode);
+      if (country) return country;
     }
+    // Priority 2: Try to detect country from existing value
+    if (value && value.startsWith('+')) {
+      const country = COUNTRIES.find(c => value.startsWith(c.phoneCode));
+      if (country) return country;
+    }
+    // Default: US or first country
     return COUNTRIES.find(c => c.code === 'US') || COUNTRIES[0];
   });
   const [phoneNumber, setPhoneNumber] = useState(() => {
@@ -87,16 +94,52 @@ const PhoneInput: React.FC<PhoneInputProps> = ({
     }
   }, [isCountryOpen]);
 
-  // Parse existing value when component mounts or value changes externally
+  // Initialize country and parse value when defaultCountryCode or value changes
   useEffect(() => {
-    if (value && value !== `${selectedCountry.phoneCode}${phoneNumber}`) {
-      const country = COUNTRIES.find(c => value.startsWith(c.phoneCode));
+    let targetCountry = selectedCountry;
+    
+    // Priority 1: Use defaultCountryCode if provided
+    if (defaultCountryCode) {
+      const country = COUNTRIES.find(c => c.code === defaultCountryCode);
       if (country) {
-        setSelectedCountry(country);
-        setPhoneNumber(value.substring(country.phoneCode.length));
+        targetCountry = country;
       }
     }
-  }, [value]);
+    
+    // Priority 2: Parse value if it starts with +
+    if (value && value.startsWith('+')) {
+      const country = COUNTRIES.find(c => value.startsWith(c.phoneCode));
+      if (country) {
+        targetCountry = country;
+        const phoneNum = value.substring(country.phoneCode.length);
+        if (country.code !== selectedCountry.code) {
+          setSelectedCountry(country);
+        }
+        if (phoneNum !== phoneNumber) {
+          setPhoneNumber(phoneNum);
+        }
+        return; // Exit early if we parsed from value
+      }
+    }
+    
+    // If we have a country from defaultCountryCode, use it
+    if (targetCountry.code !== selectedCountry.code) {
+      setSelectedCountry(targetCountry);
+      
+      // If value exists but doesn't start with +, use it as is
+      if (value && !value.startsWith('+') && value !== phoneNumber) {
+        setPhoneNumber(value);
+      } else if (value && value.startsWith('+')) {
+        // Try to parse with targetCountry
+        if (value.startsWith(targetCountry.phoneCode)) {
+          setPhoneNumber(value.substring(targetCountry.phoneCode.length));
+        }
+      }
+    } else if (value && !value.startsWith('+') && value !== phoneNumber) {
+      // Value doesn't have country code, just update phone number
+      setPhoneNumber(value);
+    }
+  }, [value, defaultCountryCode]);
 
   return (
     <div className={`space-y-2 ${className}`}>

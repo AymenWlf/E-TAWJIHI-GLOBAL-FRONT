@@ -31,271 +31,46 @@ const BudgetCalculator = ({
   const [isConverting, setIsConverting] = useState(false);
   const [calculationMode, setCalculationMode] = useState('annual'); // 'annual' ou 'monthly'
 
-  // Presets de budget par pays (en USD) avec plages min/max
+  // Exemples de budget par pays (en USD) avec plages min/max - Only Maroc, France and China
   const budgetPresets = {
-    'US': {
-      name: 'United States',
-      flag: '🇺🇸',
-      tuition: { min: 15000, max: 50000, avg: 25000 },
-      accommodation: { min: 8000, max: 18000, avg: 12000 },
-      transport: { min: 1000, max: 3000, avg: 2000 },
-      insurance: { min: 2000, max: 4000, avg: 3000 },
-      travel: { min: 1000, max: 3000, avg: 2000 },
-      living: { min: 6000, max: 12000, avg: 8000 },
-      books: { min: 500, max: 1500, avg: 1000 },
-      other: { min: 1000, max: 3000, avg: 2000 }
-    },
-    'GB': {
-      name: 'United Kingdom',
-      flag: '🇬🇧',
-      tuition: { min: 12000, max: 35000, avg: 20000 },
-      accommodation: { min: 7000, max: 15000, avg: 10000 },
-      transport: { min: 1000, max: 2000, avg: 1500 },
-      insurance: { min: 1500, max: 2500, avg: 2000 },
-      travel: { min: 1000, max: 2000, avg: 1500 },
-      living: { min: 5000, max: 10000, avg: 7000 },
-      books: { min: 500, max: 1200, avg: 800 },
-      other: { min: 1000, max: 2000, avg: 1500 }
-    },
-    'CA': {
-      name: 'Canada',
-      flag: '🇨🇦',
-      tuition: { min: 12000, max: 25000, avg: 18000 },
-      accommodation: { min: 6000, max: 12000, avg: 8000 },
-      transport: { min: 800, max: 1800, avg: 1200 },
-      insurance: { min: 1000, max: 2000, avg: 1500 },
-      travel: { min: 800, max: 1800, avg: 1200 },
-      living: { min: 4000, max: 8000, avg: 6000 },
-      books: { min: 400, max: 800, avg: 600 },
-      other: { min: 800, max: 1800, avg: 1200 }
-    },
-    'AU': {
-      name: 'Australia',
-      flag: '🇦🇺',
-      tuition: { min: 15000, max: 30000, avg: 22000 },
-      accommodation: { min: 7000, max: 12000, avg: 9000 },
-      transport: { min: 1000, max: 2000, avg: 1500 },
-      insurance: { min: 1200, max: 2400, avg: 1800 },
-      travel: { min: 1200, max: 2400, avg: 1800 },
-      living: { min: 5000, max: 9000, avg: 7000 },
-      books: { min: 500, max: 900, avg: 700 },
-      other: { min: 1000, max: 1600, avg: 1300 }
-    },
-    'DE': {
-      name: 'Germany',
-      flag: '🇩🇪',
-      tuition: { min: 0, max: 1500, avg: 500 },
-      accommodation: { min: 4000, max: 8000, avg: 6000 },
-      transport: { min: 600, max: 1200, avg: 800 },
-      insurance: { min: 800, max: 1200, avg: 1000 },
-      travel: { min: 800, max: 1200, avg: 1000 },
-      living: { min: 3500, max: 6500, avg: 5000 },
-      books: { min: 300, max: 500, avg: 400 },
-      other: { min: 600, max: 1000, avg: 800 }
+    'CN': {
+      name: 'China',
+      flag: '🇨🇳',
+      // Values converted from DHS to USD (approx 1 USD = 10 DHS): tuition 10000 DHS/year ≈ 1000 USD/year, accommodation 3000 DHS/year ≈ 300 USD/year, living 2000 DHS/month (24000 DHS/year) ≈ 2400 USD/year
+      tuition: { min: 800, max: 1200, avg: 1000 },
+      accommodation: { min: 250, max: 400, avg: 300 },
+      transport: { min: 30, max: 70, avg: 50 },
+      insurance: { min: 40, max: 80, avg: 60 },
+      travel: { min: 40, max: 80, avg: 60 },
+      living: { min: 2000, max: 2800, avg: 2400 }, // 2000 DHS/month * 12 = 24000 DHS/year ≈ 2400 USD/year
+      books: { min: 15, max: 25, avg: 20 },
+      other: { min: 30, max: 50, avg: 40 }
     },
     'FR': {
       name: 'France',
       flag: '🇫🇷',
-      tuition: { min: 200, max: 15000, avg: 3000 },
-      accommodation: { min: 3500, max: 8000, avg: 5000 },
-      transport: { min: 400, max: 800, avg: 600 },
-      insurance: { min: 600, max: 1000, avg: 800 },
-      travel: { min: 600, max: 1000, avg: 800 },
-      living: { min: 3000, max: 5000, avg: 4000 },
-      books: { min: 200, max: 400, avg: 300 },
-      other: { min: 400, max: 800, avg: 600 }
+      // Values in EUR converted to USD (approx 1 EUR = 1.1 USD): tuition from 4000 EUR/year, accommodation realistic ranges for France
+      tuition: { min: 4400, max: 16500, avg: 7700 }, // Public universities ~4000-5000 EUR/year (≈4400-5500 USD), private can go up to 15000 EUR/year (≈16500 USD)
+      accommodation: { min: 3300, max: 8800, avg: 6050 }, // Student housing varies by city, average 5500 EUR/year (≈6050 USD/year)
+      transport: { min: 220, max: 660, avg: 440 }, // Student transport card ~300-500 EUR/year (≈330-550 USD/year)
+      insurance: { min: 220, max: 660, avg: 440 }, // Student health insurance ~200-500 EUR/year (≈220-550 USD/year)
+      travel: { min: 550, max: 1650, avg: 1100 }, // Travel back home, trips
+      living: { min: 3960, max: 7920, avg: 5940 }, // 300-600 EUR/month (≈330-660 USD/month) = 3600-7200 EUR/year (≈3960-7920 USD/year)
+      books: { min: 330, max: 880, avg: 550 }, // Textbooks and materials 300-800 EUR/year (≈330-880 USD/year)
+      other: { min: 660, max: 1650, avg: 1100 } // Miscellaneous expenses 600-1500 EUR/year (≈660-1650 USD/year)
     },
-    'NL': {
-      name: 'Netherlands',
-      flag: '🇳🇱',
-      tuition: { min: 5000, max: 12000, avg: 8000 },
-      accommodation: { min: 5000, max: 10000, avg: 7000 },
-      transport: { min: 800, max: 1200, avg: 1000 },
-      insurance: { min: 1000, max: 1500, avg: 1200 },
-      travel: { min: 800, max: 1200, avg: 1000 },
-      living: { min: 3500, max: 6500, avg: 5000 },
-      books: { min: 400, max: 600, avg: 500 },
-      other: { min: 600, max: 1000, avg: 800 }
-    },
-    'IT': {
-      name: 'Italy',
-      flag: '🇮🇹',
-      tuition: { min: 1000, max: 4000, avg: 2000 },
-      accommodation: { min: 3500, max: 7000, avg: 5000 },
-      transport: { min: 400, max: 800, avg: 600 },
-      insurance: { min: 600, max: 1000, avg: 800 },
-      travel: { min: 600, max: 1000, avg: 800 },
-      living: { min: 3000, max: 5000, avg: 4000 },
-      books: { min: 200, max: 400, avg: 300 },
-      other: { min: 400, max: 800, avg: 600 }
-    },
-    'ES': {
-      name: 'Spain',
-      flag: '🇪🇸',
-      tuition: { min: 800, max: 3000, avg: 1500 },
-      accommodation: { min: 3000, max: 6000, avg: 4000 },
-      transport: { min: 300, max: 700, avg: 500 },
-      insurance: { min: 400, max: 800, avg: 600 },
-      travel: { min: 400, max: 800, avg: 600 },
-      living: { min: 2500, max: 4500, avg: 3500 },
-      books: { min: 150, max: 350, avg: 250 },
-      other: { min: 300, max: 700, avg: 500 }
-    },
-    'CH': {
-      name: 'Switzerland',
-      flag: '🇨🇭',
-      tuition: { min: 500, max: 2000, avg: 1000 },
-      accommodation: { min: 8000, max: 16000, avg: 12000 },
-      transport: { min: 800, max: 1200, avg: 1000 },
-      insurance: { min: 1200, max: 1800, avg: 1500 },
-      travel: { min: 800, max: 1200, avg: 1000 },
-      living: { min: 6000, max: 10000, avg: 8000 },
-      books: { min: 400, max: 600, avg: 500 },
-      other: { min: 800, max: 1200, avg: 1000 }
-    },
-    'SE': {
-      name: 'Sweden',
-      flag: '🇸🇪',
-      tuition: { min: 0, max: 0, avg: 0 },
-      accommodation: { min: 4000, max: 8000, avg: 6000 },
-      transport: { min: 600, max: 1000, avg: 800 },
-      insurance: { min: 800, max: 1200, avg: 1000 },
-      travel: { min: 800, max: 1200, avg: 1000 },
-      living: { min: 3500, max: 6500, avg: 5000 },
-      books: { min: 300, max: 500, avg: 400 },
-      other: { min: 600, max: 1000, avg: 800 }
-    },
-    'NO': {
-      name: 'Norway',
-      flag: '🇳🇴',
-      tuition: { min: 0, max: 0, avg: 0 },
-      accommodation: { min: 6000, max: 10000, avg: 8000 },
-      transport: { min: 800, max: 1200, avg: 1000 },
-      insurance: { min: 1000, max: 1400, avg: 1200 },
-      travel: { min: 1000, max: 1400, avg: 1200 },
-      living: { min: 4500, max: 7500, avg: 6000 },
-      books: { min: 400, max: 600, avg: 500 },
-      other: { min: 800, max: 1200, avg: 1000 }
-    },
-    'DK': {
-      name: 'Denmark',
-      flag: '🇩🇰',
-      tuition: { min: 0, max: 0, avg: 0 },
-      accommodation: { min: 5000, max: 9000, avg: 7000 },
-      transport: { min: 600, max: 1000, avg: 800 },
-      insurance: { min: 800, max: 1200, avg: 1000 },
-      travel: { min: 800, max: 1200, avg: 1000 },
-      living: { min: 4000, max: 7000, avg: 5500 },
-      books: { min: 300, max: 500, avg: 400 },
-      other: { min: 600, max: 1000, avg: 800 }
-    },
-    'FI': {
-      name: 'Finland',
-      flag: '🇫🇮',
-      tuition: { min: 0, max: 0, avg: 0 },
-      accommodation: { min: 3500, max: 6500, avg: 5000 },
-      transport: { min: 400, max: 800, avg: 600 },
-      insurance: { min: 600, max: 1000, avg: 800 },
-      travel: { min: 600, max: 1000, avg: 800 },
-      living: { min: 3000, max: 5000, avg: 4000 },
-      books: { min: 200, max: 400, avg: 300 },
-      other: { min: 400, max: 800, avg: 600 }
-    },
-    'IE': {
-      name: 'Ireland',
-      flag: '🇮🇪',
-      tuition: { min: 10000, max: 25000, avg: 15000 },
-      accommodation: { min: 6000, max: 12000, avg: 8000 },
-      transport: { min: 800, max: 1200, avg: 1000 },
-      insurance: { min: 1000, max: 1400, avg: 1200 },
-      travel: { min: 800, max: 1200, avg: 1000 },
-      living: { min: 3500, max: 6500, avg: 5000 },
-      books: { min: 400, max: 600, avg: 500 },
-      other: { min: 600, max: 1000, avg: 800 }
-    },
-    'NZ': {
-      name: 'New Zealand',
-      flag: '🇳🇿',
-      tuition: { min: 15000, max: 25000, avg: 20000 },
-      accommodation: { min: 6000, max: 10000, avg: 8000 },
-      transport: { min: 1000, max: 1400, avg: 1200 },
-      insurance: { min: 1200, max: 1800, avg: 1500 },
-      travel: { min: 1200, max: 1800, avg: 1500 },
-      living: { min: 4000, max: 8000, avg: 6000 },
-      books: { min: 400, max: 800, avg: 600 },
-      other: { min: 1000, max: 1400, avg: 1200 }
-    },
-    'JP': {
-      name: 'Japan',
-      flag: '🇯🇵',
-      tuition: { min: 5000, max: 12000, avg: 8000 },
-      accommodation: { min: 4000, max: 8000, avg: 6000 },
-      transport: { min: 800, max: 1200, avg: 1000 },
-      insurance: { min: 800, max: 1200, avg: 1000 },
-      travel: { min: 800, max: 1200, avg: 1000 },
-      living: { min: 3500, max: 6500, avg: 5000 },
-      books: { min: 300, max: 500, avg: 400 },
-      other: { min: 600, max: 1000, avg: 800 }
-    },
-    'KR': {
-      name: 'South Korea',
-      flag: '🇰🇷',
-      tuition: { min: 4000, max: 8000, avg: 6000 },
-      accommodation: { min: 3500, max: 6500, avg: 5000 },
-      transport: { min: 600, max: 1000, avg: 800 },
-      insurance: { min: 600, max: 1000, avg: 800 },
-      travel: { min: 600, max: 1000, avg: 800 },
-      living: { min: 3000, max: 5000, avg: 4000 },
-      books: { min: 200, max: 400, avg: 300 },
-      other: { min: 400, max: 800, avg: 600 }
-    },
-    'SG': {
-      name: 'Singapore',
-      flag: '🇸🇬',
-      tuition: { min: 10000, max: 20000, avg: 15000 },
-      accommodation: { min: 6000, max: 10000, avg: 8000 },
-      transport: { min: 800, max: 1200, avg: 1000 },
-      insurance: { min: 800, max: 1200, avg: 1000 },
-      travel: { min: 800, max: 1200, avg: 1000 },
-      living: { min: 3500, max: 6500, avg: 5000 },
-      books: { min: 400, max: 600, avg: 500 },
-      other: { min: 600, max: 1000, avg: 800 }
-    },
-    'CY': {
-      name: 'Cyprus',
-      flag: '🇨🇾',
-      tuition: { min: 5000, max: 12000, avg: 8000 },
-      accommodation: { min: 4000, max: 8000, avg: 6000 },
-      transport: { min: 600, max: 1000, avg: 800 },
-      insurance: { min: 800, max: 1200, avg: 1000 },
-      travel: { min: 600, max: 1000, avg: 800 },
-      living: { min: 3000, max: 5000, avg: 4000 },
-      books: { min: 300, max: 500, avg: 400 },
-      other: { min: 400, max: 800, avg: 600 }
-    },
-    'CN': {
-      name: 'China',
-      flag: '🇨🇳',
-      tuition: { min: 3000, max: 8000, avg: 5000 },
-      accommodation: { min: 2000, max: 4000, avg: 3000 },
-      transport: { min: 300, max: 700, avg: 500 },
-      insurance: { min: 400, max: 800, avg: 600 },
-      travel: { min: 400, max: 800, avg: 600 },
-      living: { min: 2000, max: 3000, avg: 2500 },
-      books: { min: 150, max: 250, avg: 200 },
-      other: { min: 300, max: 500, avg: 400 }
-    },
-    'TR': {
-      name: 'Turkey',
-      flag: '🇹🇷',
-      tuition: { min: 2000, max: 5000, avg: 3000 },
-      accommodation: { min: 3000, max: 5000, avg: 4000 },
-      transport: { min: 400, max: 800, avg: 600 },
-      insurance: { min: 600, max: 1000, avg: 800 },
-      travel: { min: 400, max: 800, avg: 600 },
-      living: { min: 2500, max: 3500, avg: 3000 },
-      books: { min: 200, max: 400, avg: 300 },
-      other: { min: 400, max: 600, avg: 500 }
+    'MA': {
+      name: 'Morocco',
+      flag: '🇲🇦',
+      // Values converted from DHS to USD (approx 1 USD = 10 DHS): tuition from 3500 DHS/month = 42000 DHS/year ≈ 4200 USD/year
+      tuition: { min: 3500, max: 8000, avg: 5000 }, // 3500 DHS/month = 42000 DHS/year ≈ 4200 USD/year, can go up to 80000 DHS/year for private
+      accommodation: { min: 2000, max: 6000, avg: 4000 }, // 2000-5000 DHS/month = 24000-60000 DHS/year ≈ 2400-6000 USD/year
+      transport: { min: 200, max: 600, avg: 400 }, // Public transport 300-500 DHS/month = 3600-6000 DHS/year ≈ 360-600 USD/year
+      insurance: { min: 300, max: 800, avg: 500 }, // Health insurance 300-700 DHS/month = 3600-8400 DHS/year ≈ 360-840 USD/year
+      travel: { min: 500, max: 1500, avg: 1000 }, // Travel expenses within Morocco or to home region
+      living: { min: 2400, max: 4800, avg: 3600 }, // 2000-4000 DHS/month = 24000-48000 DHS/year ≈ 2400-4800 USD/year
+      books: { min: 200, max: 600, avg: 400 }, // Textbooks and materials 200-500 DHS/month = 2400-6000 DHS/year ≈ 240-600 USD/year
+      other: { min: 600, max: 1800, avg: 1200 } // Miscellaneous expenses 500-1500 DHS/month = 6000-18000 DHS/year ≈ 600-1800 USD/year
     },
     'default': {
       name: 'General Average',
@@ -440,7 +215,7 @@ const BudgetCalculator = ({
     { key: 'transport', label: 'Transportation', icon: '🚌', description: 'Public transport, car, flights' },
     { key: 'insurance', label: 'Insurance', icon: '🛡️', description: 'Health, travel, liability insurance' },
     { key: 'travel', label: 'Travel', icon: '✈️', description: 'Trips home, vacation travel' },
-    { key: 'living', label: 'Living Expenses', icon: '🍽️', description: 'Food, groceries, daily expenses' },
+    { key: 'living', label: 'Living Expenses', icon: '🍽️', description: 'Food, groceries, daily expenses (monthly amount)' },
     { key: 'books', label: 'Books & Materials', icon: '📚', description: 'Textbooks, supplies, equipment' },
     { key: 'other', label: 'Other Expenses', icon: '💼', description: 'Miscellaneous, entertainment, etc.' }
   ];
@@ -449,7 +224,14 @@ const BudgetCalculator = ({
     const calculatedTotal = Object.keys(budgetData).reduce((sum, key) => {
       if (key !== 'currency' && budgetData[key] && budgetData[key] !== '') {
         const value = parseFloat(budgetData[key]);
-        return sum + (isNaN(value) ? 0 : value);
+        if (isNaN(value)) return sum;
+        
+        // Living expenses are stored as monthly, need to multiply by 12 for annual total
+        // All other expenses (tuition, accommodation, etc.) are already annual
+        if (key === 'living') {
+          return sum + (value * 12);
+        }
+        return sum + value;
       }
       return sum;
     }, 0);
@@ -486,16 +268,17 @@ const BudgetCalculator = ({
     const numValue = parseFloat(value);
     if (isNaN(numValue)) return value;
     
-    // Si on est en mode mensuel et que la valeur stockée est annuelle, convertir
-    if (calculationMode === 'monthly') {
-      return (numValue / 12).toFixed(2);
+    // Living expenses are always stored as monthly, other expenses are always annual
+    if (key === 'living') {
+      // Living is always monthly, so display it as is (regardless of calculation mode)
+      return numValue.toFixed(2);
+    } else {
+      // Other expenses are annual, convert if in monthly mode
+      if (calculationMode === 'monthly') {
+        return (numValue / 12).toFixed(2);
+      }
+      return numValue.toFixed(2);
     }
-    // Si on est en mode annuel et que la valeur stockée est mensuelle, convertir
-    else if (calculationMode === 'annual') {
-      return (numValue * 12).toFixed(2);
-    }
-    
-    return value;
   };
 
   // Convertir la valeur saisie selon le mode
@@ -511,14 +294,20 @@ const BudgetCalculator = ({
       return;
     }
     
-    // Convertir selon le mode de calcul
+    // Living expenses are always stored as monthly, other expenses are always annual
     let convertedValue;
-    if (calculationMode === 'monthly') {
-      // L'utilisateur saisit un montant mensuel, on stocke l'équivalent annuel
-      convertedValue = (numValue * 12).toFixed(2);
-    } else {
-      // L'utilisateur saisit un montant annuel, on stocke tel quel
+    if (key === 'living') {
+      // Living is always monthly, store as is regardless of calculation mode
       convertedValue = numValue.toFixed(2);
+    } else {
+      // Other expenses are annual
+      if (calculationMode === 'monthly') {
+        // User entered monthly amount, convert to annual for storage
+        convertedValue = (numValue * 12).toFixed(2);
+      } else {
+        // User entered annual amount, store as is
+        convertedValue = numValue.toFixed(2);
+      }
     }
     
     handleInputChange(key, convertedValue);
@@ -558,14 +347,15 @@ const BudgetCalculator = ({
     const currentCurrency = budgetData.currency || preferredCurrency;
     
     // Convertir les valeurs USD vers la devise sélectionnée (utiliser avg)
-    // Les presets sont toujours en montants annuels
+    // Les exemples sont toujours en montants annuels pour toutes les catégories
     const convertedPreset = {
       tuition: currencyService.convert(preset.tuition.avg, 'USD', currentCurrency),
       accommodation: currencyService.convert(preset.accommodation.avg, 'USD', currentCurrency),
       transport: currencyService.convert(preset.transport.avg, 'USD', currentCurrency),
       insurance: currencyService.convert(preset.insurance.avg, 'USD', currentCurrency),
       travel: currencyService.convert(preset.travel.avg, 'USD', currentCurrency),
-      living: currencyService.convert(preset.living.avg, 'USD', currentCurrency),
+      // Living in examples is annual, but we store it as monthly
+      living: currencyService.convert(preset.living.avg / 12, 'USD', currentCurrency),
       books: currencyService.convert(preset.books.avg, 'USD', currentCurrency),
       other: currencyService.convert(preset.other.avg, 'USD', currentCurrency),
       currency: currentCurrency
@@ -627,7 +417,7 @@ const BudgetCalculator = ({
     return countryMap[countryName] || 'default';
   };
 
-  // Organiser les presets par priorité (pays préférés en premier)
+  // Organiser les exemples par priorité (pays préférés en premier)
   const getOrderedPresets = () => {
     const presetEntries = Object.entries(budgetPresets);
     
@@ -671,7 +461,8 @@ const BudgetCalculator = ({
             transport: currencyService.convert(preset.transport.avg, 'USD', preferredCurrency),
             insurance: currencyService.convert(preset.insurance.avg, 'USD', preferredCurrency),
             travel: currencyService.convert(preset.travel.avg, 'USD', preferredCurrency),
-            living: currencyService.convert(preset.living.avg, 'USD', preferredCurrency),
+            // Living in examples is annual, but we store it as monthly
+            living: currencyService.convert(preset.living.avg / 12, 'USD', preferredCurrency),
             books: currencyService.convert(preset.books.avg, 'USD', preferredCurrency),
             other: currencyService.convert(preset.other.avg, 'USD', preferredCurrency),
             currency: preferredCurrency
@@ -709,7 +500,7 @@ const BudgetCalculator = ({
     subtitle: language === 'en' ? 'Estimate your study abroad costs' : 'Estimez vos coûts d\'études à l\'étranger',
     total: language === 'en' ? 'Total Budget' : 'Budget Total',
     currency: language === 'en' ? 'Currency' : 'Devise',
-    presets: language === 'en' ? 'Budget Presets' : 'Présets de Budget',
+    presets: language === 'en' ? 'Budget Examples' : 'Exemples de Budget',
     clear: language === 'en' ? 'Clear All' : 'Tout Effacer',
     expand: language === 'en' ? 'Show Details' : 'Afficher les Détails',
     collapse: language === 'en' ? 'Hide Details' : 'Masquer les Détails',
@@ -755,7 +546,7 @@ const BudgetCalculator = ({
         </div>
       </div>
 
-      {/* Budget Presets */}
+      {/* Budget Examples */}
       {showPresets && (
         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
           <h4 className="text-sm font-medium text-gray-700 mb-3">{t.presets}</h4>
@@ -849,7 +640,7 @@ const BudgetCalculator = ({
             </div>
           </div>
           
-          {/* Preset général */}
+          {/* Exemple général */}
           <div className="mt-3 pt-3 border-t border-gray-200">
             <button
               type="button"
@@ -857,7 +648,7 @@ const BudgetCalculator = ({
               className="px-3 py-2 text-xs bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200 transition-colors flex items-center space-x-2"
             >
               <span className="text-sm">🌍</span>
-              <span className="font-medium">General Average</span>
+              <span className="font-medium">{language === 'en' ? 'General Example' : 'Exemple Général'}</span>
             </button>
           </div>
         </div>
@@ -1123,7 +914,7 @@ const BudgetCalculator = ({
                   className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors duration-200 flex items-center space-x-2"
                 >
                   <Save size={20} />
-                  <span>{language === 'en' ? 'Use Average Values' : 'Utiliser les Valeurs Moyennes'}</span>
+                  <span>{language === 'en' ? 'Use Example Values' : 'Utiliser les Valeurs d\'Exemple'}</span>
                 </button>
               </div>
             </div>

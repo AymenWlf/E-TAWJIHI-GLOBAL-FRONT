@@ -473,6 +473,17 @@ class ProfileService {
       throw error;
     }
   }
+
+  // Change password
+  async changePassword(data: { currentPassword: string; newPassword: string; language?: string }): Promise<{ success: boolean; message: string }> {
+    try {
+      const response = await api.post('/profile/change-password', data);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error changing password:', error);
+      throw error;
+    }
+  }
 }
 
 export default new ProfileService();

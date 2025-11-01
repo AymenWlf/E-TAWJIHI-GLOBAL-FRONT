@@ -529,26 +529,27 @@ const EstablishmentsListing = () => {
       return await formatPrice(amount, currency, false);
     } catch (error) {
       console.error('Error formatting price:', error);
-      return `${currency} ${amount.toLocaleString()}`;
+      return `${currency} ${(amount ?? 0).toLocaleString()}`;
     }
   };
 
   // Component to display price without loading state
   const PriceWithLoading = ({ amount, currency, className = "" }) => {
-    const [displayPrice, setDisplayPrice] = useState(`${currency} ${amount.toLocaleString()}`);
+    const safeAmount = amount ?? 0;
+    const [displayPrice, setDisplayPrice] = useState(`${currency} ${safeAmount.toLocaleString()}`);
     
     useEffect(() => {
       const updatePrice = async () => {
         try {
-          const converted = await formatPriceWithConversion(amount, currency);
+          const converted = await formatPriceWithConversion(safeAmount, currency);
           setDisplayPrice(converted);
         } catch (error) {
           console.error('Error converting price:', error);
-          setDisplayPrice(`${currency} ${amount.toLocaleString()}`);
+          setDisplayPrice(`${currency} ${safeAmount.toLocaleString()}`);
         }
       };
       updatePrice();
-    }, [amount, currency, userCurrency]);
+    }, [safeAmount, currency, userCurrency]);
     
     return <span className={className}>{displayPrice}</span>;
   };
@@ -681,20 +682,21 @@ const EstablishmentsListing = () => {
 
   // Component to display converted price
   const PriceDisplay = ({ amount, currency, className = "", id = "" }) => {
-    const [displayPrice, setDisplayPrice] = useState(`${currency} ${amount.toLocaleString()}`);
+    const safeAmount = amount ?? 0;
+    const [displayPrice, setDisplayPrice] = useState(`${currency} ${safeAmount.toLocaleString()}`);
     
     useEffect(() => {
       const updatePrice = async () => {
         try {
-          const converted = await formatPrice(amount, currency, false);
+          const converted = await formatPrice(safeAmount, currency, false);
           setDisplayPrice(converted);
         } catch (error) {
           console.error('Error converting price:', error);
-          setDisplayPrice(`${currency} ${amount.toLocaleString()}`);
+          setDisplayPrice(`${currency} ${safeAmount.toLocaleString()}`);
         }
       };
       updatePrice();
-    }, [amount, currency, userCurrency]);
+    }, [safeAmount, currency, userCurrency]);
     
     return <span className={className}>{displayPrice}</span>;
   };
@@ -3118,7 +3120,7 @@ const EstablishmentsListing = () => {
                     <div className="mb-4">
                       <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
                         <span>0</span>
-                        <span className="font-medium text-blue-600">{userCurrency} {tempFeeFilters.minFees.toLocaleString()} - {tempFeeFilters.maxFees.toLocaleString()}</span>
+                        <span className="font-medium text-blue-600">{userCurrency} {(tempFeeFilters.minFees ?? 0).toLocaleString()} - {(tempFeeFilters.maxFees ?? 0).toLocaleString()}</span>
                         <span>300,000</span>
                       </div>
                     <div className="space-y-3">
@@ -3661,11 +3663,11 @@ const EstablishmentsListing = () => {
                   <div className="flex items-center justify-between text-sm text-gray-500 mb-6">
                     <div className="flex items-center gap-1">
                       <Users className="w-4 h-4 text-blue-500" />
-                      <span>{establishment.students.toLocaleString()}</span>
+                      <span>{(establishment.students ?? 0).toLocaleString()}</span>
                     </div>
                     <div className="flex items-center gap-1">
                       <BookOpen className="w-4 h-4 text-emerald-500" />
-                      <span>{establishment.programs} {language === 'en' ? 'programs' : 'programmes'}</span>
+                      <span>{establishment.programs || 0} {language === 'en' ? 'programs' : 'programmes'}</span>
                     </div>
                   </div>
 

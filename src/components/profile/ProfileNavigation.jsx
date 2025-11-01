@@ -88,6 +88,11 @@ const ProfileNavigation = ({ language }) => {
       id: 'ambassador',
       label: language === 'en' ? 'Ambassador Program' : 'Programme Ambassadeur',
       url: '/profile/ambassador'
+    },
+    {
+      id: 'security',
+      label: language === 'en' ? 'Security' : 'Sécurité',
+      url: '/profile/security'
     }
   ];
 

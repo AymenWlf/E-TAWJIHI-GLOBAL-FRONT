@@ -126,6 +126,23 @@ export interface AdminFilters {
   isActive?: boolean;
 }
 
+export interface TranslationPrice {
+  id?: number;
+  fromLanguage: string;
+  toLanguage: string;
+  price: number;
+  currency?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface TranslationPriceResponse {
+  success: boolean;
+  data?: TranslationPrice | TranslationPrice[];
+  message?: string;
+  error?: string;
+}
+
 class AdminService {
   // ===== ESTABLISHMENTS MANAGEMENT =====
 
@@ -290,6 +307,58 @@ class AdminService {
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.message || 'Erreur lors de la suppression du programme');
+    }
+  }
+
+  // ===== TRANSLATION PRICES MANAGEMENT =====
+
+  async getTranslationPrices(): Promise<TranslationPriceResponse> {
+    try {
+      const response = await api.get<TranslationPriceResponse>('/admin/translation-prices');
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching translation prices:', error);
+      // If the response has data, return it to show the error message
+      if (error.response?.data) {
+        return error.response.data;
+      }
+      throw new Error(error.response?.data?.message || error.message || 'Erreur lors de la récupération des prix de traduction');
+    }
+  }
+
+  async getTranslationPrice(id: number): Promise<TranslationPriceResponse> {
+    try {
+      const response = await api.get<TranslationPriceResponse>(`/admin/translation-prices/${id}`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Erreur lors de la récupération du prix');
+    }
+  }
+
+  async createTranslationPrice(price: TranslationPrice): Promise<TranslationPriceResponse> {
+    try {
+      const response = await api.post<TranslationPriceResponse>('/admin/translation-prices', price);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Erreur lors de la création du prix');
+    }
+  }
+
+  async updateTranslationPrice(id: number, price: Partial<TranslationPrice>): Promise<TranslationPriceResponse> {
+    try {
+      const response = await api.put<TranslationPriceResponse>(`/admin/translation-prices/${id}`, price);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Erreur lors de la mise à jour du prix');
+    }
+  }
+
+  async deleteTranslationPrice(id: number): Promise<TranslationPriceResponse> {
+    try {
+      const response = await api.delete<TranslationPriceResponse>(`/admin/translation-prices/${id}`);
+      return response.data;
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Erreur lors de la suppression du prix');
     }
   }
 }

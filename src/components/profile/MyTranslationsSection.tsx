@@ -11,6 +11,7 @@ import {
   getDocumentType
 } from '../../types/translationTypes';
 import translationService, { Translation } from '../../services/translationService';
+import { useCurrency } from '../../contexts/CurrencyContext';
 
 interface MyTranslationsSectionProps {
   language: string;
@@ -23,6 +24,7 @@ const MyTranslationsSection: React.FC<MyTranslationsSectionProps> = ({
   onNewTranslation,
   refreshTrigger
 }) => {
+  const { formatPrice, convertPrice } = useCurrency();
   const [translations, setTranslations] = useState<Translation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -334,10 +336,9 @@ const MyTranslationsSection: React.FC<MyTranslationsSectionProps> = ({
                   {language === 'en' ? 'Unpaid Total' : 'Total Non Payé'}
                 </p>
                 <p className="text-2xl font-bold text-purple-900">
-                  {filteredTranslations
+                  {formatPrice(filteredTranslations
                     .filter(t => t.paymentStatus === 'pending')
-                    .reduce((sum, t) => sum + t.totalPrice, 0)
-                    .toLocaleString()} MAD
+                    .reduce((sum, t) => sum + convertPrice(t.totalPrice, t.currency || 'MAD'), 0))}
                 </p>
               </div>
               <div className="text-purple-500 font-bold text-lg">₵</div>
@@ -367,7 +368,7 @@ const MyTranslationsSection: React.FC<MyTranslationsSectionProps> = ({
                   {language === 'en' ? 'Total to Pay' : 'Total à Payer'}
                 </p>
                 <p className="text-2xl font-bold text-blue-600">
-                  {pendingPayment.totalAmount.toLocaleString()} MAD
+                  {formatPrice(convertPrice(pendingPayment.totalAmount, 'MAD'))}
                 </p>
               </div>
               <button
@@ -498,7 +499,10 @@ const MyTranslationsSection: React.FC<MyTranslationsSectionProps> = ({
                             {language === 'en' ? 'Base price per page:' : 'Prix de base par page:'}
                           </span>
                           <span className="font-medium">
-                            {getDocumentType(translation.documentType)?.basePrice} MAD
+                            {getDocumentType(translation.documentType)?.basePrice 
+                              ? formatPrice(convertPrice(getDocumentType(translation.documentType)!.basePrice, 'MAD'))
+                              : '-'
+                            }
                           </span>
                         </div>
                         <div className="flex justify-between">
@@ -506,7 +510,7 @@ const MyTranslationsSection: React.FC<MyTranslationsSectionProps> = ({
                             {language === 'en' ? 'Price per page:' : 'Prix par page:'}
                           </span>
                           <span className="font-medium">
-                            {translation.pricePerPage} MAD
+                            {formatPrice(convertPrice(translation.pricePerPage, translation.currency || 'MAD'))}
                           </span>
                         </div>
                         <div className="flex justify-between">
@@ -521,7 +525,7 @@ const MyTranslationsSection: React.FC<MyTranslationsSectionProps> = ({
                             {language === 'en' ? 'Total:' : 'Total:'}
                           </span>
                           <span className="text-blue-600">
-                            {translation.totalPrice.toLocaleString()} {translation.currency}
+                            {formatPrice(convertPrice(translation.totalPrice, translation.currency || 'MAD'))}
                           </span>
                         </div>
                       </div>

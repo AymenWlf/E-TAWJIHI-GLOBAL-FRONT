@@ -6,6 +6,9 @@ export interface Service {
   description: string;
   price: number;
   originalPrice: number;
+  promotionalPrice?: number | null;
+  discountAmount?: number | null;
+  discountPercentage?: number | null;
   currency: string;
   originalCurrency: string;
   category: string;
@@ -15,6 +18,7 @@ export interface Service {
   color: string;
   duration?: number;
   durationUnit?: string;
+  images?: string[];
   isAvailable: boolean;
   availabilityMessage: string;
 }
@@ -38,9 +42,13 @@ class ServiceService {
   /**
    * Get all services with user-specific filtering and currency conversion
    */
-  async getServices(language: string = 'en'): Promise<ServiceResponse> {
+  async getServices(language: string = 'en', currency?: string): Promise<ServiceResponse> {
     try {
-      const response = await api.get(`/services?language=${language}`);
+      let url = `/services?language=${language}`;
+      if (currency) {
+        url += `&currency=${currency}`;
+      }
+      const response = await api.get(url);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching services:', error);
@@ -51,9 +59,13 @@ class ServiceService {
   /**
    * Get a specific service by ID
    */
-  async getService(id: number, language: string = 'en'): Promise<SingleServiceResponse> {
+  async getService(id: number, language: string = 'en', currency?: string): Promise<SingleServiceResponse> {
     try {
-      const response = await api.get(`/services/${id}?language=${language}`);
+      let url = `/services/${id}?language=${language}`;
+      if (currency) {
+        url += `&currency=${currency}`;
+      }
+      const response = await api.get(url);
       return response.data;
     } catch (error: any) {
       console.error('Error fetching service:', error);

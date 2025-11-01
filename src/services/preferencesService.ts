@@ -10,6 +10,11 @@ export interface Preferences {
   preferredCurrency?: string;
   annualBudget?: Record<string, any>;
   scholarshipRequired?: boolean;
+  preferredTeachingLanguage?: string;
+  mainPriority?: string;
+  scholarshipSearch?: boolean;
+  englishTest?: string; // 'none', 'has', 'planning'
+  frenchTest?: string; // 'none', 'has', 'planning'
   createdAt?: string;
   updatedAt?: string;
 }

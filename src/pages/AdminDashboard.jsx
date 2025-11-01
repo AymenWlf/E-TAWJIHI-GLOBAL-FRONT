@@ -19,7 +19,9 @@ import {
   Globe,
   Star,
   TrendingUp,
-  Activity
+  Activity,
+  Languages,
+  DollarSign
 } from 'lucide-react';
 import adminService from '../services/adminService';
 
@@ -186,6 +188,7 @@ const AdminDashboard = () => {
     { id: 'establishments', label: 'Universités', icon: Building2, active: true },
     { id: 'programs', label: 'Programmes', icon: GraduationCap, active: false },
     { id: 'users', label: 'Utilisateurs', icon: Users, active: false, comingSoon: true },
+    { id: 'translation-pricing', label: 'Prix Traductions', icon: Languages, active: false, route: '/admin/translation-pricing' },
     { id: 'parameters', label: 'Paramètres', icon: Settings, active: false }
   ];
 
@@ -234,7 +237,14 @@ const AdminDashboard = () => {
           {sidebarItems.map((item) => (
             <button
               key={item.id}
-              onClick={() => !item.comingSoon && setActiveTab(item.id)}
+              onClick={() => {
+                if (item.comingSoon) return;
+                if (item.route) {
+                  navigate(item.route);
+                } else {
+                  setActiveTab(item.id);
+                }
+              }}
               className={`w-full flex items-center px-6 py-3 text-left text-gray-700 hover:bg-gray-100 transition-colors ${
                 activeTab === item.id ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700' : ''
               } ${item.comingSoon ? 'opacity-50 cursor-not-allowed' : ''}`}

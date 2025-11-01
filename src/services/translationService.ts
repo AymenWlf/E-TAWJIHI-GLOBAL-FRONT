@@ -288,6 +288,32 @@ class TranslationService {
       throw new Error(error.response?.data?.message || 'Failed to delete translation');
     }
   }
+
+  /**
+   * Get translation price by languages
+   */
+  async getTranslationPriceByLanguages(fromLanguage: string, toLanguage: string): Promise<{
+    success: boolean;
+    data?: {
+      fromLanguage: string;
+      toLanguage: string;
+      price: number;
+      currency: string;
+    };
+    message?: string;
+  }> {
+    try {
+      const response = await api.get(`/translations/price?fromLanguage=${fromLanguage}&toLanguage=${toLanguage}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error fetching translation price:', error);
+      // Return error response instead of throwing to allow handling in component
+      if (error.response?.data) {
+        return error.response.data;
+      }
+      throw new Error(error.response?.data?.message || 'Failed to fetch translation price');
+    }
+  }
 }
 
 export default new TranslationService();

@@ -7,7 +7,7 @@ import {
   Building2, BookOpen, Target, MessageCircle, Bell, Plus,
   ShoppingBag, CreditCard, MessageSquare, HelpCircle, Lightbulb, Users,
   DollarSign, Trash2, Eye, Download, Languages, ClipboardCheck, ExternalLink,
-  Briefcase
+  Briefcase, Lock, Flag, Search, Bot, Clock, Zap, Home, Mic, PenTool
 } from 'lucide-react';
 import SEO from '../components/SEO';
 import HeaderAuth from '../components/HeaderAuth';
@@ -28,6 +28,7 @@ import MyComplaintsSection from '../components/profile/MyComplaintsSection';
 import FAQSection from '../components/profile/FAQSection';
 import SuggestionsSection from '../components/profile/SuggestionsSection';
 import BecomeAmbassadorSection from '../components/profile/BecomeAmbassadorSection';
+import SecuritySection from '../components/profile/SecuritySection';
 import SelectSearchable from '../components/ui/SelectSearchable';
 import MultiSelect from '../components/ui/MultiSelect';
 import SingleSelect from '../components/ui/SingleSelect';
@@ -37,12 +38,145 @@ import applicationService from '../services/applicationService';
 import { useAuth } from '../contexts/AuthContext';
 import profileService from '../services/profileService';
 import finalStepService from '../services/finalStepService';
+import HeartButton from '../components/HeartButton';
+import { useCurrency } from '../contexts/CurrencyContext';
+
+// Function to generate program slug for SEO-friendly URLs
+const generateProgramSlug = (program) => {
+  if (!program) return '';
+  
+  const establishmentName = program.establishment?.name || program.establishment?.slug || 'university';
+  const programName = program.name || program.slug || 'program';
+  
+  // Create SEO-friendly slugs with proper French character handling
+  const establishmentSlug = establishmentName
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim();
+    
+  const programSlug = programName
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim();
+  
+  return `programs/${establishmentSlug}/${programSlug}`;
+};
+
+// Function to analyze program requirements and determine required types
+const analyzeProgramRequirements = (program) => {
+  const requirements = {
+    hasEnglishTest: false,
+    hasStandardizedTest: false,
+    hasInterview: false,
+    hasWrittenTest: false
+  };
+
+  // Check if program has structured requirements
+  if (program.structuredRequirements) {
+    const structured = program.structuredRequirements;
+    
+    // Check English tests
+    if (structured.english && structured.english.items && structured.english.items.length > 0) {
+      const hasRequiredEnglish = structured.english.items.some(item => item.required === true);
+      if (hasRequiredEnglish) requirements.hasEnglishTest = true;
+    }
+    
+    // Check Standardized tests
+    if (structured.standardizedTests && structured.standardizedTests.items && structured.standardizedTests.items.length > 0) {
+      const hasRequiredStandardized = structured.standardizedTests.items.some(item => item.required === true);
+      if (hasRequiredStandardized) requirements.hasStandardizedTest = true;
+    }
+    
+    // Check Academic requirements for interviews and written tests
+    if (structured.academic && structured.academic.items && structured.academic.items.length > 0) {
+      const academicItems = structured.academic.items;
+      const hasInterview = academicItems.some(item => 
+        item.required === true && 
+        (item.name?.en?.toLowerCase().includes('interview') || 
+         item.name?.fr?.toLowerCase().includes('entretien') ||
+         item.description?.en?.toLowerCase().includes('interview') ||
+         item.description?.fr?.toLowerCase().includes('entretien'))
+      );
+      const hasWrittenTest = academicItems.some(item => 
+        item.required === true && 
+        (item.name?.en?.toLowerCase().includes('written') || 
+         item.name?.fr?.toLowerCase().includes('écrit') ||
+         item.description?.en?.toLowerCase().includes('written') ||
+         item.description?.fr?.toLowerCase().includes('écrit'))
+      );
+      
+      if (hasInterview) requirements.hasInterview = true;
+      if (hasWrittenTest) requirements.hasWrittenTest = true;
+    }
+  }
+  
+  // Check program-specific exam fields
+  if (program.oralExam) requirements.hasInterview = true;
+  if (program.writtenExam) requirements.hasWrittenTest = true;
+  
+  return requirements;
+};
+
+// Month mapping for localization
+const monthMapping = {
+  en: {
+    'January': 'January', 'February': 'February', 'March': 'March', 'April': 'April',
+    'May': 'May', 'June': 'June', 'July': 'July', 'August': 'August',
+    'September': 'September', 'October': 'October', 'November': 'November', 'December': 'December'
+  },
+  fr: {
+    'January': 'Janvier', 'February': 'Février', 'March': 'Mars', 'April': 'Avril',
+    'May': 'Mai', 'June': 'Juin', 'July': 'Juillet', 'August': 'Août',
+    'September': 'Septembre', 'October': 'Octobre', 'November': 'Novembre', 'December': 'Décembre'
+  }
+};
+
+// Function to localize month names in intake names
+const localizeIntakeName = (intakeName, language) => {
+  if (!intakeName) return intakeName;
+  
+  const months = monthMapping[language] || monthMapping.en;
+  let localizedName = intakeName;
+  
+  // Handle formats like "february-2026" or "February 2026"
+  Object.keys(monthMapping.en).forEach(englishMonth => {
+    const localizedMonth = months[englishMonth];
+    const englishMonthLower = englishMonth.toLowerCase();
+    
+    // Replace exact month names (case insensitive)
+    const regex = new RegExp(`\\b${englishMonth}\\b`, 'gi');
+    localizedName = localizedName.replace(regex, localizedMonth);
+    
+    // Handle hyphenated format like "february-2026"
+    const hyphenRegex = new RegExp(`\\b${englishMonthLower}-(\\d{4})\\b`, 'gi');
+    localizedName = localizedName.replace(hyphenRegex, (match, year) => {
+      return `${localizedMonth} ${year}`;
+    });
+  });
+  
+  return localizedName;
+};
 
 const StudentProfileUpdated = () => {
   const { section, subsection } = useParams();
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
-  const [language, setLanguage] = useState('en');
+  const { user, isAuthenticated, currentUser } = useAuth();
+  const { userCurrency, formatPrice, convertPrice } = useCurrency();
+  const [language, setLanguage] = useState(() => {
+    // Initialize language from user preference or browser language
+    const savedLanguage = localStorage.getItem('language');
+    if (savedLanguage) return savedLanguage;
+    const browserLang = navigator.language.split('-')[0];
+    return browserLang === 'fr' ? 'fr' : 'en';
+  });
   const { parameters: allParams, loading: paramsLoading } = useAllParameters();
   const [activeSection, setActiveSection] = useState('onboarding');
   const [activeSubsection, setActiveSubsection] = useState('academic');
@@ -151,6 +285,21 @@ const StudentProfileUpdated = () => {
     // Communication
     wechatId: '',
     skypeNo: '',
+    // China-specific fields
+    chinaFamilyMembers: {
+      father: {
+        name: '',
+        dateOfBirth: '',
+        occupation: '',
+        phone: ''
+      },
+      mother: {
+        name: '',
+        dateOfBirth: '',
+        occupation: '',
+        phone: ''
+      }
+    },
     // Emergency Contact
     emergencyContactName: '',
     emergencyContactGender: '',
@@ -195,6 +344,21 @@ const StudentProfileUpdated = () => {
     }
   }, [section, subsection]);
 
+  // Initialize language from user preference
+  useEffect(() => {
+    if (currentUser?.preferredLanguage) {
+      setLanguage(currentUser.preferredLanguage);
+      localStorage.setItem('language', currentUser.preferredLanguage);
+    }
+  }, [currentUser?.preferredLanguage]);
+
+  // Sync language to localStorage when it changes
+  useEffect(() => {
+    if (language) {
+      localStorage.setItem('language', language);
+    }
+  }, [language]);
+
   // Load profile data
   useEffect(() => {
     if (!isAuthenticated) {
@@ -204,6 +368,56 @@ const StudentProfileUpdated = () => {
     
     loadProfileData();
   }, [isAuthenticated, navigate]);
+
+  // Parameters state for localization
+  const [parameters, setParameters] = useState({
+    countries: [],
+    cities: [],
+    languages: [],
+    schoolTypes: [],
+    degrees: []
+  });
+
+  // Load parameters
+  useEffect(() => {
+    if (allParams && !paramsLoading) {
+      setParameters({
+        countries: allParams.countries || [],
+        cities: allParams.cities || [],
+        languages: allParams.languages || [],
+        schoolTypes: allParams.schoolTypes || [],
+        degrees: allParams.degrees || []
+      });
+    }
+  }, [allParams, paramsLoading]);
+
+  // Utility functions for parameter-based localization
+  const getParameterLabel = (category, code, language = 'en') => {
+    const params = parameters[category] || [];
+    const param = params.find(p => p.code === code);
+    if (!param) return code;
+    return language === 'fr' ? param.labelFr : param.labelEn;
+  };
+
+  const getCountryLabel = (countryCode) => {
+    return getParameterLabel('countries', countryCode, language);
+  };
+
+  const getCityLabel = (cityCode) => {
+    return getParameterLabel('cities', cityCode, language);
+  };
+
+  const getLanguageLabel = (languageCode) => {
+    return getParameterLabel('languages', languageCode, language);
+  };
+
+  const getDegreeLabel = (degreeCode) => {
+    return getParameterLabel('degrees', degreeCode, language);
+  };
+
+  const getSchoolTypeLabel = (typeCode) => {
+    return getParameterLabel('schoolTypes', typeCode, language);
+  };
 
   // Map countries from parameters
   const getCountryOptions = () => {
@@ -225,6 +439,284 @@ const StudentProfileUpdated = () => {
       'CN': '🇨🇳', 'IN': '🇮🇳', 'BR': '🇧🇷', 'MX': '🇲🇽', 'AR': '🇦🇷'
     };
     return flagMap[countryCode] || '🌐';
+  };
+
+  // Function to parse price string and extract amount and currency
+  const parsePriceString = (priceString) => {
+    if (!priceString) return { amount: 0, currency: 'USD' };
+    
+    // Remove commas and extract currency symbol and amount
+    const cleanString = priceString.replace(/,/g, '');
+    const currencyMatch = cleanString.match(/^([^\d]+)/);
+    const amountMatch = cleanString.match(/([\d.]+)/);
+    
+    if (!amountMatch) return { amount: 0, currency: 'USD' };
+    
+    const amount = parseFloat(amountMatch[1]);
+    let currency = 'USD';
+    
+    if (currencyMatch) {
+      const symbol = currencyMatch[1].trim();
+      // Map common currency symbols to codes
+      const symbolMap = {
+        '$': 'USD', '€': 'EUR', '£': 'GBP', '¥': 'JPY', 'MAD': 'MAD', 'EUR': 'EUR', 'USD': 'USD'
+      };
+      currency = symbolMap[symbol] || 'USD';
+    }
+    
+    return { amount, currency };
+  };
+
+  // Component to display converted price
+  const PriceDisplay = ({ amount, currency, className = "" }) => {
+    const safeAmount = amount ?? 0;
+    const [displayPrice, setDisplayPrice] = useState(`${currency} ${safeAmount.toLocaleString()}`);
+    
+    useEffect(() => {
+      const updatePrice = async () => {
+        try {
+          const converted = await formatPrice(safeAmount, currency, false);
+          setDisplayPrice(converted);
+        } catch (error) {
+          console.error('Error converting price:', error);
+          setDisplayPrice(`${currency} ${safeAmount.toLocaleString()}`);
+        }
+      };
+      updatePrice();
+    }, [safeAmount, currency, userCurrency]);
+    
+    return <span className={className}>{displayPrice}</span>;
+  };
+
+  // Component to display converted price from string
+  const PriceDisplayFromString = ({ priceString, className = "" }) => {
+    const [displayPrice, setDisplayPrice] = useState(priceString);
+    
+    useEffect(() => {
+      const updatePrice = async () => {
+        try {
+          const { amount, currency } = parsePriceString(priceString);
+          const converted = await formatPrice(amount, currency, false);
+          setDisplayPrice(converted);
+        } catch (error) {
+          console.error('Error converting price:', error);
+          setDisplayPrice(priceString);
+        }
+      };
+      updatePrice();
+    }, [priceString, userCurrency]);
+    
+    return <span className={className}>{displayPrice}</span>;
+  };
+
+  // University type utility functions
+  const getUniversityTypeInfo = (establishment) => {
+    const { universityType, servicePricing } = establishment;
+    
+    if (universityType === "A") {
+      return {
+        type: "Type A",
+        color: "green",
+        freeApps: 3,
+        originalPrice: servicePricing?.normalPrice,
+        promotionPrice: servicePricing?.promotionPrice,
+        promotionDeadline: servicePricing?.promotionDeadline,
+        currency: servicePricing?.currency || 'EUR'
+      };
+    } else if (universityType === "B") {
+      return {
+        type: "Type B",
+        color: "blue",
+        freeApps: 0,
+        originalPrice: servicePricing?.normalPrice,
+        promotionPrice: servicePricing?.promotionPrice,
+        promotionDeadline: servicePricing?.promotionDeadline,
+        currency: servicePricing?.currency || 'EUR'
+      };
+    } else if (universityType === "C") {
+      return {
+        type: "Type C",
+        color: "purple",
+        freeApps: 0,
+        originalPrice: servicePricing?.normalPrice,
+        promotionPrice: servicePricing?.promotionPrice,
+        promotionDeadline: servicePricing?.promotionDeadline,
+        currency: servicePricing?.currency || 'EUR'
+      };
+    }
+    
+    // Default fallback
+    return {
+      type: "Unknown",
+      color: "gray",
+      freeApps: 0
+    };
+  };
+
+  const getServiceFee = (establishment) => {
+    const { universityType, countrySpecific } = establishment;
+    
+    if (universityType === "A") {
+      return { 
+        amount: language === 'fr' ? "Gratuit" : "Free", 
+        originalAmount: "$50",
+        description: language === 'fr' ? "3 premières candidatures gratuites" : "First 3 applications free",
+        showStrikethrough: true
+      };
+    } else if (universityType === "B") {
+      return { 
+        amount: "$100", 
+        description: language === 'fr' ? "Frais de service par candidature" : "Service fee per application",
+        showStrikethrough: false
+      };
+    } else if (universityType === "C") {
+      const countryType = countrySpecific?.type;
+      if (countryType === "france") {
+        return { 
+          amount: "€150", 
+          description: language === 'fr' ? "Gestion des procédures Campus France" : "Campus France procedure management",
+          showStrikethrough: false
+        };
+      } else if (countryType === "china") {
+        return { 
+          amount: "¥800", 
+          description: language === 'fr' ? "Gestion des procédures chinoises" : "Chinese procedure management",
+          showStrikethrough: false
+        };
+      } else {
+        return { 
+          amount: "$150", 
+          description: language === 'fr' ? "Gestion des procédures spéciales" : "Special procedure management",
+          showStrikethrough: false
+        };
+      }
+    }
+    
+    // Default fallback
+    return {
+      amount: language === 'fr' ? "Inconnu" : "Unknown",
+      description: language === 'fr' ? "Frais de service inconnus" : "Unknown service fee",
+      showStrikethrough: false
+    };
+  };
+
+  // Function to get the next application period from multi-intakes
+  const getNextApplicationPeriod = (multiIntakes) => {
+    if (!multiIntakes || multiIntakes.length === 0) return null;
+    
+    const now = new Date();
+    
+    // Find the next upcoming intake (not yet closed)
+    const nextIntake = multiIntakes.find(intake => {
+      if (!intake.applicationCloses) return false;
+      const closesDate = new Date(intake.applicationCloses);
+      return now <= closesDate; // Not yet closed
+    });
+    
+    return nextIntake || null;
+  };
+
+  // Function to get application period status
+  const getApplicationPeriodStatus = (intake) => {
+    if (!intake.applicationOpens || !intake.applicationCloses) {
+      return { status: 'no-dates', color: 'gray', text: language === 'fr' ? 'Aucune date disponible' : 'No dates available' };
+    }
+    
+    const now = new Date();
+    const opensDate = new Date(intake.applicationOpens);
+    const closesDate = new Date(intake.applicationCloses);
+    
+    // Check if application is open
+    if (now >= opensDate && now <= closesDate) {
+      // Check if closing soon (within 30 days)
+      const daysUntilClose = Math.ceil((closesDate - now) / (1000 * 60 * 60 * 24));
+      if (daysUntilClose <= 30) {
+        return { 
+          status: 'closing-soon', 
+          color: 'red', 
+          text: language === 'fr' ? `Se ferme dans ${daysUntilClose} jours` : `Closes in ${daysUntilClose} days` 
+        };
+      }
+      return { status: 'open', color: 'green', text: language === 'fr' ? 'Ouvert' : 'Open' };
+    }
+    
+    // Check if not yet open
+    if (now < opensDate) {
+      const daysUntilOpen = Math.ceil((opensDate - now) / (1000 * 60 * 60 * 24));
+      return { 
+        status: 'not-open', 
+        color: 'blue', 
+        text: language === 'fr' ? `S'ouvre dans ${daysUntilOpen} jours` : `Opens in ${daysUntilOpen} days` 
+      };
+    }
+    
+    // Application is closed
+    return { status: 'closed', color: 'gray', text: language === 'fr' ? 'Fermé' : 'Closed' };
+  };
+
+  // Function to format price with currency and conversion
+  const formatServicePrice = async (price, currency, isPromotion = false) => {
+    if (!price) return null;
+    
+    try {
+      // If currency is the same as user currency, no conversion needed
+      if (currency === userCurrency) {
+        const formatted = await formatPrice(price, currency, false);
+        return formatted;
+      }
+      
+      // Convert to user currency
+      const converted = await convertPrice(price, currency, userCurrency);
+      // Extract the formatted string from the conversion result and format it properly
+      if (converted.convertedAmount) {
+        return await formatPrice(converted.convertedAmount, userCurrency, false);
+      } else {
+        return await formatPrice(price, currency, false);
+      }
+    } catch (error) {
+      console.error('Error formatting service price:', error);
+      // Fallback to original price with original currency
+      return await formatPrice(price, currency, false);
+    }
+  };
+
+  // Component to display service price with conversion
+  const ServicePriceDisplay = ({ price, currency, isPromotion = false, className = "" }) => {
+    const [displayPrice, setDisplayPrice] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+      const loadPrice = async () => {
+        if (!price) {
+          setDisplayPrice(null);
+          setIsLoading(false);
+          return;
+        }
+
+        try {
+          setIsLoading(true);
+          const formatted = await formatServicePrice(price, currency, isPromotion);
+          setDisplayPrice(formatted);
+        } catch (error) {
+          console.error('Error loading service price:', error);
+          setDisplayPrice(`${currency} ${price}`);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      loadPrice();
+    }, [price, currency, isPromotion]);
+
+    if (isLoading) {
+      return <span className={`${className} animate-pulse`}>...</span>;
+    }
+
+    if (!displayPrice) {
+      return null;
+    }
+
+    return <span className={className}>{displayPrice}</span>;
   };
 
   const loadProfileData = async () => {
@@ -378,6 +870,34 @@ const StudentProfileUpdated = () => {
         religion: profileData.religion || '',
         nativeLanguage: profileData.nativeLanguage || '',
         chineseName: profileData.chineseName || '',
+        // China-specific fields
+        chinaFamilyMembers: (() => {
+          const loaded = profileData.chinaFamilyMembers;
+          console.log('Loading chinaFamilyMembers from profile:', JSON.stringify(loaded, null, 2));
+          
+          // Ensure proper structure if data exists but is incomplete
+          if (loaded && typeof loaded === 'object') {
+            return {
+              father: {
+                name: loaded.father?.name || '',
+                dateOfBirth: loaded.father?.dateOfBirth || '',
+                occupation: loaded.father?.occupation || '',
+                phone: loaded.father?.phone || ''
+              },
+              mother: {
+                name: loaded.mother?.name || '',
+                dateOfBirth: loaded.mother?.dateOfBirth || '',
+                occupation: loaded.mother?.occupation || '',
+                phone: loaded.mother?.phone || ''
+              }
+            };
+          }
+          
+          return {
+            father: { name: '', dateOfBirth: '', occupation: '', phone: '' },
+            mother: { name: '', dateOfBirth: '', occupation: '', phone: '' }
+          };
+        })(),
         // Communication
         wechatId: profileData.wechatId || '',
         skypeNo: profileData.skypeNo || '',
@@ -457,6 +977,26 @@ const StudentProfileUpdated = () => {
           religion: formData.religion,
           nativeLanguage: formData.nativeLanguage,
           chineseName: formData.chineseName,
+          // China-specific fields
+          chinaFamilyMembers: (() => {
+            const data = formData.chinaFamilyMembers;
+            console.log('Saving chinaFamilyMembers to profile:', JSON.stringify(data, null, 2));
+            // Ensure all fields are present
+            return {
+              father: {
+                name: data?.father?.name || '',
+                dateOfBirth: data?.father?.dateOfBirth || '',
+                occupation: data?.father?.occupation || '',
+                phone: data?.father?.phone || ''
+              },
+              mother: {
+                name: data?.mother?.name || '',
+                dateOfBirth: data?.mother?.dateOfBirth || '',
+                occupation: data?.mother?.occupation || '',
+                phone: data?.mother?.phone || ''
+              }
+            };
+          })(),
           // Communication
           wechatId: formData.wechatId,
           skypeNo: formData.skypeNo,
@@ -801,7 +1341,8 @@ const StudentProfileUpdated = () => {
     { id: 'complaints', label: language === 'en' ? 'My Complaints' : 'Mes Réclamations', icon: MessageSquare },
     { id: 'faq', label: language === 'en' ? 'FAQ' : 'FAQ', icon: HelpCircle },
     { id: 'suggestions', label: language === 'en' ? 'Suggestions' : 'Suggestions', icon: Lightbulb },
-    { id: 'ambassador', label: language === 'en' ? 'Become Ambassador' : 'Devenir Ambassadeur', icon: Users }
+    { id: 'ambassador', label: language === 'en' ? 'Become Ambassador' : 'Devenir Ambassadeur', icon: Users },
+    { id: 'security', label: language === 'en' ? 'Security' : 'Sécurité', icon: Lock }
   ];
 
   if (loading) {
@@ -1409,6 +1950,186 @@ const StudentProfileUpdated = () => {
                       </div>
                     </div>
 
+                    {/* China-Specific Fields Section */}
+                    <div className="bg-white border border-red-200 rounded-lg p-6">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                        <Flag className="w-5 h-5 text-red-600" />
+                        🇨🇳 {language === 'en' ? 'China Application Fields' : 'Champs Spécifiques à la Chine'}
+                      </h4>
+                      
+                      {/* Religion */}
+                      <div className="mb-6">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          {language === 'en' ? 'Religion' : 'Religion'} *
+                        </label>
+                        <input
+                          type="text"
+                          value={formData.religion}
+                          onChange={(e) => handleInputChange('religion', e.target.value)}
+                          disabled={!isEditing}
+                          className="w-full max-w-md px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-50 disabled:text-gray-500 transition-all duration-200"
+                          placeholder={language === 'en' ? 'Enter your religion' : 'Saisissez votre religion'}
+                          required
+                        />
+                      </div>
+
+                      {/* Family Members */}
+                      <div className="mb-6">
+                        <h5 className="text-md font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                          <Users className="w-4 h-4 text-green-600" />
+                          {language === 'en' ? 'Family Members' : 'Membres de la Famille'}
+                        </h5>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Father */}
+                          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <h6 className="text-sm font-medium text-gray-800 mb-3">
+                              {language === 'en' ? 'Father' : 'Père'}
+                            </h6>
+                            <div className="space-y-3">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  {language === 'en' ? 'Name' : 'Nom'} *
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.chinaFamilyMembers.father.name}
+                                  onChange={(e) => handleInputChange('chinaFamilyMembers', {
+                                    ...formData.chinaFamilyMembers,
+                                    father: { ...formData.chinaFamilyMembers.father, name: e.target.value }
+                                  })}
+                                  disabled={!isEditing}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:text-gray-500 transition-colors"
+                                  placeholder={language === 'en' ? 'Father\'s name' : 'Nom du père'}
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  {language === 'en' ? 'Date of Birth' : 'Date de naissance'}
+                                </label>
+                                <input
+                                  type="date"
+                                  value={formData.chinaFamilyMembers.father.dateOfBirth}
+                                  onChange={(e) => handleInputChange('chinaFamilyMembers', {
+                                    ...formData.chinaFamilyMembers,
+                                    father: { ...formData.chinaFamilyMembers.father, dateOfBirth: e.target.value }
+                                  })}
+                                  disabled={!isEditing}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:text-gray-500 transition-colors"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  {language === 'en' ? 'Occupation' : 'Profession'}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.chinaFamilyMembers.father.occupation}
+                                  onChange={(e) => handleInputChange('chinaFamilyMembers', {
+                                    ...formData.chinaFamilyMembers,
+                                    father: { ...formData.chinaFamilyMembers.father, occupation: e.target.value }
+                                  })}
+                                  disabled={!isEditing}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:text-gray-500 transition-colors"
+                                  placeholder={language === 'en' ? 'Father\'s occupation' : 'Profession du père'}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  {language === 'en' ? 'Phone' : 'Téléphone'}
+                                </label>
+                                <input
+                                  type="tel"
+                                  value={formData.chinaFamilyMembers.father.phone}
+                                  onChange={(e) => handleInputChange('chinaFamilyMembers', {
+                                    ...formData.chinaFamilyMembers,
+                                    father: { ...formData.chinaFamilyMembers.father, phone: e.target.value }
+                                  })}
+                                  disabled={!isEditing}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:text-gray-500 transition-colors"
+                                  placeholder={language === 'en' ? 'Father\'s phone' : 'Téléphone du père'}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Mother */}
+                          <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                            <h6 className="text-sm font-medium text-gray-800 mb-3">
+                              {language === 'en' ? 'Mother' : 'Mère'}
+                            </h6>
+                            <div className="space-y-3">
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  {language === 'en' ? 'Name' : 'Nom'} *
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.chinaFamilyMembers.mother.name}
+                                  onChange={(e) => handleInputChange('chinaFamilyMembers', {
+                                    ...formData.chinaFamilyMembers,
+                                    mother: { ...formData.chinaFamilyMembers.mother, name: e.target.value }
+                                  })}
+                                  disabled={!isEditing}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:text-gray-500 transition-colors"
+                                  placeholder={language === 'en' ? 'Mother\'s name' : 'Nom de la mère'}
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  {language === 'en' ? 'Date of Birth' : 'Date de naissance'}
+                                </label>
+                                <input
+                                  type="date"
+                                  value={formData.chinaFamilyMembers.mother.dateOfBirth}
+                                  onChange={(e) => handleInputChange('chinaFamilyMembers', {
+                                    ...formData.chinaFamilyMembers,
+                                    mother: { ...formData.chinaFamilyMembers.mother, dateOfBirth: e.target.value }
+                                  })}
+                                  disabled={!isEditing}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:text-gray-500 transition-colors"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  {language === 'en' ? 'Occupation' : 'Profession'}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formData.chinaFamilyMembers.mother.occupation}
+                                  onChange={(e) => handleInputChange('chinaFamilyMembers', {
+                                    ...formData.chinaFamilyMembers,
+                                    mother: { ...formData.chinaFamilyMembers.mother, occupation: e.target.value }
+                                  })}
+                                  disabled={!isEditing}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:text-gray-500 transition-colors"
+                                  placeholder={language === 'en' ? 'Mother\'s occupation' : 'Profession de la mère'}
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                  {language === 'en' ? 'Phone' : 'Téléphone'}
+                                </label>
+                                <input
+                                  type="tel"
+                                  value={formData.chinaFamilyMembers.mother.phone}
+                                  onChange={(e) => handleInputChange('chinaFamilyMembers', {
+                                    ...formData.chinaFamilyMembers,
+                                    mother: { ...formData.chinaFamilyMembers.mother, phone: e.target.value }
+                                  })}
+                                  disabled={!isEditing}
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-100 disabled:text-gray-500 transition-colors"
+                                  placeholder={language === 'en' ? 'Mother\'s phone' : 'Téléphone de la mère'}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Work Experience Information Section */}
                     <div className="bg-white border border-gray-200 rounded-lg p-6">
                       <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -1586,6 +2307,13 @@ const StudentProfileUpdated = () => {
                   <BecomeAmbassadorSection
                     language={language}
                     userProfile={profile}
+                  />
+                )}
+
+                {/* Security Section */}
+                {activeSection === 'security' && (
+                  <SecuritySection
+                    language={language}
                   />
                 )}
 
@@ -1855,34 +2583,478 @@ const StudentProfileUpdated = () => {
                           {shortlist.programs.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                               {shortlist.programs.map((program) => (
-                                <div key={program.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-white">
-                                  <div className="flex items-start justify-between mb-3">
-                                    <div className="flex-1">
-                                      <h4 className="font-semibold text-gray-900 mb-1 line-clamp-2">
-                                        {language === 'fr' ? program.nameFr || program.name : program.name}
-                                      </h4>
-                                      <p className="text-sm text-gray-600 mb-2 line-clamp-1">{program.establishment?.name}</p>
-                                      <div className="flex items-center gap-4 text-xs text-gray-500 mb-2">
-                                        <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded">{program.degree}</span>
-                                        <span>{program.duration}</span>
-                                      </div>
-                                      {program.tuitionAmount && (
-                                        <div className="text-sm font-medium text-gray-900">
-                                          {program.tuitionAmount.toLocaleString()} {program.tuitionCurrency}
+                                <div 
+                                  key={program.id} 
+                                  className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group"
+                                >
+                                  {/* Program Logo Section */}
+                                  <div className="relative h-40 sm:h-48 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
+                                    <div className="logo-container">
+                                      <img
+                                        src={program.establishment?.logo || program.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(program.establishment?.name || program.name)}&size=200&background=3B82F6&color=fff`}
+                                        alt={program.name}
+                                        className="logo-image group-hover:scale-105 transition-all duration-300"
+                                      />
+                                    </div>
+                                    
+                                    {/* Badges */}
+                                    <div className="absolute top-4 left-4 flex flex-col gap-2">
+                                      {program.aidvisorRecommended && (
+                                        <div className="bg-gradient-to-r from-blue-600 to-emerald-600 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                                          <Bot className="w-3 h-3" />
+                                          {language === 'en' ? 'E-DVISOR Recommended' : 'Recommandé par E-DVISOR'}
+                                        </div>
+                                      )}
+                                      {program.featured && (
+                                        <div className="bg-blue-800 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                                          <Award className="w-3 h-3" />
+                                          {language === 'en' ? 'Featured' : 'En vedette'}
                                         </div>
                                       )}
                                     </div>
                                   </div>
-                                  <div className="flex items-center justify-between">
-                                    <div className="text-xs text-gray-400">
-                                      {language === 'en' ? 'Added' : 'Ajouté'} {new Date(program.shortlistedAt).toLocaleDateString()}
+
+                                  {/* Program Content */}
+                                  <div className="p-4 sm:p-6">
+                                    {/* Header */}
+                                    <div className="mb-4">
+                                      <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+                                        {program.name}
+                                      </h3>
+                                      <div className="flex items-center text-gray-600 text-sm mb-2">
+                                        <Building2 className="w-4 h-4 mr-1 text-blue-500" />
+                                        {program.establishment?.name || 'University'}
+                                      </div>
+                                      <div className="flex items-center text-gray-500 text-sm mb-2">
+                                        <MapPin className="w-4 h-4 mr-1" />
+                                        {getCityLabel(program.establishment?.city)}, {getCountryLabel(program.establishment?.country)}
+                                      </div>
+                                      <div className="flex items-center text-gray-500 text-sm">
+                                        <Globe className="w-4 h-4 mr-1" />
+                                        {program.language ? getLanguageLabel(program.language) : (language === 'en' ? 'Not specified' : 'Non spécifié')}
+                                      </div>
                                     </div>
-                                    <Link
-                                      to={`/programs/${program.establishment?.slug}/${program.slug.split('/').pop()}`}
-                                      className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                                    >
-                                      {language === 'en' ? 'View Details' : 'Voir Détails'}
-                                    </Link>
+
+                                    {/* University Rankings */}
+                                    {program.establishmentRankings && (program.establishmentRankings.qs || program.establishmentRankings.times || program.establishmentRankings.arwu || program.establishmentRankings.usNews) && (
+                                      <div className="mb-4">
+                                        <div className="text-xs text-gray-500 mb-2">{language === 'en' ? 'University Rankings' : 'Classements de l\'Université'}</div>
+                                        <div className="flex flex-wrap gap-2">
+                                          {program.establishmentRankings?.qs && (
+                                            <div className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs font-medium">
+                                              QS #{program.establishmentRankings.qs}
+                                            </div>
+                                          )}
+                                          {program.establishmentRankings?.times && (
+                                            <div className="bg-purple-50 text-purple-700 px-2 py-1 rounded-md text-xs font-medium">
+                                              Times #{program.establishmentRankings.times}
+                                            </div>
+                                          )}
+                                          {program.establishmentRankings?.arwu && (
+                                            <div className="bg-green-50 text-green-700 px-2 py-1 rounded-md text-xs font-medium">
+                                              ARWU #{program.establishmentRankings.arwu}
+                                            </div>
+                                          )}
+                                          {program.establishmentRankings?.usNews && (
+                                            <div className="bg-orange-50 text-orange-700 px-2 py-1 rounded-md text-xs font-medium">
+                                              US News #{program.establishmentRankings.usNews}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Program Details */}
+                                    <div className="grid grid-cols-2 gap-3 mb-4">
+                                      <div className="bg-gray-50 rounded-lg p-3">
+                                        <div className="text-xs text-gray-500 mb-1">{language === 'en' ? 'Degree' : 'Diplôme'}</div>
+                                        <div className="text-sm font-semibold text-gray-800">{getDegreeLabel(program.degree)}</div>
+                                      </div>
+                                      <div className="bg-gray-50 rounded-lg p-3">
+                                        <div className="text-xs text-gray-500 mb-1">{language === 'en' ? 'Duration' : 'Durée'}</div>
+                                        <div className="text-sm font-semibold text-gray-800">{program.duration} {program.durationUnit === 'month' ? (language === 'en' ? 'month' : 'mois') : (language === 'en' ? 'year' : 'an')}</div>
+                                      </div>
+                                    </div>
+
+                                    {/* Study Type and Tuition */}
+                                    <div className="grid grid-cols-2 gap-3 mb-4">
+                                      <div className="bg-gray-50 rounded-lg p-3">
+                                        <div className="text-xs text-gray-500 mb-1">{language === 'en' ? 'Study Type' : 'Type d\'Étude'}</div>
+                                        <div className="text-sm font-semibold text-gray-800">
+                                          {program.studyType === 'on-campus' ? (language === 'en' ? 'On-Campus' : 'Présentiel') :
+                                           program.studyType === 'hybrid' ? (language === 'en' ? 'Hybrid' : 'Hybride') :
+                                           program.studyType === 'online' ? (language === 'en' ? 'Online' : 'En ligne') : 
+                                           program.studyType}
+                                        </div>
+                                      </div>
+                                      <div className="bg-gray-50 rounded-lg p-3">
+                                        <div className="text-xs text-gray-500 mb-1">{language === 'en' ? 'Tuition' : 'Frais'}</div>
+                                        <div className="text-sm font-semibold text-gray-800">
+                                          <PriceDisplayFromString priceString={program.tuition} />
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* Features */}
+                                    <div className="flex items-center gap-4 mb-4 text-xs text-gray-600">
+                                      {program.scholarships && (
+                                        <div className="flex items-center gap-1">
+                                          <CheckCircle className="w-3 h-3 text-green-500" />
+                                          <span>{language === 'en' ? 'Scholarships' : 'Bourses'}</span>
+                                        </div>
+                                      )}
+                                      {program.housing === true && (
+                                        <div className="flex items-center gap-1">
+                                          <Home className="w-3 h-3 text-blue-500" />
+                                          <span>{language === 'en' ? 'Housing' : 'Logement'}</span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Next Application Period */}
+                                    {(() => {
+                                      let nextIntake = getNextApplicationPeriod(program.multiIntakes);
+                                      
+                                      if (nextIntake) {
+                                        const status = getApplicationPeriodStatus(nextIntake);
+                                        const isOpen = status.status === 'open';
+                                        const isClosingSoon = status.status === 'closing-soon';
+                                        
+                                        return (
+                                          <div className="mb-4">
+                                            <div className="text-xs text-gray-500 mb-2">
+                                              {language === 'en' ? 'Next Application Period' : 'Prochaine période de candidature'}
+                                            </div>
+                                            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                              {/* Header with intake name and status */}
+                                              <div className="flex justify-between items-center mb-3">
+                                                <div className="text-sm font-semibold text-gray-900">
+                                                  {localizeIntakeName(nextIntake.name, language)}
+                                                </div>
+                                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                  status.color === 'green' ? 'bg-green-100 text-green-800' :
+                                                  status.color === 'red' ? 'bg-red-100 text-red-800' :
+                                                  status.color === 'blue' ? 'bg-blue-100 text-blue-800' :
+                                                  'bg-gray-100 text-gray-800'
+                                                }`}>
+                                                  {status.text}
+                                                </span>
+                                              </div>
+                                              
+                                              {/* Dates with icons */}
+                                              <div className="space-y-2">
+                                                <div className="flex items-center gap-2">
+                                                  <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center">
+                                                    <Calendar className="w-3 h-3 text-blue-600" />
+                                                  </div>
+                                                  <div className="text-xs text-gray-600">
+                                                    <span className="font-medium">{language === 'en' ? 'Opens:' : 'Ouverture:'}</span>
+                                                    <span className="ml-1">
+                                                      {nextIntake.applicationOpens 
+                                                        ? new Date(nextIntake.applicationOpens).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+                                                            year: 'numeric',
+                                                            month: 'short',
+                                                            day: 'numeric'
+                                                          })
+                                                        : (language === 'en' ? 'Not specified' : 'Non spécifié')
+                                                      }
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                                
+                                                <div className="flex items-center gap-2">
+                                                  <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center">
+                                                    <Clock className="w-3 h-3 text-red-600" />
+                                                  </div>
+                                                  <div className="text-xs text-gray-600">
+                                                    <span className="font-medium">{language === 'en' ? 'Closes:' : 'Fermeture:'}</span>
+                                                    <span className="ml-1">
+                                                      {nextIntake.applicationCloses 
+                                                        ? new Date(nextIntake.applicationCloses).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+                                                            year: 'numeric',
+                                                            month: 'short',
+                                                            day: 'numeric'
+                                                          })
+                                                        : (language === 'en' ? 'Not specified' : 'Non spécifié')
+                                                      }
+                                                    </span>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                              
+                                              {/* Apply button */}
+                                              <button 
+                                                className={`w-full mt-3 py-2 px-3 rounded-lg text-xs font-semibold transition-all duration-200 flex items-center justify-center gap-1 ${
+                                                  isOpen 
+                                                    ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                                                    : isClosingSoon
+                                                    ? 'bg-orange-500 text-white hover:bg-orange-600'
+                                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                                }`}
+                                                disabled={!isOpen && !isClosingSoon}
+                                              >
+                                                {isOpen ? (
+                                                  <>
+                                                    <ExternalLink className="w-3 h-3" />
+                                                    {language === 'en' ? 'Apply Now' : 'Postuler maintenant'}
+                                                  </>
+                                                ) : isClosingSoon ? (
+                                                  <>
+                                                    <Clock className="w-3 h-3" />
+                                                    {language === 'en' ? 'Apply Quickly' : 'Postuler rapidement'}
+                                                  </>
+                                                ) : (
+                                                  <>
+                                                    <Calendar className="w-3 h-3" />
+                                                    {language === 'en' ? 'Not Available' : 'Non disponible'}
+                                                  </>
+                                                )}
+                                              </button>
+                                            </div>
+                                          </div>
+                                        );
+                                      } else {
+                                        return (
+                                          <div className="mb-4">
+                                            <div className="bg-gray-50 rounded-lg p-3">
+                                              <div className="text-xs text-gray-500 mb-1">{language === 'en' ? 'Application Period' : 'Période de candidature'}</div>
+                                              <div className="text-sm text-gray-500">{language === 'en' ? 'No dates available' : 'Aucune date disponible'}</div>
+                                            </div>
+                                          </div>
+                                        );
+                                      }
+                                    })()}
+
+                                    {/* Requirements - Only show if at least one requirement is detected */}
+                                    {(() => {
+                                      const reqAnalysis = analyzeProgramRequirements(program);
+                                      const hasAnyRequirement = reqAnalysis.hasEnglishTest || reqAnalysis.hasStandardizedTest || reqAnalysis.hasInterview || reqAnalysis.hasWrittenTest;
+                                      
+                                      // Only render the entire section if there's at least one requirement
+                                      if (!hasAnyRequirement) return null;
+                                      
+                                      return (
+                                        <div className="mb-4">
+                                          <div className="text-xs text-gray-500 mb-2">{language === 'en' ? 'Requirements' : 'Prérequis'}</div>
+                                          <div className="flex flex-wrap gap-2">
+                                            {reqAnalysis.hasEnglishTest && (
+                                              <div className="flex items-center gap-1 px-2 py-1 bg-orange-50 text-orange-700 text-xs rounded-md">
+                                                <Languages className="w-3 h-3" />
+                                                <span>{language === 'en' ? 'English Test' : 'Test d\'anglais'}</span>
+                                              </div>
+                                            )}
+                                            {reqAnalysis.hasStandardizedTest && (
+                                              <div className="flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-700 text-xs rounded-md">
+                                                <FileText className="w-3 h-3" />
+                                                <span>{language === 'en' ? 'Standardized Test' : 'Test standardisé'}</span>
+                                              </div>
+                                            )}
+                                            {reqAnalysis.hasInterview && (
+                                              <div className="flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 text-xs rounded-md">
+                                                <Mic className="w-3 h-3" />
+                                                <span>{language === 'en' ? 'Interview' : 'Entretien'}</span>
+                                              </div>
+                                            )}
+                                            {reqAnalysis.hasWrittenTest && (
+                                              <div className="flex items-center gap-1 px-2 py-1 bg-red-50 text-red-700 text-xs rounded-md">
+                                                <PenTool className="w-3 h-3" />
+                                                <span>{language === 'en' ? 'Written Test' : 'Test écrit'}</span>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
+
+                                    {/* Program Type and Pricing */}
+                                    {(() => {
+                                      const typeInfo = getUniversityTypeInfo({ 
+                                        universityType: program.programType || program.universityType, 
+                                        servicePricing: program.servicePricing 
+                                      });
+                                      
+                                      if (!typeInfo || typeInfo.type === "Unknown") return null;
+                                      
+                                      return (
+                                        <div className="mb-4">
+                                          <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold mb-2 ${
+                                            typeInfo.color === 'green' ? 'bg-green-100 text-green-800' :
+                                            typeInfo.color === 'blue' ? 'bg-blue-100 text-blue-800' :
+                                            typeInfo.color === 'purple' ? 'bg-purple-100 text-purple-800' :
+                                            typeInfo.color === 'red' ? 'bg-red-100 text-red-800' :
+                                            typeInfo.color === 'orange' ? 'bg-orange-100 text-orange-800' :
+                                            'bg-gray-100 text-gray-800'
+                                          }`}>
+                                            {typeInfo.type}
+                                          </div>
+                                          <div className="flex items-center justify-between text-xs">
+                                            <span className="text-gray-500">
+                                              {typeInfo.freeApps > 0 
+                                                ? (language === 'fr' ? `${typeInfo.freeApps} candidatures gratuites` : `${typeInfo.freeApps} free applications`)
+                                                : (language === 'fr' ? 'Service payant' : 'Paid service')
+                                              }
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                              {/* Type A: Gratuit avec prix original barré */}
+                                              {typeInfo.type === "Type A" && (
+                                                <>
+                                                  {typeInfo.originalPrice && (
+                                                    <ServicePriceDisplay 
+                                                      price={typeInfo.originalPrice}
+                                                      currency={typeInfo.currency}
+                                                      className="text-gray-400 line-through text-xs"
+                                                    />
+                                                  )}
+                                                  <span className="font-semibold text-green-600">
+                                                    {language === 'fr' ? 'Gratuit' : 'Free'}
+                                                  </span>
+                                                </>
+                                              )}
+                                              
+                                              {/* Type B: Prix normal ou promotion */}
+                                              {typeInfo.type === "Type B" && (
+                                                <>
+                                                  {typeInfo.promotionPrice && typeInfo.originalPrice ? (
+                                                    <div className="flex flex-col items-end gap-1">
+                                                      <div className="flex items-center gap-2">
+                                                        <ServicePriceDisplay 
+                                                          price={typeInfo.originalPrice}
+                                                          currency={typeInfo.currency}
+                                                          className="text-gray-400 line-through text-xs"
+                                                        />
+                                                        <ServicePriceDisplay 
+                                                          price={typeInfo.promotionPrice}
+                                                          currency={typeInfo.currency}
+                                                          isPromotion={true}
+                                                          className="font-semibold text-red-600 text-sm"
+                                                        />
+                                                      </div>
+                                                      {typeInfo.promotionDeadline && typeInfo.promotionDeadline.trim() !== '' && (
+                                                        <span className="text-red-500 text-xs bg-red-50 px-2 py-1 rounded">
+                                                          {language === 'fr' ? 'Jusqu\'au' : 'Until'} {new Date(typeInfo.promotionDeadline).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+                                                            year: 'numeric',
+                                                            month: 'long',
+                                                            day: 'numeric'
+                                                          })}
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                  ) : typeInfo.originalPrice ? (
+                                                    <ServicePriceDisplay 
+                                                      price={typeInfo.originalPrice}
+                                                      currency={typeInfo.currency}
+                                                      className="font-semibold text-blue-600"
+                                                    />
+                                                  ) : (
+                                                    <span className="font-semibold text-blue-600">
+                                                      {language === 'fr' ? 'Prix sur demande' : 'Price on request'}
+                                                    </span>
+                                                  )}
+                                                </>
+                                              )}
+                                              
+                                              {/* Type C: Prix normal ou promotion */}
+                                              {typeInfo.type === "Type C" && (
+                                                <>
+                                                  {typeInfo.promotionPrice && typeInfo.originalPrice ? (
+                                                    <div className="flex flex-col items-end gap-1">
+                                                      <div className="flex items-center gap-2">
+                                                        <ServicePriceDisplay 
+                                                          price={typeInfo.originalPrice}
+                                                          currency={typeInfo.currency}
+                                                          className="text-gray-400 line-through text-xs"
+                                                        />
+                                                        <ServicePriceDisplay 
+                                                          price={typeInfo.promotionPrice}
+                                                          currency={typeInfo.currency}
+                                                          isPromotion={true}
+                                                          className="font-semibold text-red-600 text-sm"
+                                                        />
+                                                      </div>
+                                                      {typeInfo.promotionDeadline && typeInfo.promotionDeadline.trim() !== '' && (
+                                                        <span className="text-red-500 text-xs bg-red-50 px-2 py-1 rounded">
+                                                          {language === 'fr' ? 'Jusqu\'au' : 'Until'} {new Date(typeInfo.promotionDeadline).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+                                                            year: 'numeric',
+                                                            month: 'long',
+                                                            day: 'numeric'
+                                                          })}
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                  ) : typeInfo.originalPrice ? (
+                                                    <ServicePriceDisplay 
+                                                      price={typeInfo.originalPrice}
+                                                      currency={typeInfo.currency}
+                                                      className="font-semibold text-purple-600"
+                                                    />
+                                                  ) : (
+                                                    <span className="font-semibold text-purple-600">
+                                                      {language === 'fr' ? 'Prix sur demande' : 'Price on request'}
+                                                    </span>
+                                                  )}
+                                                </>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
+
+                                    {/* Actions */}
+                                    <div className="space-y-3">
+                                      {/* Main Actions Row */}
+                                      <div className="flex gap-2">
+                                        <Link 
+                                          to={`/${generateProgramSlug(program)}`}
+                                          className="flex-1 bg-blue-800 text-white py-3 px-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-blue-900 transition-colors"
+                                        >
+                                          <Eye className="w-4 h-4" />
+                                          {language === 'en' ? 'View Details' : 'Voir les détails'}
+                                        </Link>
+                                        <HeartButton 
+                                          type="program"
+                                          id={program.id}
+                                          isShortlisted={true}
+                                          className="px-4 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors text-sm font-semibold flex items-center justify-center"
+                                          language={language}
+                                        />
+                                      </div>
+                                      
+                                      {/* Secondary Actions Row */}
+                                      <div className="flex gap-2">
+                                        {program.easyApply && (
+                                          <div 
+                                            className={`flex-1 text-white py-2 px-4 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer ${
+                                              program.universityType === 'A' 
+                                                ? 'bg-gradient-to-r from-green-600 to-emerald-600' 
+                                                : 'bg-gradient-to-r from-blue-600 to-indigo-600'
+                                            }`}
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              // Handle apply
+                                            }}
+                                          >
+                                            <Zap className="w-4 h-4" />
+                                            {program.universityType === 'A' 
+                                              ? (language === 'en' ? 'FREE APPLY' : 'CANDIDATURE GRATUITE')
+                                              : (language === 'en' ? 'APPLY' : 'CANDIDATURE')
+                                            }
+                                          </div>
+                                        )}
+                                        <div 
+                                          className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            // Handle contact advisor
+                                          }}
+                                        >
+                                          <MessageCircle className="w-4 h-4" />
+                                          {language === 'en' ? 'Contact Advisor' : 'Contacter un Conseiller'}
+                                        </div>
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
                               ))}
@@ -1913,40 +3085,480 @@ const StudentProfileUpdated = () => {
                           {shortlist.establishments.length > 0 ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                               {shortlist.establishments.map((establishment) => (
-                                <div key={establishment.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow bg-white">
-                                  <div className="flex items-start justify-between mb-3">
-                                    <div className="flex-1">
-                                      <h4 className="font-semibold text-gray-900 mb-1 line-clamp-2">
-                                        {language === 'fr' ? establishment.nameFr || establishment.name : establishment.name}
-                                      </h4>
-                                      <p className="text-sm text-gray-600 mb-2">{establishment.city}, {establishment.country}</p>
-                                      <div className="flex items-center gap-4 text-xs text-gray-500 mb-2">
-                                        {establishment.worldRanking && (
-                                          <span className="bg-green-100 text-green-700 px-2 py-1 rounded">#{establishment.worldRanking}</span>
-                                        )}
-                                        {establishment.rating && (
-                                          <span className="flex items-center gap-1">
-                                            ⭐ {establishment.rating}
-                                          </span>
-                                        )}
-                                      </div>
-                                      {establishment.students && (
-                                        <div className="text-sm text-gray-600">
-                                          {establishment.students.toLocaleString()} {language === 'en' ? 'students' : 'étudiants'}
+                                <div key={establishment.id} className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 group">
+                                  {/* Enhanced Logo Section */}
+                                  <div className="relative h-48 sm:h-56 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
+                                    <div className="logo-container">
+                                      <img
+                                        src={establishment.logo}
+                                        alt={establishment.name}
+                                        className="logo-image group-hover:scale-105 transition-all duration-300"
+                                      />
+                                    </div>
+                                    
+                                    {/* Badges */}
+                                    <div className="absolute top-4 left-4 flex flex-col gap-2">
+                                      {establishment.aidvisorRecommended && (
+                                        <div className="bg-gradient-to-r from-blue-600 to-emerald-600 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                                          <Bot className="w-3 h-3" />
+                                          {language === 'en' ? 'E-DVISOR Recommended' : 'Recommandé par E-DVISOR'}
+                                        </div>
+                                      )}
+                                      {establishment.featured && (
+                                        <div className="bg-blue-800 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                                          <Award className="w-3 h-3" />
+                                          {language === 'en' ? 'Featured' : 'En vedette'}
+                                        </div>
+                                      )}
+                                      {establishment.sponsored && (
+                                        <div className="bg-emerald-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                                          {language === 'en' ? 'Sponsored' : 'Sponsorisé'}
                                         </div>
                                       )}
                                     </div>
+                                    
+                                    {/* World Ranking */}
+                                    {establishment.worldRanking && (
+                                      <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full">
+                                        <span className="text-sm font-bold text-gray-800">#{establishment.worldRanking}</span>
+                                      </div>
+                                    )}
+                                    
+                                    {/* Rating */}
+                                    {establishment.rating && (
+                                      <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full flex items-center gap-1">
+                                        <Star className="w-4 h-4 text-yellow-500 fill-current" />
+                                        <span className="text-sm font-semibold text-gray-800">{establishment.rating}</span>
+                                      </div>
+                                    )}
                                   </div>
-                                  <div className="flex items-center justify-between">
-                                    <div className="text-xs text-gray-400">
-                                      {language === 'en' ? 'Added' : 'Ajouté'} {new Date(establishment.shortlistedAt).toLocaleDateString()}
+
+                                  {/* Enhanced Content */}
+                                  <div className="p-4 sm:p-6">
+                                    {/* Header */}
+                                    <div className="flex items-start justify-between mb-4">
+                                      <div className="flex-1">
+                                        <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+                                          {establishment.name}
+                                        </h3>
+                                        <div className="flex items-center text-gray-600 text-sm mb-2">
+                                          <MapPin className="w-4 h-4 mr-1 text-blue-500" />
+                                          {getCityLabel(establishment.city)}, {getCountryLabel(establishment.country)}
+                                        </div>
+                                        <div className="flex items-center text-gray-500 text-sm">
+                                          <Globe className="w-4 h-4 mr-1" />
+                                          {establishment.languages && establishment.languages.length > 0 
+                                            ? establishment.languages.map(lang => {
+                                                if (typeof lang === 'object' && lang.label) {
+                                                  return lang.label;
+                                                }
+                                                return getLanguageLabel(lang);
+                                              }).join(', ')
+                                            : getLanguageLabel(establishment.language)
+                                          }
+                                        </div>
+                                      </div>
+                                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                        establishment.type === 'Public' 
+                                          ? 'bg-blue-100 text-blue-800' 
+                                          : 'bg-purple-100 text-purple-800'
+                                      }`}>
+                                        {getSchoolTypeLabel(establishment.type)}
+                                      </span>
                                     </div>
-                                    <Link
-                                      to={`/establishments/${establishment.slug}`}
-                                      className="px-3 py-1 text-xs bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                                    >
-                                      {language === 'en' ? 'View Details' : 'Voir Détails'}
-                                    </Link>
+
+                                    {/* Key Information */}
+                                    {establishment.tuitionRange && (
+                                      <div className="grid grid-cols-2 gap-4 mb-4">
+                                        <div className="bg-gray-50 rounded-lg p-3">
+                                          <div className="text-xs text-gray-500 mb-1">{language === 'en' ? 'Tuition Range' : 'Gamme de frais'}</div>
+                                          <div className="text-sm font-semibold text-gray-800">
+                                            <PriceDisplay 
+                                              amount={establishment.tuitionRange.min} 
+                                              currency={establishment.tuitionRange.currency}
+                                            />
+                                            {establishment.tuitionRange.min !== establishment.tuitionRange.max && (
+                                              <>
+                                                <span className="mx-1">-</span>
+                                                <PriceDisplay 
+                                                  amount={establishment.tuitionRange.max} 
+                                                  currency={establishment.tuitionRange.currency}
+                                                />
+                                              </>
+                                            )}
+                                          </div>
+                                        </div>
+                                        {establishment.acceptanceRate && (
+                                          <div className="bg-gray-50 rounded-lg p-3">
+                                            <div className="text-xs text-gray-500 mb-1">
+                                              {language === 'en' ? 'Acceptance Rate' : "Taux d'admission"}
+                                            </div>
+                                            <div className="text-sm font-semibold text-gray-800">
+                                              {establishment.acceptanceRate}%
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {/* Rankings */}
+                                    {establishment.rankings && (establishment.rankings.qs || establishment.rankings.times || establishment.rankings.arwu || establishment.rankings.usNews) && (
+                                      <div className="mb-4">
+                                        <div className="text-xs text-gray-500 mb-2">{language === 'en' ? 'Global Rankings' : 'Classements Mondiaux'}</div>
+                                        <div className="flex flex-wrap gap-2">
+                                          {establishment.rankings.qs && (
+                                            <div className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs font-medium">
+                                              QS #{establishment.rankings.qs}
+                                            </div>
+                                          )}
+                                          {establishment.rankings.times && (
+                                            <div className="bg-purple-50 text-purple-700 px-2 py-1 rounded-md text-xs font-medium">
+                                              Times #{establishment.rankings.times}
+                                            </div>
+                                          )}
+                                          {establishment.rankings.arwu && (
+                                            <div className="bg-green-50 text-green-700 px-2 py-1 rounded-md text-xs font-medium">
+                                              ARWU #{establishment.rankings.arwu}
+                                            </div>
+                                          )}
+                                          {establishment.rankings.usNews && (
+                                            <div className="bg-orange-50 text-orange-700 px-2 py-1 rounded-md text-xs font-medium">
+                                              US News #{establishment.rankings.usNews}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Features */}
+                                    <div className="flex items-center gap-4 mb-4 text-xs text-gray-600">
+                                      {establishment.scholarships && (
+                                        <div className="flex items-center gap-1">
+                                          <CheckCircle className="w-3 h-3 text-green-500" />
+                                          <span>{language === 'en' ? 'Scholarships' : 'Bourses'}</span>
+                                          {establishment.scholarshipTypes && establishment.scholarshipTypes.length > 0 && (
+                                            <span className="text-gray-500">({establishment.scholarshipTypes.length})</span>
+                                          )}
+                                        </div>
+                                      )}
+                                      {establishment.housing && (
+                                        <div className="flex items-center gap-1">
+                                          <Building2 className="w-3 h-3 text-blue-500" />
+                                          <span>{language === 'en' ? 'Housing' : 'Logement'}</span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {/* Stats */}
+                                    <div className="flex items-center justify-between text-sm text-gray-500 mb-6">
+                                      <div className="flex items-center gap-1">
+                                        <Users className="w-4 h-4 text-blue-500" />
+                                        <span>{(establishment.students ?? 0).toLocaleString()}</span>
+                                      </div>
+                                      <div className="flex items-center gap-1">
+                                        <BookOpen className="w-4 h-4 text-emerald-500" />
+                                        <span>{establishment.programs || 0} {language === 'en' ? 'programs' : 'programmes'}</span>
+                                      </div>
+                                    </div>
+
+                                    {/* University Type Information */}
+                                    {(() => {
+                                      const typeInfo = getUniversityTypeInfo(establishment);
+                                      if (!typeInfo || typeInfo.type === "Unknown") return null;
+                                      
+                                      return (
+                                        <div className="mb-4">
+                                          <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold mb-2 ${
+                                            typeInfo.color === 'green' ? 'bg-green-100 text-green-800' :
+                                            typeInfo.color === 'blue' ? 'bg-blue-100 text-blue-800' :
+                                            typeInfo.color === 'purple' ? 'bg-purple-100 text-purple-800' :
+                                            typeInfo.color === 'red' ? 'bg-red-100 text-red-800' :
+                                            typeInfo.color === 'orange' ? 'bg-orange-100 text-orange-800' :
+                                            'bg-gray-100 text-gray-800'
+                                          }`}>
+                                            {typeInfo.type}
+                                          </div>
+                                          <div className="flex items-center justify-between text-xs">
+                                            <span className="text-gray-500">
+                                              {typeInfo.freeApps > 0 
+                                                ? (language === 'fr' ? `${typeInfo.freeApps} candidatures gratuites` : `${typeInfo.freeApps} free applications`)
+                                                : (language === 'fr' ? 'Service payant' : 'Paid service')
+                                              }
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                              {/* Type A: Gratuit avec prix original barré */}
+                                              {typeInfo.type === "Type A" && (
+                                                <>
+                                                  {typeInfo.originalPrice && (
+                                                    <ServicePriceDisplay 
+                                                      price={typeInfo.originalPrice}
+                                                      currency={typeInfo.currency}
+                                                      className="text-gray-400 line-through text-xs"
+                                                    />
+                                                  )}
+                                                  <span className="font-semibold text-green-600">
+                                                    {language === 'fr' ? 'Gratuit' : 'Free'}
+                                                  </span>
+                                                </>
+                                              )}
+                                              
+                                              {/* Type B: Prix normal ou promotion */}
+                                              {typeInfo.type === "Type B" && (
+                                                <>
+                                                  {typeInfo.promotionPrice && typeInfo.originalPrice ? (
+                                                    <div className="flex flex-col items-end gap-1">
+                                                      <div className="flex items-center gap-2">
+                                                        <ServicePriceDisplay 
+                                                          price={typeInfo.originalPrice}
+                                                          currency={typeInfo.currency}
+                                                          className="text-gray-400 line-through text-xs"
+                                                        />
+                                                        <ServicePriceDisplay 
+                                                          price={typeInfo.promotionPrice}
+                                                          currency={typeInfo.currency}
+                                                          isPromotion={true}
+                                                          className="font-semibold text-red-600 text-sm"
+                                                        />
+                                                      </div>
+                                                      {typeInfo.promotionDeadline && typeInfo.promotionDeadline.trim() !== '' && (
+                                                        <span className="text-red-500 text-xs bg-red-50 px-2 py-1 rounded">
+                                                          {language === 'fr' ? 'Jusqu\'au' : 'Until'} {new Date(typeInfo.promotionDeadline).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+                                                            year: 'numeric',
+                                                            month: 'long',
+                                                            day: 'numeric'
+                                                          })}
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                  ) : typeInfo.originalPrice ? (
+                                                    <ServicePriceDisplay 
+                                                      price={typeInfo.originalPrice}
+                                                      currency={typeInfo.currency}
+                                                      className="font-semibold text-blue-600"
+                                                    />
+                                                  ) : (
+                                                    <span className="font-semibold text-blue-600">
+                                                      {language === 'fr' ? 'Prix sur demande' : 'Price on request'}
+                                                    </span>
+                                                  )}
+                                                </>
+                                              )}
+                                              
+                                              {/* Type C: Prix normal ou promotion */}
+                                              {typeInfo.type === "Type C" && (
+                                                <>
+                                                  {typeInfo.promotionPrice && typeInfo.originalPrice ? (
+                                                    <div className="flex flex-col items-end gap-1">
+                                                      <div className="flex items-center gap-2">
+                                                        <ServicePriceDisplay 
+                                                          price={typeInfo.originalPrice}
+                                                          currency={typeInfo.currency}
+                                                          className="text-gray-400 line-through text-xs"
+                                                        />
+                                                        <ServicePriceDisplay 
+                                                          price={typeInfo.promotionPrice}
+                                                          currency={typeInfo.currency}
+                                                          isPromotion={true}
+                                                          className="font-semibold text-red-600 text-sm"
+                                                        />
+                                                      </div>
+                                                      {typeInfo.promotionDeadline && typeInfo.promotionDeadline.trim() !== '' && (
+                                                        <span className="text-red-500 text-xs bg-red-50 px-2 py-1 rounded">
+                                                          {language === 'fr' ? 'Jusqu\'au' : 'Until'} {new Date(typeInfo.promotionDeadline).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+                                                            year: 'numeric',
+                                                            month: 'long',
+                                                            day: 'numeric'
+                                                          })}
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                  ) : typeInfo.originalPrice ? (
+                                                    <ServicePriceDisplay 
+                                                      price={typeInfo.originalPrice}
+                                                      currency={typeInfo.currency}
+                                                      className="font-semibold text-purple-600"
+                                                    />
+                                                  ) : (
+                                                    <span className="font-semibold text-purple-600">
+                                                      {language === 'fr' ? 'Prix sur demande' : 'Price on request'}
+                                                    </span>
+                                                  )}
+                                                </>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
+
+                                    {/* Next Application Period */}
+                                    {(() => {
+                                      const nextPeriod = getNextApplicationPeriod(establishment.multiIntakes);
+                                      if (!nextPeriod) {
+                                        return (
+                                          <div className="mb-4">
+                                            <div className="bg-gray-50 rounded-lg p-3">
+                                              <div className="text-xs text-gray-500 mb-1">{language === 'en' ? 'Application Period' : 'Période de candidature'}</div>
+                                              <div className="text-sm text-gray-500">{language === 'en' ? 'No dates available' : 'Aucune date disponible'}</div>
+                                            </div>
+                                          </div>
+                                        );
+                                      }
+
+                                      const status = getApplicationPeriodStatus(nextPeriod);
+                                      const isOpen = status.status === 'open';
+                                      const isClosingSoon = status.status === 'closing-soon';
+                                      
+                                      return (
+                                        <div className="mb-4">
+                                          <div className="text-xs text-gray-500 mb-2">
+                                            {language === 'en' ? 'Next Application Period' : 'Prochaine période de candidature'}
+                                          </div>
+                                          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                                            {/* Header with intake name and status */}
+                                            <div className="flex justify-between items-center mb-3">
+                                              <div className="text-sm font-semibold text-gray-900">
+                                                {localizeIntakeName(nextPeriod.name, language)}
+                                              </div>
+                                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                status.color === 'green' ? 'bg-green-100 text-green-800' :
+                                                status.color === 'red' ? 'bg-red-100 text-red-800' :
+                                                status.color === 'blue' ? 'bg-blue-100 text-blue-800' :
+                                                'bg-gray-100 text-gray-800'
+                                              }`}>
+                                                {status.text}
+                                              </span>
+                                            </div>
+
+                                            {/* Dates with icons */}
+                                            <div className="space-y-2">
+                                              <div className="flex items-center gap-2">
+                                                <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center">
+                                                  <Calendar className="w-3 h-3 text-blue-600" />
+                                                </div>
+                                                <div className="text-xs text-gray-600">
+                                                  <span className="font-medium">{language === 'en' ? 'Opens:' : 'Ouverture:'}</span>
+                                                  <span className="ml-1">
+                                                    {nextPeriod.applicationOpens 
+                                                      ? new Date(nextPeriod.applicationOpens).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+                                                          year: 'numeric',
+                                                          month: 'short',
+                                                          day: 'numeric'
+                                                        })
+                                                      : (language === 'en' ? 'Not specified' : 'Non spécifié')
+                                                    }
+                                                  </span>
+                                                </div>
+                                              </div>
+                                              
+                                              <div className="flex items-center gap-2">
+                                                <div className="w-5 h-5 bg-red-100 rounded-full flex items-center justify-center">
+                                                  <Clock className="w-3 h-3 text-red-600" />
+                                                </div>
+                                                <div className="text-xs text-gray-600">
+                                                  <span className="font-medium">{language === 'en' ? 'Closes:' : 'Fermeture:'}</span>
+                                                  <span className="ml-1">
+                                                    {nextPeriod.applicationCloses 
+                                                      ? new Date(nextPeriod.applicationCloses).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', {
+                                                          year: 'numeric',
+                                                          month: 'short',
+                                                          day: 'numeric'
+                                                        })
+                                                      : (language === 'en' ? 'Not specified' : 'Non spécifié')
+                                                    }
+                                                  </span>
+                                                </div>
+                                              </div>
+                                            </div>
+                                            
+                                            {/* Apply button */}
+                                            <button 
+                                              className={`w-full mt-3 py-2 px-3 rounded-lg text-xs font-semibold transition-all duration-200 flex items-center justify-center gap-1 ${
+                                                isOpen 
+                                                  ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                                                  : isClosingSoon
+                                                  ? 'bg-orange-500 text-white hover:bg-orange-600'
+                                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                              }`}
+                                              disabled={!isOpen && !isClosingSoon}
+                                            >
+                                              {isOpen ? (
+                                                <>
+                                                  <ExternalLink className="w-3 h-3" />
+                                                  {language === 'en' ? 'Apply Now' : 'Postuler maintenant'}
+                                                </>
+                                              ) : isClosingSoon ? (
+                                                <>
+                                                  <Clock className="w-3 h-3" />
+                                                  {language === 'en' ? 'Apply Quickly' : 'Postuler rapidement'}
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <Calendar className="w-3 h-3" />
+                                                  {language === 'en' ? 'Not Available' : 'Non disponible'}
+                                                </>
+                                              )}
+                                            </button>
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
+
+                                    {/* Enhanced Actions */}
+                                    <div className="space-y-3">
+                                      {/* Main Actions Row */}
+                                      <div className="flex gap-2">
+                                        <Link
+                                          to={`/establishments/${establishment.slug}`}
+                                          className="flex-1 bg-blue-800 text-white py-3 px-4 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-blue-900 transition-colors"
+                                        >
+                                          <Eye className="w-4 h-4" />
+                                          {language === 'en' ? 'View Details' : 'Voir les détails'}
+                                        </Link>
+                                        <HeartButton 
+                                          type="establishment"
+                                          id={establishment.id}
+                                          isShortlisted={true}
+                                          className="px-4 py-3 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors text-sm font-semibold flex items-center justify-center"
+                                          language={language}
+                                        />
+                                      </div>
+                                      
+                                      {/* Secondary Actions Row */}
+                                      <div className="flex gap-2">
+                                        {establishment.freeApplications > 0 && (
+                                          <div 
+                                            className={`flex-1 text-white py-2 px-4 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer ${
+                                              establishment.universityType === 'A' 
+                                                ? 'bg-gradient-to-r from-green-600 to-emerald-600' 
+                                                : 'bg-gradient-to-r from-blue-600 to-indigo-600'
+                                            }`}
+                                            onClick={(e) => {
+                                              e.preventDefault();
+                                              e.stopPropagation();
+                                              // Handle apply
+                                            }}
+                                          >
+                                            <Zap className="w-4 h-4" />
+                                            {establishment.universityType === 'A' 
+                                              ? (language === 'en' ? 'FREE APPLY' : 'CANDIDATURE GRATUITE')
+                                              : (language === 'en' ? 'APPLY' : 'CANDIDATURE')
+                                            }
+                                          </div>
+                                        )}
+                                        <div 
+                                          className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 cursor-pointer"
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            // Handle contact advisor
+                                          }}
+                                        >
+                                          <MessageCircle className="w-4 h-4" />
+                                          {language === 'en' ? 'Contact Advisor' : 'Contacter un Conseiller'}
+                                        </div>
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
                               ))}
@@ -1973,25 +3585,6 @@ const StudentProfileUpdated = () => {
                       )}
                     </div>
 
-                    {/* Global Empty State */}
-                    {shortlist.programs.length === 0 && shortlist.establishments.length === 0 && (
-                      <div className="text-center py-12">
-                        <Heart className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-xl font-medium text-gray-900 mb-2">
-                          {language === 'en' ? 'Your Shortlist is Empty' : 'Votre Liste de Souhaits est Vide'}
-                        </h3>
-                        <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                          {language === 'en' ? 'Start exploring programs and universities to build your personalized shortlist' : 'Commencez à explorer les programmes et universités pour créer votre liste de souhaits personnalisée'}
-                        </p>
-                        <Link
-                          to="/establishments"
-                          className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                        >
-                          <Search className="w-5 h-5 mr-2" />
-                          {language === 'en' ? 'Start Exploring' : 'Commencer l\'Exploration'}
-                        </Link>
-                      </div>
-                    )}
                   </div>
                 )}
 

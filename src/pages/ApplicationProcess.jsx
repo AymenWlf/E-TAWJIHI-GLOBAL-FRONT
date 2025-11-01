@@ -171,157 +171,13 @@ const ApplicationProcess = () => {
   // Récupérer l'ID de l'application depuis l'URL
   const applicationId = searchParams.get('applicationId');
 
-  // Helper function to find document key (same as ApplicationDocumentsSection)
+  // Helper function to get document key - Utilise directement le title comme ID
   const findDocumentKey = (doc) => {
-    console.log('🔍 Finding document key for:', doc.title, 'Type:', typeof doc.title, 'Length:', doc.title?.length);
-    
-    // Map backend document to frontend document key
-    const titleMapping = {
-      'Passport': 'passport',
-      'Passeport': 'passport',
-      'passport': 'passport',
-      'National ID Card': 'nationalId',
-      'Carte Nationale': 'nationalId',
-      'nationalId': 'nationalId',
-      'Curriculum Vitae (CV)': 'cv',
-      'cv': 'cv',
-      'Guardian 1 National ID': 'guardian1NationalId',
-      'Carte Nationale Tuteur 1': 'guardian1NationalId',
-      'guardian1NationalId': 'guardian1NationalId',
-      'Guardian 2 National ID': 'guardian2NationalId',
-      'Carte Nationale Tuteur 2': 'guardian2NationalId',
-      'guardian2NationalId': 'guardian2NationalId',
-      'General Transcript': 'generalTranscript',
-      'Relevé de note général': 'generalTranscript',
-      'Relevé de Notes': 'generalTranscript',
-      'Transcript': 'generalTranscript',
-      'transcript': 'transcript',
-      'English Test Certificate': 'englishTest',
-      'Certificat de Test d\'Anglais': 'englishTest',
-      'englishTest': 'englishTest',
-      'French Test Certificate': 'frenchTest',
-      'Certificat de Test de Français': 'frenchTest',
-      'frenchTest': 'frenchTest',
-      'Portfolio': 'portfolio',
-      'portfolio': 'portfolio',
-      'Baccalaureate Diploma': 'baccalaureate',
-      'Diplôme du Baccalauréat': 'baccalaureate',
-      'baccalaureate': 'baccalaureate',
-      'BAC+2 Diploma': 'bac2',
-      'Diplôme BAC+2': 'bac2',
-      'bac2': 'bac2',
-      'BAC+3 Diploma': 'bac3',
-      'Diplôme BAC+3': 'bac3',
-      'bac3': 'bac3',
-      'BAC+5 Diploma': 'bac5',
-      'Diplôme BAC+5': 'bac5',
-      'bac5': 'bac5',
-      'Enrollment Certificate': 'enrollmentCertificate',
-      'Attestation de Scolarité': 'enrollmentCertificate',
-      'enrollmentCertificate': 'enrollmentCertificate',
-      'Recommendation Letter 1': 'recommendationLetter1',
-      'Lettre de Recommandation 1': 'recommendationLetter1',
-      'recommendationLetter1': 'recommendationLetter1',
-      'Recommendation Letter 2': 'recommendationLetter2',
-      'Lettre de Recommandation 2': 'recommendationLetter2',
-      'recommendationLetter2': 'recommendationLetter2',
-      'Motivation Letter': 'motivationLetter',
-      'Lettre de Motivation': 'motivationLetter',
-      'motivationLetter': 'motivationLetter',
-      'Medical Health Check': 'medicalHealthCheck',
-      'Certificat Médical de Santé': 'medicalHealthCheck',
-      'medicalHealthCheck': 'medicalHealthCheck', // Direct key mapping
-      'Anthropometric Record (Good Conduct)': 'anthropometricRecord',
-      'Fiche Anthropométrique (Bonne Conduite)': 'anthropometricRecord',
-      'anthropometricRecord': 'anthropometricRecord', // Direct key mapping
-      
-      // Additional variations for China documents
-      'Certificat M__dical de Sant__': 'medicalHealthCheck', // With encoded characters
-      'Fiche Anthropom__trique (Bonne Conduite)': 'anthropometricRecord', // With encoded characters
-      'Certificat MÃ©dical de SantÃ©': 'medicalHealthCheck', // UTF-8 encoding issues
-      'Fiche AnthropomÃ©trique (Bonne Conduite)': 'anthropometricRecord' // UTF-8 encoding issues
-    };
-
-    // First try exact match
-    if (titleMapping[doc.title]) {
-      console.log('✅ Exact match found:', doc.title, '->', titleMapping[doc.title]);
-      return titleMapping[doc.title];
-    } else {
-      console.log('❌ No exact match for:', doc.title);
-      console.log('Title length:', doc.title.length);
-      console.log('Title char codes:', doc.title.split('').map(c => c.charCodeAt(0)));
-      console.log('Available keys containing "Certificat":', Object.keys(titleMapping).filter(key => key.includes('Certificat')));
-      console.log('Available keys containing "Médical":', Object.keys(titleMapping).filter(key => key.includes('Médical')));
-      
-      // Try to find the exact key by comparing character by character
-      const exactKey = Object.keys(titleMapping).find(key => {
-        if (key.length !== doc.title.length) return false;
-        return key.split('').every((char, index) => char === doc.title[index]);
-      });
-      
-      if (exactKey) {
-        console.log('✅ Found exact key by character comparison:', exactKey, '->', titleMapping[exactKey]);
-        return titleMapping[exactKey];
-      }
+    // Le title est directement l'ID unique de l'input (clé camelCase)
+    // On le normalise simplement pour garantir qu'il soit en camelCase
+    if (doc.title) {
+      return documentService.normalizeDocumentKey(doc.title);
     }
-    
-    // For China documents, try partial matching
-    if (doc.title && typeof doc.title === 'string') {
-      const title = doc.title.toLowerCase();
-      
-      // Normalize special characters for better matching
-      const normalizedTitle = title
-        .replace(/[éèêë]/g, 'e')
-        .replace(/[àâä]/g, 'a')
-        .replace(/[ùûü]/g, 'u')
-        .replace(/[ôö]/g, 'o')
-        .replace(/[îï]/g, 'i')
-        .replace(/[ç]/g, 'c');
-      
-      console.log('Normalized title:', normalizedTitle);
-      
-      // Check for medical health check variations
-      if (title.includes('médical') || title.includes('medical') || title.includes('santé') || title.includes('health') ||
-          normalizedTitle.includes('medical') || normalizedTitle.includes('sante') ||
-          (title.includes('certificat') && title.includes('santé')) ||
-          (normalizedTitle.includes('certificat') && normalizedTitle.includes('sante'))) {
-        console.log('✅ Partial match for medical health check');
-        return 'medicalHealthCheck';
-      }
-      
-      // Check for anthropometric record variations
-      if (title.includes('anthropométrique') || title.includes('anthropometric') || title.includes('conduite') || title.includes('conduct') ||
-          normalizedTitle.includes('anthropometrique') || normalizedTitle.includes('conduct') ||
-          (title.includes('fiche') && title.includes('conduite')) ||
-          (normalizedTitle.includes('fiche') && normalizedTitle.includes('conduct'))) {
-        console.log('✅ Partial match for anthropometric record');
-        return 'anthropometricRecord';
-      }
-    }
-    
-    // Final fallback: try to match by key patterns
-    if (doc.title && typeof doc.title === 'string') {
-      const title = doc.title.toLowerCase();
-      
-      // Medical health check patterns
-      if ((title.includes('certificat') && title.includes('médical')) ||
-          (title.includes('certificat') && title.includes('medical')) ||
-          (title.includes('certificat') && title.includes('santé')) ||
-          (title.includes('certificat') && title.includes('sante'))) {
-        console.log('✅ Fallback match for medical health check');
-        return 'medicalHealthCheck';
-      }
-      
-      // Anthropometric record patterns
-      if ((title.includes('fiche') && title.includes('anthropométrique')) ||
-          (title.includes('fiche') && title.includes('anthropometric')) ||
-          (title.includes('fiche') && title.includes('conduite')) ||
-          (title.includes('fiche') && title.includes('conduct'))) {
-        console.log('✅ Fallback match for anthropometric record');
-        return 'anthropometricRecord';
-      }
-    }
-    
     return null;
   };
 
@@ -334,14 +190,19 @@ const ApplicationProcess = () => {
       console.log('Creating documents map from:', documents);
       console.log('Looking for China documents specifically...');
       documents.forEach(doc => {
-        console.log('Processing document:', doc.title, '->', findDocumentKey(doc));
+        // Le title est directement l'ID unique de l'input (clé camelCase)
+        // Normaliser simplement pour garantir qu'il soit en camelCase
+        const docKey = doc.title ? documentService.normalizeDocumentKey(doc.title) : null;
+        if (!docKey) {
+          console.warn('Document without title/key:', doc);
+          return;
+        }
+        console.log('Processing document - ID:', doc.title, 'normalized ->', docKey);
         
         // Special logging for China documents
         if (doc.title && (doc.title.includes('Médical') || doc.title.includes('Anthropométrique') || doc.title.includes('Medical') || doc.title.includes('Anthropometric'))) {
           console.log('🔍 CHINA DOCUMENT DETECTED:', doc.title, 'Type:', doc.type, 'Category:', doc.category);
         }
-        
-        const docKey = findDocumentKey(doc);
         if (docKey) {
           map[docKey] = {
             id: doc.id,
@@ -801,6 +662,37 @@ const ApplicationProcess = () => {
           // Users can manually add qualifications using the "Ajouter Baccalauréat & TCF" button
         }
         
+        // Pre-fill China-specific fields from user profile if program is for China
+        // This will be overridden if an existing application has China fields
+        if (programData?.isChina && userProfileData?.chinaFamilyMembers && userProfileData?.religion) {
+          const loadedFamilyMembers = userProfileData.chinaFamilyMembers;
+          console.log('Pre-filling China fields from profile - chinaFamilyMembers:', JSON.stringify(loadedFamilyMembers, null, 2));
+          
+          // Normalize structure to ensure all fields are present
+          const normalizedFamilyMembers = {
+            father: {
+              name: loadedFamilyMembers?.father?.name || '',
+              dateOfBirth: loadedFamilyMembers?.father?.dateOfBirth || '',
+              occupation: loadedFamilyMembers?.father?.occupation || '',
+              phone: loadedFamilyMembers?.father?.phone || ''
+            },
+            mother: {
+              name: loadedFamilyMembers?.mother?.name || '',
+              dateOfBirth: loadedFamilyMembers?.mother?.dateOfBirth || '',
+              occupation: loadedFamilyMembers?.mother?.occupation || '',
+              phone: loadedFamilyMembers?.mother?.phone || ''
+            }
+          };
+          
+          setFormData(prev => ({
+            ...prev,
+            chinaFields: {
+              religion: prev.chinaFields?.religion || userProfileData.religion || '',
+              familyMembers: prev.chinaFields?.familyMembers || normalizedFamilyMembers
+            }
+          }));
+        }
+        
         // Si on a un applicationId dans l'URL, charger cette application spécifique
         if (applicationId) {
           const specificApplication = await applicationService.getApplication(applicationId);
@@ -826,18 +718,43 @@ const ApplicationProcess = () => {
             
             // Load China-specific fields from application entity
             if (specificApplication.isChina) {
+              const appFamilyMembers = specificApplication.familyMembers;
+              console.log('Loading China fields from application - familyMembers:', JSON.stringify(appFamilyMembers, null, 2));
+              
+              // Normalize structure
+              const normalizedFamilyMembers = appFamilyMembers ? {
+                father: {
+                  name: appFamilyMembers.father?.name || '',
+                  dateOfBirth: appFamilyMembers.father?.dateOfBirth || '',
+                  occupation: appFamilyMembers.father?.occupation || '',
+                  phone: appFamilyMembers.father?.phone || ''
+                },
+                mother: {
+                  name: appFamilyMembers.mother?.name || '',
+                  dateOfBirth: appFamilyMembers.mother?.dateOfBirth || '',
+                  occupation: appFamilyMembers.mother?.occupation || '',
+                  phone: appFamilyMembers.mother?.phone || ''
+                }
+              } : {
+                father: { name: '', dateOfBirth: '', occupation: '', phone: '' },
+                mother: { name: '', dateOfBirth: '', occupation: '', phone: '' }
+              };
+              
               setFormData(prev => ({
                 ...prev,
                 chinaFields: {
                   religion: specificApplication.religion || '',
-                  familyMembers: specificApplication.familyMembers || {
-                    father: { name: '', dateOfBirth: '', occupation: '', phone: '' },
-                    mother: { name: '', dateOfBirth: '', occupation: '', phone: '' }
-                  }
+                  familyMembers: normalizedFamilyMembers
                 }
               }));
             }
             if (appData.personalInfo) {
+              console.log('Loading personal info from application:', {
+                phone: appData.personalInfo.phone,
+                phoneCountry: appData.personalInfo.phoneCountry,
+                whatsapp: appData.personalInfo.whatsapp,
+                whatsappCountry: appData.personalInfo.whatsappCountry
+              });
               setFormData(prev => ({
                 ...prev,
                 personalInfo: {
@@ -915,9 +832,34 @@ const ApplicationProcess = () => {
                 }));
               }
               if (appData.chinaFields) {
+                const chinaFieldsData = appData.chinaFields;
+                console.log('Loading China fields from appData - chinaFields:', JSON.stringify(chinaFieldsData, null, 2));
+                
+                // Normalize structure
+                const normalizedFamilyMembers = chinaFieldsData.familyMembers ? {
+                  father: {
+                    name: chinaFieldsData.familyMembers.father?.name || '',
+                    dateOfBirth: chinaFieldsData.familyMembers.father?.dateOfBirth || '',
+                    occupation: chinaFieldsData.familyMembers.father?.occupation || '',
+                    phone: chinaFieldsData.familyMembers.father?.phone || ''
+                  },
+                  mother: {
+                    name: chinaFieldsData.familyMembers.mother?.name || '',
+                    dateOfBirth: chinaFieldsData.familyMembers.mother?.dateOfBirth || '',
+                    occupation: chinaFieldsData.familyMembers.mother?.occupation || '',
+                    phone: chinaFieldsData.familyMembers.mother?.phone || ''
+                  }
+                } : {
+                  father: { name: '', dateOfBirth: '', occupation: '', phone: '' },
+                  mother: { name: '', dateOfBirth: '', occupation: '', phone: '' }
+                };
+                
                 setFormData(prev => ({
                   ...prev,
-                  chinaFields: appData.chinaFields
+                  chinaFields: {
+                    religion: chinaFieldsData.religion || '',
+                    familyMembers: normalizedFamilyMembers
+                  }
                 }));
               }
             }
@@ -1024,9 +966,34 @@ const ApplicationProcess = () => {
                 }));
               }
               if (appData.chinaFields) {
+                const chinaFieldsData = appData.chinaFields;
+                console.log('Loading China fields from appData - chinaFields:', JSON.stringify(chinaFieldsData, null, 2));
+                
+                // Normalize structure
+                const normalizedFamilyMembers = chinaFieldsData.familyMembers ? {
+                  father: {
+                    name: chinaFieldsData.familyMembers.father?.name || '',
+                    dateOfBirth: chinaFieldsData.familyMembers.father?.dateOfBirth || '',
+                    occupation: chinaFieldsData.familyMembers.father?.occupation || '',
+                    phone: chinaFieldsData.familyMembers.father?.phone || ''
+                  },
+                  mother: {
+                    name: chinaFieldsData.familyMembers.mother?.name || '',
+                    dateOfBirth: chinaFieldsData.familyMembers.mother?.dateOfBirth || '',
+                    occupation: chinaFieldsData.familyMembers.mother?.occupation || '',
+                    phone: chinaFieldsData.familyMembers.mother?.phone || ''
+                  }
+                } : {
+                  father: { name: '', dateOfBirth: '', occupation: '', phone: '' },
+                  mother: { name: '', dateOfBirth: '', occupation: '', phone: '' }
+                };
+                
                 setFormData(prev => ({
                   ...prev,
-                  chinaFields: appData.chinaFields
+                  chinaFields: {
+                    religion: chinaFieldsData.religion || '',
+                    familyMembers: normalizedFamilyMembers
+                  }
                 }));
               }
             }
@@ -1050,6 +1017,36 @@ const ApplicationProcess = () => {
             // Create new application
             const newApplication = await applicationService.createOrGetApplication(programData.id, userLanguage);
             setApplication(newApplication.data);
+            
+            // If it's a China application and we have China fields in profile, pre-fill them
+            if (newApplication.data?.isChina && userProfileData?.chinaFamilyMembers && userProfileData?.religion) {
+              const loadedFamilyMembers = userProfileData.chinaFamilyMembers;
+              console.log('Pre-filling China fields for new application - chinaFamilyMembers:', JSON.stringify(loadedFamilyMembers, null, 2));
+              
+              // Normalize structure to ensure all fields are present
+              const normalizedFamilyMembers = {
+                father: {
+                  name: loadedFamilyMembers?.father?.name || '',
+                  dateOfBirth: loadedFamilyMembers?.father?.dateOfBirth || '',
+                  occupation: loadedFamilyMembers?.father?.occupation || '',
+                  phone: loadedFamilyMembers?.father?.phone || ''
+                },
+                mother: {
+                  name: loadedFamilyMembers?.mother?.name || '',
+                  dateOfBirth: loadedFamilyMembers?.mother?.dateOfBirth || '',
+                  occupation: loadedFamilyMembers?.mother?.occupation || '',
+                  phone: loadedFamilyMembers?.mother?.phone || ''
+                }
+              };
+              
+              setFormData(prev => ({
+                ...prev,
+                chinaFields: {
+                  religion: userProfileData.religion || '',
+                  familyMembers: normalizedFamilyMembers
+                }
+              }));
+            }
           }
         }
         
@@ -1444,12 +1441,47 @@ const ApplicationProcess = () => {
       // Add China-specific fields if application is for China
       if (application.isChina && dataToSave.chinaFields) {
         updateData.chinaFields = dataToSave.chinaFields;
+        
+        // Also save to user profile for synchronization
+        try {
+          const familyMembersData = dataToSave.chinaFields.familyMembers;
+          console.log('Synchronizing China fields to profile - familyMembers:', JSON.stringify(familyMembersData, null, 2));
+          
+          // Ensure proper structure
+          const normalizedFamilyMembers = {
+            father: {
+              name: familyMembersData?.father?.name || '',
+              dateOfBirth: familyMembersData?.father?.dateOfBirth || '',
+              occupation: familyMembersData?.father?.occupation || '',
+              phone: familyMembersData?.father?.phone || ''
+            },
+            mother: {
+              name: familyMembersData?.mother?.name || '',
+              dateOfBirth: familyMembersData?.mother?.dateOfBirth || '',
+              occupation: familyMembersData?.mother?.occupation || '',
+              phone: familyMembersData?.mother?.phone || ''
+            }
+          };
+          
+          await profileService.updateProfile({
+            religion: dataToSave.chinaFields.religion,
+            chinaFamilyMembers: normalizedFamilyMembers
+          });
+          console.log('China fields synchronized to user profile successfully');
+        } catch (error) {
+          console.error('Error synchronizing China fields to profile:', error);
+          // Don't block application save if profile sync fails
+        }
       }
       
-      // Debug: Log the intake selection being saved
-      console.log('Saving application progress with intake:', dataToSave.preferences.intake);
-      console.log('Full preferences data:', dataToSave.preferences);
-      console.log('Update data being sent:', updateData);
+      // Debug: Log the data being saved
+      console.log('Saving application progress:', {
+        intake: dataToSave.preferences.intake,
+        phone: dataToSave.personalInfo.phone,
+        phoneCountry: dataToSave.personalInfo.phoneCountry,
+        whatsapp: dataToSave.personalInfo.whatsapp,
+        whatsappCountry: dataToSave.personalInfo.whatsappCountry
+      });
       
       await applicationService.updateApplication(application.id, updateData);
       
@@ -1724,6 +1756,28 @@ const ApplicationProcess = () => {
     if (!application) return;
     
     try {
+      // Validate required documents before submission
+      const baseRequiredDocs = ['passport', 'nationalId', 'cv', 'guardian1NationalId', 'generalTranscript', 'baccalaureate', 'motivationLetter', 'recommendationLetter1'];
+      const chinaRequiredDocs = application?.isChina ? ['medicalHealthCheck', 'anthropometricRecord'] : [];
+      const franceRequiredDocs = application?.isFrance ? ['frenchTest'] : [];
+      const requiredDocs = [...baseRequiredDocs, ...chinaRequiredDocs, ...franceRequiredDocs];
+      
+      const missingDocs = requiredDocs.filter(docKey => !documentsMap[docKey]);
+      
+      if (missingDocs.length > 0) {
+        const missingDocNames = missingDocs.map(docKey => {
+          const docTitle = documentService.getDocumentTitle(docKey, language);
+          return docTitle;
+        }).join(', ');
+        
+        alert(
+          language === 'en' 
+            ? `Please upload all required documents before submitting:\n${missingDocNames}`
+            : `Veuillez télécharger tous les documents requis avant de soumettre :\n${missingDocNames}`
+        );
+        return;
+      }
+      
       // Ensure all data is saved before submission
       console.log('Final preferences data before submission:', formData.preferences);
       console.log('Selected intake:', formData.preferences?.intake);
@@ -2128,6 +2182,7 @@ const ApplicationProcess = () => {
                 <PhoneInput
                   label={language === 'en' ? 'Phone' : 'Téléphone'}
                   value={formData.personalInfo.phone}
+                  defaultCountryCode={formData.personalInfo.phoneCountry}
                   onChange={(phoneNumber, countryCode) => {
                     handleInputChange('personalInfo', 'phone', phoneNumber);
                     handleInputChange('personalInfo', 'phoneCountry', countryCode);
@@ -2140,6 +2195,7 @@ const ApplicationProcess = () => {
                 <PhoneInput
                   label={language === 'en' ? 'WhatsApp' : 'WhatsApp'}
                   value={formData.personalInfo.whatsapp}
+                  defaultCountryCode={formData.personalInfo.whatsappCountry}
                   onChange={(phoneNumber, countryCode) => {
                     handleInputChange('personalInfo', 'whatsapp', phoneNumber);
                     handleInputChange('personalInfo', 'whatsappCountry', countryCode);
@@ -2915,6 +2971,7 @@ const ApplicationProcess = () => {
                 }));
               }}
               application={application}
+              showRequiredBadge={true}
             />
           </div>
         );
@@ -3565,12 +3622,19 @@ const ApplicationProcess = () => {
                           </span>
                           <span className="text-lg font-bold text-blue-600">
                             {(() => {
-                              const baseDocs = 16; // Base number of document types (removed frenchTest from academic)
-                              const chinaDocs = application?.isChina ? 2 : 0; // China-specific documents
-                              const franceDocs = application?.isFrance ? 1 : 0; // France-specific documents
-                              const totalDocs = baseDocs + chinaDocs + franceDocs;
-                              const uploadedDocs = Object.keys(documentsMap).length;
-                              const percentage = Math.round((uploadedDocs / totalDocs) * 100);
+                              // Liste complète de tous les documents attendus
+                              const allExpectedDocs = [
+                                'passport', 'nationalId', 'cv', 'guardian1NationalId', 'guardian2NationalId',
+                                'generalTranscript', 'englishTest', 'portfolio', 'baccalaureate', 'bac2', 'bac3', 'bac5', 'enrollmentCertificate',
+                                'recommendationLetter1', 'recommendationLetter2', 'motivationLetter',
+                                ...(application?.isChina ? ['medicalHealthCheck', 'anthropometricRecord'] : []),
+                                ...(application?.isFrance ? ['frenchTest'] : [])
+                              ];
+                              
+                              const totalDocs = allExpectedDocs.length;
+                              // Compter uniquement les documents uploadés qui sont dans la liste attendue
+                              const uploadedDocs = allExpectedDocs.filter(docKey => documentsMap[docKey]).length;
+                              const percentage = Math.min(100, Math.round((uploadedDocs / totalDocs) * 100));
                               return `${percentage}%`;
                             })()}
                           </span>
@@ -3580,12 +3644,19 @@ const ApplicationProcess = () => {
                             className="bg-gradient-to-r from-blue-500 to-blue-600 h-3 rounded-full transition-all duration-500"
                             style={{ 
                               width: `${(() => {
-                              const baseDocs = 16; // Base number of document types (removed frenchTest from academic)
-                              const chinaDocs = application?.isChina ? 2 : 0; // China-specific documents
-                              const franceDocs = application?.isFrance ? 1 : 0; // France-specific documents
-                              const totalDocs = baseDocs + chinaDocs + franceDocs;
-                              const uploadedDocs = Object.keys(documentsMap).length;
-                              return Math.round((uploadedDocs / totalDocs) * 100);
+                              // Liste complète de tous les documents attendus
+                              const allExpectedDocs = [
+                                'passport', 'nationalId', 'cv', 'guardian1NationalId', 'guardian2NationalId',
+                                'generalTranscript', 'englishTest', 'portfolio', 'baccalaureate', 'bac2', 'bac3', 'bac5', 'enrollmentCertificate',
+                                'recommendationLetter1', 'recommendationLetter2', 'motivationLetter',
+                                ...(application?.isChina ? ['medicalHealthCheck', 'anthropometricRecord'] : []),
+                                ...(application?.isFrance ? ['frenchTest'] : [])
+                              ];
+                              
+                              const totalDocs = allExpectedDocs.length;
+                              // Compter uniquement les documents uploadés qui sont dans la liste attendue
+                              const uploadedDocs = allExpectedDocs.filter(docKey => documentsMap[docKey]).length;
+                              return Math.min(100, Math.round((uploadedDocs / totalDocs) * 100));
                               })()}%` 
                             }}
                           ></div>
@@ -4209,12 +4280,19 @@ const ApplicationProcess = () => {
                           </div>
                           <div className="text-lg font-bold text-blue-600">
                             {(() => {
-                              const baseDocs = 16; // Base number of document types (removed frenchTest from academic)
-                              const chinaDocs = application?.isChina ? 2 : 0; // China-specific documents
-                              const franceDocs = application?.isFrance ? 1 : 0; // France-specific documents
-                              const totalDocs = baseDocs + chinaDocs + franceDocs;
-                              const uploadedDocs = Object.keys(documentsMap).length;
-                              const percentage = Math.round((uploadedDocs / totalDocs) * 100);
+                              // Liste complète de tous les documents attendus
+                              const allExpectedDocs = [
+                                'passport', 'nationalId', 'cv', 'guardian1NationalId', 'guardian2NationalId',
+                                'generalTranscript', 'englishTest', 'portfolio', 'baccalaureate', 'bac2', 'bac3', 'bac5', 'enrollmentCertificate',
+                                'recommendationLetter1', 'recommendationLetter2', 'motivationLetter',
+                                ...(application?.isChina ? ['medicalHealthCheck', 'anthropometricRecord'] : []),
+                                ...(application?.isFrance ? ['frenchTest'] : [])
+                              ];
+                              
+                              const totalDocs = allExpectedDocs.length;
+                              // Compter uniquement les documents uploadés qui sont dans la liste attendue
+                              const uploadedDocs = allExpectedDocs.filter(docKey => documentsMap[docKey]).length;
+                              const percentage = Math.min(100, Math.round((uploadedDocs / totalDocs) * 100));
                               return `${percentage}%`;
                             })()}
                           </div>
@@ -4222,12 +4300,19 @@ const ApplicationProcess = () => {
                       </div>
                       <div className="mt-2 text-xs text-blue-800">
                         {(() => {
-                          const baseDocs = 16; // Base number of document types (removed frenchTest from academic)
-                          const chinaDocs = application?.isChina ? 2 : 0; // China-specific documents
-                          const franceDocs = application?.isFrance ? 1 : 0; // France-specific documents
-                          const totalDocs = baseDocs + chinaDocs + franceDocs;
-                          const uploadedDocs = Object.keys(documentsMap).length;
-                          const percentage = Math.round((uploadedDocs / totalDocs) * 100);
+                          // Liste complète de tous les documents attendus
+                          const allExpectedDocs = [
+                            'passport', 'nationalId', 'cv', 'guardian1NationalId', 'guardian2NationalId',
+                            'generalTranscript', 'englishTest', 'portfolio', 'baccalaureate', 'bac2', 'bac3', 'bac5', 'enrollmentCertificate',
+                            'recommendationLetter1', 'recommendationLetter2', 'motivationLetter',
+                            ...(application?.isChina ? ['medicalHealthCheck', 'anthropometricRecord'] : []),
+                            ...(application?.isFrance ? ['frenchTest'] : [])
+                          ];
+                          
+                          const totalDocs = allExpectedDocs.length;
+                          // Compter uniquement les documents uploadés qui sont dans la liste attendue
+                          const uploadedDocs = allExpectedDocs.filter(docKey => documentsMap[docKey]).length;
+                          const percentage = Math.min(100, Math.round((uploadedDocs / totalDocs) * 100));
                           
                           if (uploadedDocs === 0) {
                             return '⚠️ Aucun document trouvé dans le profil utilisateur. Veuillez d\'abord télécharger des documents.';
